@@ -33,12 +33,30 @@ export const hostEndpoints = {
   delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.DELETE, { id }),
 }
 
-// Game/Payment endpoints omitted; not in current Swagger
+// Tournament endpoints (placeholder for future)
+export const tournamentEndpoints = {
+  create: () => "/tournaments",
+  list: () => "/tournaments",
+  getById: (id: string) => buildEndpoint("/tournaments/:id", { id }),
+  join: (id: string) => buildEndpoint("/tournaments/:id/join", { id }),
+  start: (id: string) => buildEndpoint("/tournaments/:id/start", { id }),
+  getByInvite: (code: string) => buildEndpoint("/tournaments/invite/:code", { code }),
+  leave: (id: string) => buildEndpoint("/tournaments/:id/leave", { id }),
+}
 
-// Payment API endpoints
+// Game endpoints (placeholder for future)
+export const gameEndpoints = {
+  create: () => "/games",
+  getById: (id: string) => buildEndpoint("/games/:id", { id }),
+  makeMove: (id: string) => buildEndpoint("/games/:id/moves", { id }),
+  getMoves: (id: string) => buildEndpoint("/games/:id/moves", { id }),
+  endGame: (id: string) => buildEndpoint("/games/:id/end", { id }),
+}
+
+// Payment endpoints (placeholder for future)
 export const paymentEndpoints = {
-  initiate: () => API_CONFIG.ENDPOINTS.PAYMENTS.INITIATE,
-  verify: (reference: string) => buildEndpoint(API_CONFIG.ENDPOINTS.PAYMENTS.VERIFY, { reference }),
-  webhooks: () => API_CONFIG.ENDPOINTS.PAYMENTS.WEBHOOKS,
-  getHistory: () => API_CONFIG.ENDPOINTS.PAYMENTS.GET_HISTORY,
+  initiate: () => "/payments/initiate",
+  verify: (reference: string) => buildEndpoint("/payments/verify/:reference", { reference }),
+  webhooks: () => "/payments/webhooks",
+  getHistory: () => "/payments/history",
 }

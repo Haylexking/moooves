@@ -327,6 +327,15 @@ export interface PaymentWebhookPayload {
 // ============================================================================
 // COMPONENT PROPS
 // ============================================================================
+export interface CellProps {
+  value: CellValue
+  onClick: () => void
+  disabled?: boolean
+  row: number
+  col: number
+  isHighlighted?: boolean
+}
+
 export interface GameBoardProps {
   gameState: GameState
   onMove: (row: number, col: number) => void
