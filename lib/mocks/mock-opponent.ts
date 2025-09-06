@@ -361,7 +361,7 @@ function getRandomMove(availableMoves: Position[]): Position {
   const totalWeight = weightedMoves.reduce((sum, move) => sum + move.weight, 0)
   let random = Math.random() * totalWeight
 
-  
+  for (const move of weightedMoves) {
     random -= move.weight
     if (random <= 0) {
       return move.position
