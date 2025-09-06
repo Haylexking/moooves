@@ -1,25 +1,26 @@
-import type { StateCreator } from "zustand"
-import type { Player, GameStatus, GameMode, Move, Sequence, Position } from "@/lib/types"
+import type { StateCreator } from "zustand";
+import type { Player, GameMode, Move, Sequence, Position } from "@/lib/types";
 
 export interface GameStateSlice {
-  currentPlayer: Player
-  gameStatus: GameStatus
-  gameMode: GameMode
-  gameStartTime: number | null
-  moveHistory: Move[]
-  usedSequences: Sequence[]
-  usedPositions: Set<string>
+  currentPlayer: Player;
+  gameStatus: "waiting" | "playing" | "paused" | "completed";
+  gameMode: GameMode;
+  gameStartTime: number | null;
+  moveHistory: Move[];
+  usedSequences: Sequence[];
+  usedPositions: Set<string>;
 
-  setCurrentPlayer: (player: Player) => void
-  setGameStatus: (status: GameStatus) => void
-  setGameMode: (mode: GameMode) => void
-  addMove: (move: Move) => void
-  addUsedSequences: (sequences: Sequence[]) => void
-  addUsedPositions: (positions: Position[]) => void
-  switchPlayer: () => void
-  startGame: (mode?: GameMode) => void
-  resetGameState: () => void
+  setCurrentPlayer: (player: Player) => void;
+  setGameStatus: (status: "waiting" | "playing" | "paused" | "completed") => void;
+  setGameMode: (mode: GameMode) => void;
+  addMove: (move: Move) => void;
+  addUsedSequences: (sequences: Sequence[]) => void;
+  addUsedPositions: (positions: Position[]) => void;
+  switchPlayer: () => void;
+  startGame: (mode?: GameMode) => void;
+  resetGameState: () => void;
 }
+
 
 export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => ({
   currentPlayer: "X",
@@ -34,8 +35,8 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
     set({ currentPlayer: player })
   },
 
-  setGameStatus: (status: GameStatus) => {
-    set({ gameStatus: status })
+  setGameStatus: (status: "waiting" | "playing" | "paused" | "completed") => {
+    set({ gameStatus: status });
   },
 
   setGameMode: (mode: GameMode) => {

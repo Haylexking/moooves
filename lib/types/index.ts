@@ -336,9 +336,17 @@ export interface CellProps {
   isHighlighted?: boolean
 }
 
+export interface GameHeaderProps {
+  timeLeft: number
+  showDebugInfo?: boolean
+}
+
+export interface GameResultsProps {
+  onPlayAgain: () => void
+  onBackToMenu: () => void
+}
+
 export interface GameBoardProps {
-  gameState: GameState
-  onMove: (row: number, col: number) => void
   disabled?: boolean
   showCoordinates?: boolean
 }
@@ -383,7 +391,8 @@ export interface TournamentState {
   isLoading: boolean
 }
 
-export interface GameState {
+
+export interface TournamentState {
   currentGame: GameState | null
   gameHistory: GameResult[]
   isPlaying: boolean

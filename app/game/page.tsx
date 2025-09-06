@@ -6,7 +6,23 @@ import { useGameStore } from "@/lib/stores/game-store"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 
 export default function GamePage() {
-  const { gameStatus } = useGameStore()
+  const { gameStatus, initializeGame } = useGameStore()
 
-  return <ProtectedRoute>{gameStatus === "finished" ? <GameResults /> : <BattleGround />}</ProtectedRoute>
+  const handlePlayAgain = () => {
+    initializeGame("timed")
+  }
+
+  const handleBackToMenu = () => {
+    window.location.href = "/dashboard"
+  }
+
+  return (
+    <ProtectedRoute>
+      {gameStatus === "completed" ? (
+        <GameResults onPlayAgain={handlePlayAgain} onBackToMenu={handleBackToMenu} />
+      ) : (
+        <BattleGround />
+      )}
+    </ProtectedRoute>
+  )
 }

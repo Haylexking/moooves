@@ -26,7 +26,7 @@ export function GameResults({ onPlayAgain, onBackToMenu }: GameResultsProps) {
           <div className="mx-auto mb-4 w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
             <Trophy className="w-8 h-8 text-yellow-600" />
           </div>
-          <CardTitle className="text-2xl">{result.isDraw ? "It's a Draw!" : `Player ${result.winner} Wins!`}</CardTitle>
+          <CardTitle className="text-2xl">{result.isDraw ? "It's a Draw!" : `Player ${result.winnerId} Wins!`}</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-6">
@@ -36,7 +36,7 @@ export function GameResults({ onPlayAgain, onBackToMenu }: GameResultsProps) {
                 <Users className="w-4 h-4 text-blue-600" />
                 <span className="font-semibold text-blue-900">Player X</span>
               </div>
-              <div className="text-3xl font-bold text-blue-900">{result.finalScores.X}</div>
+              <div className="text-3xl font-bold text-blue-900">{result.player1Score}</div>
               <div className="text-sm text-blue-700">points</div>
             </div>
 
@@ -45,7 +45,7 @@ export function GameResults({ onPlayAgain, onBackToMenu }: GameResultsProps) {
                 <Users className="w-4 h-4 text-red-600" />
                 <span className="font-semibold text-red-900">Player O</span>
               </div>
-              <div className="text-3xl font-bold text-red-900">{result.finalScores.O}</div>
+              <div className="text-3xl font-bold text-red-900">{result.player2Score}</div>
               <div className="text-sm text-red-700">points</div>
             </div>
           </div>
@@ -53,7 +53,7 @@ export function GameResults({ onPlayAgain, onBackToMenu }: GameResultsProps) {
           <div className="grid grid-cols-3 gap-4 text-center text-sm">
             <div className="flex flex-col items-center gap-1">
               <Target className="w-4 h-4 text-gray-600" />
-              <span className="font-semibold">{result.usedSequences.length}</span>
+              <span className="font-semibold">0</span>
               <span className="text-gray-600">Sequences</span>
             </div>
             <div className="flex flex-col items-center gap-1">

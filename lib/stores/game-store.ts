@@ -82,7 +82,7 @@ export const useGameStore = create<GameStore>()(
         // Check if game should end
         const isFull = state.isBoardFull()
         if (isFull) {
-          state.setGameStatus("finished")
+          state.setGameStatus("completed")
           return
         }
 
@@ -104,7 +104,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       endGame: () => {
-        get().setGameStatus("finished")
+  get().setGameStatus("completed")
       },
 
       pauseGame: () => {
@@ -116,19 +116,20 @@ export const useGameStore = create<GameStore>()(
       },
 
       getGameResult: (): GameResult => {
-        const state = get()
-        const winner = state.getWinner()
-        const isDraw = state.isDraw()
-        const gameDuration = state.gameStartTime ? Date.now() - state.gameStartTime : 0
+        const state = get();
+        const winner = state.getWinner();
+        const isDraw = state.isDraw();
+        const gameDuration = state.gameStartTime ? Date.now() - state.gameStartTime : 0;
 
         return {
-          winner,
+          winnerId: winner === null ? undefined : winner,
+          player1Score: state.scores.X,
+          player2Score: state.scores.O,
           isDraw,
-          finalScores: { ...state.scores },
           totalMoves: state.moveHistory.length,
           gameDuration,
-          usedSequences: [...state.usedSequences],
-        }
+          completedAt: Date.now(),
+        };
       },
     }),
     {

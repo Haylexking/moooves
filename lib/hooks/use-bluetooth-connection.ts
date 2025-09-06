@@ -3,19 +3,20 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { Move } from "@/lib/types"
 
-interface BluetoothDevice {
-  id: string
-  name: string
-  connected: boolean
+// App-specific device type to avoid conflict with Web Bluetooth API
+interface AppBluetoothDevice {
+  id: string;
+  name?: string;
+  connected: boolean;
 }
 
 interface BluetoothConnectionState {
-  isSupported: boolean
-  isScanning: boolean
-  isConnected: boolean
-  connectedDevice: BluetoothDevice | null
-  availableDevices: BluetoothDevice[]
-  error: string | null
+  isSupported: boolean;
+  isScanning: boolean;
+  isConnected: boolean;
+  connectedDevice: AppBluetoothDevice | null;
+  availableDevices: AppBluetoothDevice[];
+  error: string | null;
 }
 
 interface BluetoothMessage {
@@ -38,7 +39,7 @@ export function useBluetoothConnection() {
     error: null,
   })
 
-  const deviceRef = useRef<BluetoothDevice | null>(null)
+  const deviceRef = useRef<AppBluetoothDevice | null>(null)
   const characteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null)
   const messageHandlersRef = useRef<Map<string, (data: any) => void>>(new Map())
 
@@ -83,82 +84,86 @@ export function useBluetoothConnection() {
 
   // Scan for nearby MOOOVES players
   const scanForDevices = useCallback(async () => {
-    if (!state.isSupported) {
+    if (!state.isSupported || !navigator.bluetooth) {
       setState((prev) => ({
         ...prev,
         error: "Bluetooth not supported on this device",
       }))
-      return
+      return;
     }
 
-    setState((prev) => ({ ...prev, isScanning: true, error: null }))
+    setState((prev) => ({ ...prev, isScanning: true, error: null }));
 
     try {
       const device = await navigator.bluetooth.requestDevice({
         filters: [{ services: [MOOOVES_SERVICE_UUID] }, { namePrefix: "MOOOVES" }],
         optionalServices: [MOOOVES_SERVICE_UUID],
-      })
+      });
 
       if (device && device.name) {
-        const bluetoothDevice: BluetoothDevice = {
+        const bluetoothDevice: AppBluetoothDevice = {
           id: device.id,
           name: device.name,
           connected: false,
-        }
+        };
 
         setState((prev) => ({
           ...prev,
           availableDevices: [bluetoothDevice], // Replace previous for simplicity
           isScanning: false,
-        }))
+        }));
 
         // Auto-connect to selected device
-        await connectToDevice(bluetoothDevice, device)
+        await connectToDevice(bluetoothDevice, device);
       }
     } catch (error: any) {
-      let errorMessage = "Failed to scan for devices"
+      let errorMessage = "Failed to scan for devices";
 
       if (error.name === "NotFoundError") {
-        errorMessage = "No MOOOVES players found nearby"
+        errorMessage = "No MOOOVES players found nearby";
       } else if (error.name === "SecurityError") {
-        errorMessage = "Bluetooth access denied. Please allow Bluetooth permissions."
+        errorMessage = "Bluetooth access denied. Please allow Bluetooth permissions.";
       }
 
       setState((prev) => ({
         ...prev,
         error: errorMessage,
         isScanning: false,
-      }))
+      }));
     }
-  }, [state.isSupported])
+  }, [state.isSupported]);
 
   // Connect to a specific device
   const connectToDevice = useCallback(
-    async (bluetoothDevice: BluetoothDevice, nativeDevice?: BluetoothDevice) => {
-      setState((prev) => ({ ...prev, error: null }))
+    async (bluetoothDevice: AppBluetoothDevice, nativeDevice?: BluetoothDevice) => {
+      setState((prev) => ({ ...prev, error: null }));
 
       try {
-        let device = nativeDevice
+        let device = nativeDevice;
 
         if (!device) {
+          if (!navigator.bluetooth) throw new Error("Bluetooth not supported");
           device = await navigator.bluetooth.requestDevice({
             filters: [{ services: [MOOOVES_SERVICE_UUID] }],
-          })
+          });
         }
 
+        if (!device) throw new Error("No device found");
+        if (!device.gatt) throw new Error("Device does not support GATT");
+
         // Connect to GATT server
-        const server = await device.gatt?.connect()
-        if (!server) throw new Error("Failed to connect to device")
+        const server = await device.gatt.connect();
+        if (!server) throw new Error("Failed to connect to device");
 
         // Get MOOOVES service
-        const service = await server.getPrimaryService(MOOOVES_SERVICE_UUID)
-        const characteristic = await service.getCharacteristic(MOOOVES_CHARACTERISTIC_UUID)
+        const service = await server.getPrimaryService(MOOOVES_SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(MOOOVES_CHARACTERISTIC_UUID);
 
-        characteristicRef.current = characteristic
+        characteristicRef.current = characteristic;
 
         // Start listening for messages
-        await characteristic.startNotifications()
-        characteristic.addEventListener("characteristicvaluechanged", handleIncomingMessage)
+        await characteristic.startNotifications();
+        characteristic.addEventListener("characteristicvaluechanged", handleIncomingMessage);
 
         // Handle disconnection
         device.addEventListener("gattserverdisconnected", () => {
@@ -167,38 +172,36 @@ export function useBluetoothConnection() {
             isConnected: false,
             connectedDevice: null,
             error: "Device disconnected",
-          }))
-          characteristicRef.current = null
-        })
+          }));
+          characteristicRef.current = null;
+        });
 
         setState((prev) => ({
           ...prev,
           isConnected: true,
-          connectedDevice: {
-            ...bluetoothDevice,
-            connected: true,
-          },
-        }))
+          connectedDevice: { ...bluetoothDevice, connected: true },
+        }));
+        deviceRef.current = { ...bluetoothDevice, connected: true };
 
         // Send connection confirmation
-        await sendMessage("ping", { message: "Connected to MOOOVES" })
+        await sendMessage("ping", { message: "Connected to MOOOVES" });
       } catch (error: any) {
-        let errorMessage = "Failed to connect to device"
+        let errorMessage = "Failed to connect to device";
 
         if (error.name === "NetworkError") {
-          errorMessage = "Device is not available or out of range"
+          errorMessage = "Device is not available or out of range";
         } else if (error.name === "SecurityError") {
-          errorMessage = "Connection blocked. Please try again."
+          errorMessage = "Connection blocked. Please try again.";
         }
 
         setState((prev) => ({
           ...prev,
           error: errorMessage,
-        }))
+        }));
       }
     },
     [handleIncomingMessage],
-  )
+  );
 
   // Send message to opponent
   const sendMessage = useCallback(
