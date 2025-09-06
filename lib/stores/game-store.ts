@@ -16,6 +16,7 @@ type GameStore = GameBoardSlice &
   GameStateSlice &
   ScoreSlice & {
     // Combined actions
+    aiAutoEnabled: boolean
     initializeGame: (mode?: GameMode) => void
     makeMove: (row: number, col: number) => void
     endGame: () => void
@@ -31,6 +32,9 @@ export const useGameStore = create<GameStore>()(
       ...createGameBoardSlice(set, get, api),
       ...createGameStateSlice(set, get, api),
       ...createScoreSlice(set, get, api),
+
+      // AI auto-move toggle (disabled to avoid double-trigger with BattleGround controller)
+      aiAutoEnabled: false,
 
       // Combined actions
       initializeGame: (mode: GameMode = "timed") => {
@@ -85,8 +89,8 @@ export const useGameStore = create<GameStore>()(
         // Switch players
         state.switchPlayer()
 
-        // Mock opponent move (for testing)
-        if (state.currentPlayer === "O") {
+        // Mock opponent move (optional internal auto-controller; disabled by default)
+        if (get().aiAutoEnabled && state.currentPlayer === "O") {
           setTimeout(() => {
             const currentState = get()
             if (currentState.gameStatus === "playing" && currentState.currentPlayer === "O") {

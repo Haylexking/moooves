@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Menu, Settings, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
 import { useGameStore } from "@/lib/stores/game-store"
+import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
 
@@ -11,12 +12,14 @@ interface BattleGroundProps {
   player1?: string
   player2?: string
   gameMode?: "player-vs-player" | "player-vs-computer"
+  onMoveMade?: (row: number, col: number, byPlayer: Player) => void
 }
 
 export function BattleGround({
   player1 = "USER 002",
   player2 = "COMPUTER",
   gameMode = "player-vs-computer",
+  onMoveMade,
 }: BattleGroundProps) {
   const [expanded, setExpanded] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -82,7 +85,12 @@ export function BattleGround({
       return
     }
 
+    // Capture who is making the move before state switches
+    const moveBy: Player = currentPlayer
     makeMove(row, col)
+    if (onMoveMade) {
+      onMoveMade(row, col, moveBy)
+    }
   }
 
   const handlePlay = () => {
@@ -138,9 +146,8 @@ export function BattleGround({
 
       {/* Side Menu */}
       <div
-        className={`fixed left-0 top-0 h-full w-64 bg-black/40 backdrop-blur-sm z-40 transform transition-transform duration-300 ${
-          isMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed left-0 top-0 h-full w-64 bg-black/40 backdrop-blur-sm z-40 transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="p-4 space-y-2">
           {/* Collapse Button */}
@@ -230,11 +237,10 @@ export function BattleGround({
         <div className="relative">
           {/* 30x30 Grid Container */}
           <div
-            className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${
-              expanded
-                ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
-                : "w-[70vw] h-[70vw] max-w-[600px] max-h-[600px]"
-            }`}
+            className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
+              ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
+              : "w-[70vw] h-[70vw] max-w-[600px] max-h-[600px]"
+              }`}
           >
             {/* Actual 30x30 Grid */}
             <div
@@ -265,9 +271,8 @@ export function BattleGround({
                   >
                     {cellContent && (
                       <span
-                        className={`${
-                          cellContent === "X" ? "text-blue-600" : "text-red-600"
-                        } ${isUsed ? "line-through" : ""}`}
+                        className={`${cellContent === "X" ? "text-blue-600" : "text-red-600"
+                          } ${isUsed ? "line-through" : ""}`}
                       >
                         {cellContent}
                       </span>
@@ -330,19 +335,17 @@ export function BattleGround({
             <button
               onClick={handlePlay}
               disabled={gameStatus === "playing"}
-              className={`px-8 py-2 font-bold rounded-lg transition-colors ${
-                gameStatus === "playing"
-                  ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                  : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-              }`}
+              className={`px-8 py-2 font-bold rounded-lg transition-colors ${gameStatus === "playing"
+                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+                }`}
             >
               {gameStatus === "playing" ? "PLAYING" : "PLAY"}
             </button>
 
             <div
-              className={`px-6 py-2 font-bold rounded-lg ${
-                timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
-              }`}
+              className={`px-6 py-2 font-bold rounded-lg ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
+                }`}
             >
               {formatTime(timeLeft)}
             </div>

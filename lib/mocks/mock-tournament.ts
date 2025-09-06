@@ -1,50 +1,120 @@
-import type { Tournament, Match, Player } from "@/lib/types"
+import type {
+    Tournament,
+    TournamentParticipant,
+    TournamentBracket,
+    BracketRound,
+    BracketMatch,
+} from "@/lib/types"
 
-export function createMockTournament(participants: Player[]): Tournament {
-  const tournament: Tournament = {
-    id: `tournament-${Date.now()}`,
-    name: "Mock Tournament",
-    status: "pending",
-    participants,
-    matches: [],
-    createdAt: Date.now(),
-  }
-
-  // Generate round-robin matches
-  for (let i = 0; i < participants.length; i++) {
-    for (let j = i + 1; j < participants.length; j++) {
-      const match: Match = {
-        id: `match-${i}-${j}-${Date.now()}`,
-        tournamentId: tournament.id,
-        players: [participants[i], participants[j]],
-        status: "waiting",
-      }
-      tournament.matches.push(match)
+// Seedable RNG (mulberry32)
+function createRng(seed: number) {
+    let t = seed >>> 0
+    return function rng() {
+        t += 0x6D2B79F5
+        let r = Math.imul(t ^ (t >>> 15), 1 | t)
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r)
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296
     }
-  }
-
-  return tournament
 }
 
-export function simulateMatchResult(match: Match): Match {
-  const randomWinner = Math.random() > 0.5 ? match.players[0] : match.players[1]
-  const scores = {
-    [match.players[0]]: Math.floor(Math.random() * 10),
-    [match.players[1]]: Math.floor(Math.random() * 10),
-  }
-
-  return {
-    ...match,
-    status: "finished",
-    result: {
-      winner: randomWinner,
-      isDraw: scores[match.players[0]] === scores[match.players[1]],
-      finalScores: scores,
-      totalMoves: Math.floor(Math.random() * 100) + 50,
-      gameDuration: Math.floor(Math.random() * 600000) + 300000, // 5-15 minutes
-      usedSequences: [], // Mock empty for now
-    },
-    startTime: Date.now() - Math.floor(Math.random() * 600000),
-    endTime: Date.now(),
-  }
+function uuid(): string {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+        return crypto.randomUUID()
+    }
+    // Fallback
+    return `uuid-${Math.random().toString(36).slice(2)}-${Date.now()}`
 }
+
+interface MinimalUserLike {
+    userId: string
+    email: string
+}
+
+export function createMockTournament(participants: MinimalUserLike[], seed = Date.now()): Tournament {
+    const rng = createRng(typeof seed === "number" ? seed : Date.now())
+    const now = Date.now()
+
+    const tournamentId = uuid()
+
+    const tournamentParticipants: TournamentParticipant[] = participants.map((p) => ({
+        userId: p.userId,
+        email: p.email,
+        joinedAt: now,
+        paymentStatus: "confirmed",
+        eliminated: false,
+    }))
+
+    // Single round with round-robin pairings
+    const matches: BracketMatch[] = []
+    for (let i = 0; i < participants.length; i++) {
+        for (let j = i + 1; j < participants.length; j++) {
+            matches.push({
+                id: uuid(),
+                tournamentId,
+                roundNumber: 1,
+                player1Id: participants[i].userId,
+                player2Id: participants[j].userId,
+                status: "waiting",
+                player1Score: 0,
+                player2Score: 0,
+                moveHistory: [],
+            })
+        }
+    }
+
+    const bracket: TournamentBracket = {
+        rounds: [
+            {
+                roundNumber: 1,
+                status: "waiting",
+                matches,
+            } as BracketRound,
+        ],
+        currentRound: 1,
+    }
+
+    const tournament: Tournament = {
+        id: tournamentId,
+        hostId: participants[0]?.userId || "host-unknown",
+        name: "Mock Tournament",
+        status: "waiting",
+        inviteCode: Math.floor(rng() * 1_000_000)
+            .toString()
+            .padStart(6, "0"),
+        inviteLink: `/join/${tournamentId}`,
+        entryFee: 1000,
+        minPlayers: 6,
+        maxPlayers: 50,
+        currentPlayers: tournamentParticipants.length,
+        totalPool: tournamentParticipants.length * 1000,
+        gameMode: "timed",
+        matchDuration: 10 * 60 * 1000,
+        participants: tournamentParticipants,
+        bracket,
+        winners: [],
+        createdAt: now,
+    }
+
+    return tournament
+}
+
+export function simulateMatchResult(match: BracketMatch, seed = Date.now()): BracketMatch {
+    const rng = createRng(typeof seed === "number" ? seed : Date.now())
+    const p1 = Math.floor(rng() * 10)
+    const p2 = Math.floor(rng() * 10)
+
+    let winnerId: string | undefined
+    if (p1 > p2) winnerId = match.player1Id
+    else if (p2 > p1) winnerId = match.player2Id
+
+    return {
+        ...match,
+        player1Score: p1,
+        player2Score: p2,
+        winnerId,
+        status: "completed",
+        completedAt: Date.now(),
+    }
+}
+
+

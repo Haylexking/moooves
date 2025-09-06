@@ -32,10 +32,12 @@ interface UserStats {
 }
 
 const menuItems = [
-  { label: "Dashboard", icon: BarChart3, href: "/dashboard", active: false },
-  { label: "Wallet", icon: Wallet, href: "/wallet", active: false },
-  { label: "Help", icon: HelpCircle, href: "/help", active: false },
-  { label: "Logout", icon: LogOut, href: "/logout", active: false },
+  { icon: Gamepad2, label: "Play game", href: "/dashboard" },
+  { icon: Trophy, label: "Tournament", href: "/tournaments", active: true },
+  { icon: BarChart3, label: "Statistics", href: "/stats" },
+  { icon: Wallet, label: "Wallet", href: "/wallet" },
+  { icon: HelpCircle, label: "Need help", href: "/help" },
+  { icon: LogOut, label: "Exit game", href: "/" },
 ]
 
 export default function StatsPage() {

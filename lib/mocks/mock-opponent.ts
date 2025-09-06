@@ -28,21 +28,28 @@ export function mockOpponentMove(
     return blockingMove
   }
 
-  // 3. Third priority: Make strategic moves (extend existing sequences)
+  // 3. Third priority: Aggressively block emerging threats (length 2–4 with openness)
+  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, availableMoves)
+  if (threatBlockingMove) {
+    console.log("🤖 Computer blocking emerging threat:", threatBlockingMove)
+    return threatBlockingMove
+  }
+
+  // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
   const strategicMove = findStrategicMove(board, currentPlayer, availableMoves, usedSequences)
   if (strategicMove) {
     console.log("🤖 Computer making strategic move:", strategicMove)
     return strategicMove
   }
 
-  // 4. Fourth priority: Move near existing pieces
+  // 5. Fifth priority: Move near existing pieces
   const nearbyMove = findNearbyMove(board, availableMoves)
   if (nearbyMove) {
     console.log("🤖 Computer moving near existing pieces:", nearbyMove)
     return nearbyMove
   }
 
-  // 5. Fallback: Random move (prefer center area)
+  // 6. Fallback: Random move (prefer center area)
   const randomMove = getRandomMove(availableMoves)
   console.log("🤖 Computer making random move:", randomMove)
   return randomMove
@@ -84,6 +91,99 @@ function findWinningMove(
   return null
 }
 
+// Threat detection: find opponent patterns of length 2–4 with open ends and block the best
+function findThreatBlockingMove(
+  board: GameBoard,
+  opponent: Player,
+  availableMoves: Position[],
+): Position | null {
+  let best: { position: Position; score: number } | null = null
+
+  for (const [row, col] of availableMoves) {
+    // Hypothetically place opponent here to evaluate threat growth prevented
+    const score = evaluateThreatBlockedByMove(board, opponent, row, col)
+    if (score > 0) {
+      if (!best || score > best.score) {
+        best = { position: [row, col], score }
+      }
+    }
+  }
+
+  return best ? best.position : null
+}
+
+function evaluateThreatBlockedByMove(
+  board: GameBoard,
+  opponent: Player,
+  row: number,
+  col: number,
+): number {
+  // Block threats by occupying the empty that would extend or keep open an opponent line
+  // Score higher for blocking longer, more open lines (e.g., open-4, open-3)
+  let total = 0
+  const directions: Position[] = [
+    [-1, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, -1],
+    [0, 1],
+    [1, -1],
+    [1, 0],
+    [1, 1],
+  ]
+
+  for (const [dr, dc] of directions) {
+    const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc)
+    // Only consider emerging threats (2–4) with at least one open end
+    if (length >= 2 && length <= 4 && openEnds > 0) {
+      // Heuristic: longer lines and more open ends are more dangerous
+      const threatScore = length * length * (openEnds === 2 ? 2 : 1)
+      total += threatScore
+    }
+  }
+
+  return total
+}
+
+function measureLine(
+  board: GameBoard,
+  player: Player,
+  row: number,
+  col: number,
+  dr: number,
+  dc: number,
+): { length: number; openEnds: number } {
+  // Count contiguous stones of player on both sides from the empty (row,col)
+  let length = 0
+  let openEnds = 0
+
+  // forward
+  let r = row + dr
+  let c = col + dc
+  while (r >= 0 && r < 30 && c >= 0 && c < 30 && board[r][c] === player) {
+    length++
+    r += dr
+    c += dc
+  }
+  if (r >= 0 && r < 30 && c >= 0 && c < 30 && board[r][c] === null) {
+    openEnds++
+  }
+
+  // backward
+  r = row - dr
+  c = col - dc
+  while (r >= 0 && r < 30 && c >= 0 && c < 30 && board[r][c] === player) {
+    length++
+    r -= dr
+    c -= dc
+  }
+  if (r >= 0 && r < 30 && c >= 0 && c < 30 && board[r][c] === null) {
+    openEnds++
+  }
+
+  return { length, openEnds }
+}
+
 function findStrategicMove(
   board: GameBoard,
   player: Player,
@@ -108,13 +208,15 @@ function findStrategicMove(
     ]
 
     for (const [dr, dc] of directions) {
-      const sequenceLength = getSequenceLength(board, player, row, col, dr, dc)
-      if (sequenceLength > 0) {
-        // Check if extending this sequence would create something new
-        // Higher score for longer sequences that aren't already used
+      const { length, openEnds } = measureLine(board, player, row, col, dr, dc)
+      if (length > 0) {
         const potentialSequence = buildPotentialSequence(board, player, row, col, dr, dc)
-        if (potentialSequence.length >= 3 && !isSequencePartiallyUsed(potentialSequence, usedSequences)) {
-          score += sequenceLength * sequenceLength
+        // Prefer extensions that are not overlapping with used sequences
+        if (potentialSequence.length >= 2 && !isSequencePartiallyUsed(potentialSequence, usedSequences)) {
+          // Heuristic: value longer and more open shapes, boost for creating 4
+          const base = length * length * (openEnds === 2 ? 2 : 1)
+          const fourBoost = length >= 3 ? 3 : 1
+          score += base * fourBoost
         }
       }
     }

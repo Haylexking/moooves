@@ -405,7 +405,7 @@ export function PlayerDashboard() {
               <p className="text-green-700 text-center text-sm">Select number of players for the tournament</p>
 
               <div className="space-y-3">
-                {[2, 4, 10].map((count) => (
+                {[6, 8, 50].map((count) => (
                   <GameButton key={count} onClick={() => handlePlayerCountSelect(count)} className="w-full">
                     {count} Participants
                   </GameButton>

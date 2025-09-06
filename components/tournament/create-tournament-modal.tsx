@@ -19,7 +19,7 @@ interface CreateTournamentModalProps {
 export function CreateTournamentModal({ open, onClose }: CreateTournamentModalProps) {
   const [name, setName] = useState("")
   const [entryFee, setEntryFee] = useState(1000)
-  const [maxPlayers, setMaxPlayers] = useState(10)
+  const [maxPlayers, setMaxPlayers] = useState(50)
   const [gameMode, setGameMode] = useState<GameMode>("timed")
   const { createTournament, isLoading } = useTournamentStore()
 
@@ -36,7 +36,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       // Reset form
       setName("")
       setEntryFee(1000)
-      setMaxPlayers(10)
+      setMaxPlayers(50)
       setGameMode("timed")
     } catch (error) {
       console.error("Failed to create tournament:", error)

@@ -17,32 +17,23 @@ export function buildEndpoint(endpoint: string, params?: Record<string, string>)
 export const authEndpoints = {
   login: () => API_CONFIG.ENDPOINTS.AUTH.LOGIN,
   register: () => API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-  verifyEmail: () => API_CONFIG.ENDPOINTS.AUTH.VERIFY_EMAIL,
-  refreshToken: () => API_CONFIG.ENDPOINTS.AUTH.REFRESH_TOKEN,
-  logout: () => API_CONFIG.ENDPOINTS.AUTH.LOGOUT,
-  forgotPassword: () => API_CONFIG.ENDPOINTS.AUTH.FORGOT_PASSWORD,
-  resetPassword: () => API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD,
+  googleAuthenticate: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_AUTHENTICATE,
+  googleLogin: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN,
 }
 
-// Tournament API endpoints
-export const tournamentEndpoints = {
-  create: () => API_CONFIG.ENDPOINTS.TOURNAMENTS.CREATE,
-  list: () => API_CONFIG.ENDPOINTS.TOURNAMENTS.LIST,
-  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.GET_BY_ID, { id }),
-  join: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.JOIN, { id }),
-  start: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.START, { id }),
-  getByInvite: (code: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.GET_BY_INVITE, { code }),
-  leave: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.LEAVE, { id }),
+// Host API endpoints
+export const hostEndpoints = {
+  googleAuthenticate: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_AUTHENTICATE,
+  googleLogin: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_LOGIN,
+  create: () => API_CONFIG.ENDPOINTS.HOSTS.CREATE,
+  list: () => API_CONFIG.ENDPOINTS.HOSTS.LIST,
+  login: () => API_CONFIG.ENDPOINTS.HOSTS.LOGIN,
+  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.GET_BY_ID, { id }),
+  update: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.UPDATE, { id }),
+  delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.DELETE, { id }),
 }
 
-// Game API endpoints
-export const gameEndpoints = {
-  create: () => API_CONFIG.ENDPOINTS.GAMES.CREATE,
-  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.GET_BY_ID, { id }),
-  makeMove: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.MAKE_MOVE, { id }),
-  getMoves: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.GET_MOVES, { id }),
-  endGame: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.END_GAME, { id }),
-}
+// Game/Payment endpoints omitted; not in current Swagger
 
 // Payment API endpoints
 export const paymentEndpoints = {

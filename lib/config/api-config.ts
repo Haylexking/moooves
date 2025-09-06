@@ -1,64 +1,41 @@
 // API Configuration for MOOOVES Backend
 export const API_CONFIG = {
   BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://mooves.onrender.com",
-  VERSION: "/api/v1", // Backend uses /api/v1 prefix
+  VERSION: "/api/v1",
   ENDPOINTS: {
-    // Auth endpoints - based on your actual backend
+    // Auth endpoints from Swagger (email/password + Google)
     AUTH: {
-      LOGIN: "/login", // /api/v1/login
-      REGISTER: "/users", // /api/v1/users (POST for new users)
-      VERIFY_EMAIL: "/auth/verify-email", // Placeholder
-      REFRESH_TOKEN: "/auth/refresh", // Placeholder
-      LOGOUT: "/auth/logout", // Placeholder
-      FORGOT_PASSWORD: "/auth/forgot-password", // Placeholder
-      RESET_PASSWORD: "/auth/reset-password", // Placeholder
+      LOGIN: "/login", // POST /api/v1/login
+      GOOGLE_AUTHENTICATE: "/google-authenticate", // GET /api/v1/google-authenticate
+      GOOGLE_LOGIN: "/auth/google/login", // GET /api/v1/auth/google/login
+      REGISTER: "/users", // POST /api/v1/users
     },
 
-    // User endpoints - based on your actual backend
+    // Users
     USERS: {
-      LIST: "/users", // /api/v1/users (GET for list)
-      GET_BY_ID: "/users/:id", // /api/v1/users/{id}
-      UPDATE: "/users/:id", // /api/v1/users/{id} (PUT/PATCH)
-      DELETE: "/users/:id", // /api/v1/users/{id} (DELETE)
-      PROFILE: "/users/profile", // Placeholder
-      GET_STATS: "/users/stats", // Placeholder
+      LIST: "/users", // GET
+      GET_BY_ID: "/users/:id", // GET
+      UPDATE: "/users/:id", // PUT
+      DELETE: "/users/:id", // DELETE
     },
 
-    // Tournament endpoints (placeholders - adjust based on your backend)
-    TOURNAMENTS: {
-      CREATE: "/tournaments",
-      LIST: "/tournaments",
-      GET_BY_ID: "/tournaments/:id",
-      JOIN: "/tournaments/:id/join",
-      START: "/tournaments/:id/start",
-      GET_BY_INVITE: "/tournaments/invite/:code",
-      LEAVE: "/tournaments/:id/leave",
+    // Hosts
+    HOSTS: {
+      GOOGLE_AUTHENTICATE: "/google-authenticate", // GET
+      GOOGLE_LOGIN: "/auth/google/login", // GET
+      CREATE: "/host", // POST
+      LIST: "/host", // GET
+      LOGIN: "/hostlogin", // POST
+      GET_BY_ID: "/host/:id", // GET
+      UPDATE: "/host/:id", // PUT
+      DELETE: "/host/:id", // DELETE
     },
 
-    // Game endpoints (placeholders)
-    GAMES: {
-      CREATE: "/games",
-      GET_BY_ID: "/games/:id",
-      MAKE_MOVE: "/games/:id/moves",
-      GET_MOVES: "/games/:id/moves",
-      END_GAME: "/games/:id/end",
-    },
+    // Optional: games/payments kept for future; remove if not used
+    GAMES: {},
+    PAYMENTS: {},
 
-    // Payment endpoints (placeholders)
-    PAYMENTS: {
-      INITIATE: "/payments/initiate",
-      VERIFY: "/payments/verify/:reference",
-      WEBHOOKS: "/payments/webhooks",
-      GET_HISTORY: "/payments/history",
-    },
-
-    // Admin endpoints (placeholders)
-    ADMIN: {
-      STATS: "/admin/stats",
-      USERS: "/admin/users",
-      TOURNAMENTS: "/admin/tournaments",
-      PAYMENTS: "/admin/payments",
-    },
+    ADMIN: {},
   },
 
   // Request timeout
