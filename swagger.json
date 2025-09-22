@@ -1,0 +1,2807 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Mooves Documentation",
+      "version": "1.0.0",
+      "description": "This is a swagger documentation for our web application MOOVES.",
+      "license": {
+        "name": "Base_URL: https://mooves.onrender.com "
+      },
+      "contact": {
+        "names": "urigwe somto  ",
+        "url": "https://github.com/urigwesomto201/mooves"
+      }
+    },
+    "components": {
+      "securitySchemes": {
+        "BearerAuth": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "JWT"
+        }
+      }
+    },
+    "security": [
+      {
+        "bearerAuth": []
+      }
+    ],
+    "servers": [
+      {
+        "url": "https://mooves.onrender.com",
+        "description": "Production server"
+      },
+      {
+        "url": "http://localhost:1777",
+        "description": "Development server"
+      }
+    ],
+    "paths": {
+      "/api/v1/{matchId}/submit-result": {
+        "post": {
+          "summary": "Submit a result for a tournament match",
+          "description": "This endpoint records the result of a given match in a tournament.   Logic flow:   - A match is played between 2 players (player1 vs player2).   - Once the result is submitted, the winner is saved in the winner field.   - The backend pairs winners of the current round to create the next round.   - This continues until the final round produces a single champion.   - The top 3 placements (1st, 2nd, 3rd) are recorded for tournaments.  \nWhy important? This is the core of the tournament flow. Without submitting results, the system cannot know who advances to the next round or how to distribute rankings and prizes.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "matchId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID of the match"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "winnerId": {
+                      "type": "string",
+                      "example": "64f9c23d8f9b1234abcd5678"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Result submitted successfully and next round generated if applicable",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Result submitted",
+                    "matchId": "64f9c23d8f9b1234abcd5678",
+                    "winner": "64f9c23d8f9b1234abcd5678"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid match or already completed",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Match already has a winner"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Match not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Match not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed "
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/{matchId}/submit-resultoffline": {
+        "post": {
+          "summary": "Submit a result for an offline (Bluetooth) tournament match",
+          "description": "Used when players compete offline (e.g., via Bluetooth handshake).   The system validates the handshakeToken from the match object to ensure the result is genuine.   After verification, the result is saved and the winner progresses just like in online tournaments.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "matchId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "Match ID"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "winnerId": {
+                      "type": "string"
+                    },
+                    "handshakeToken": {
+                      "type": "string"
+                    }
+                  },
+                  "example": {
+                    "winnerId": "64f9c23d8f9b1234abcd5678",
+                    "handshakeToken": "bluetooth-secret-123"
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Offline result accepted"
+            },
+            "400": {
+              "description": "Invalid match or already completed",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Match already has a winner"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Match not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Match not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed "
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/move": {
+        "post": {
+          "summary": "Make a move in an active match",
+          "description": "This endpoint allows a player to make a move in a Tic-Tac-Toe style tournament game.  \n- Each player is assigned a symbol: X (player1) or O (player2).  \n- A player must play only when it's their turn.  \n- The system checks for a winner after each move.  \n\nWinning logic:\n1. Immediate Win: If a player forms 5 in a row (horizontal, vertical, diagonal, or anti-diagonal), they win immediately.  \n2. Highest Score Win: If no 5 in a row and the game ends (board full or time expired), the winner is decided by highest score.  \n   - Scoring: 2 in a row = 1 point, 3 in a row = 3 points, 4 in a row = 5 points.  \n3. Draw: If both players have equal scores when the game ends, the match is a draw.  \n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "playerId",
+                    "row",
+                    "col",
+                    "matchid"
+                  ],
+                  "properties": {
+                    "playerId": {
+                      "type": "string",
+                      "example": "64fc98e9a8120c2b4d3f1234"
+                    },
+                    "row": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "col": {
+                      "type": "integer",
+                      "example": 8
+                    },
+                    "matchid": {
+                      "type": "string",
+                      "example": "650b7d9a87f91345c1234567"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Move successfully made (or game ended)",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "MoveMade": {
+                      "summary": "Move made (no winner yet)",
+                      "value": {
+                        "message": "Move made",
+                        "winner": null,
+                        "match": {
+                          "...": null
+                        }
+                      }
+                    },
+                    "WinnerByFive": {
+                      "summary": "Player won by 5 in a row",
+                      "value": {
+                        "message": "Winner decided by 5 in a row",
+                        "winner": "64fc98e9a8120c2b4d3f1234",
+                        "match": {
+                          "...": null
+                        }
+                      }
+                    },
+                    "WinnerByScore": {
+                      "summary": "Player won by highest score",
+                      "value": {
+                        "message": "Winner decided by score",
+                        "winner": "650b7d9a87f91345c1234567",
+                        "match": {
+                          "...": null
+                        }
+                      }
+                    },
+                    "Draw": {
+                      "summary": "Match ended in a draw",
+                      "value": {
+                        "message": "Match ended in a draw",
+                        "winner": null,
+                        "match": {
+                          "...": null
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid request (missing fields, cell already taken, or match already completed)"
+            },
+            "403": {
+              "description": "Invalid move (not the player's turn or player not in the match)"
+            },
+            "404": {
+              "description": "Match not found"
+            },
+            "500": {
+              "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/api/v1/moves": {
+        "post": {
+          "summary": "Create a new match for offline 1v1",
+          "description": "Initializes a new match object in the database.   This is usually triggered when pairing players in the first round or subsequent rounds.   The system assigns player1 and player2, sets the board to default state, and status to in-progress.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "player1": {
+                      "type": "string"
+                    },
+                    "matchroomId": {
+                      "type": "string"
+                    },
+                    "player2": {
+                      "type": "string"
+                    }
+                  },
+                  "example": {
+                    "matchroomId": "650a01c28f9b5678abcd1234",
+                    "player1": "64f9c23d8f9b1234abcd5678",
+                    "player2": "64f9c23d8f9b1234abcd5679"
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Match created successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "matchroomId": "650a01c28f9b5678abcd1234",
+                    "player1": "64f9c23d8f9b1234abcd5678",
+                    "player2": "64f9c23d8f9b1234abcd5679",
+                    "status": "in-progress"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid input"
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed "
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/matches": {
+        "get": {
+          "summary": "Get all matches",
+          "description": "Retrieves all matches from the database.   Useful for admins or for viewing tournament progress.   Returns details like player IDs, board state, and status.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "List of matches",
+              "content": {
+                "application/json": {
+                  "example": [
+                    {
+                      "_id": "650a01c28f9b5678abcd1234",
+                      "player1": "64f9c23d8f9b1234abcd5678",
+                      "player2": "64f9c23d8f9b1234abcd5679",
+                      "status": "in-progress",
+                      "board": [
+                        [
+                          "X",
+                          "",
+                          ""
+                        ],
+                        [
+                          "",
+                          "O",
+                          ""
+                        ],
+                        [
+                          "",
+                          "",
+                          ""
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to fetch matches"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/matches/{matchId}": {
+        "get": {
+          "summary": "Get a single match",
+          "description": "Retrieves a specific match by its ID.   Includes full details such as current board, players, winner, and status.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "matchId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "Match ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Match details",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "_id": "650a01c28f9b5678abcd1234",
+                    "player1": "64f9c23d8f9b1234abcd5678",
+                    "player2": "64f9c23d8f9b1234abcd5679",
+                    "status": "completed",
+                    "winner": "64f9c23d8f9b1234abcd5678"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Match not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Match not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete a match",
+          "description": "Deletes a match by its ID.   Typically used for admin actions or clearing test matches.   Once deleted, the match cannot be recovered.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "matchId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "Match ID"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Match deleted",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Match deleted successfully"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Match not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Match not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/host-google-autheticate": {
+        "get": {
+          "summary": "Authenticate a Host with Google",
+          "description": "Redirects the user to Google for authentication using OAuth.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "responses": {
+            "302": {
+              "description": "Redirects to Google for authentication"
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/host/auth/google/login": {
+        "get": {
+          "summary": "Login a user using Google OAuth",
+          "description": "Authenticates a user via Google and returns a JWT token upon successful login.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "Google authentication successful, JWT token generated",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "GoogleAuth Login Successful"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "_id": {
+                            "type": "string",
+                            "description": "User ID",
+                            "example": "605c72b1f1a3c619946b57da"
+                          },
+                          "fullName": {
+                            "type": "string",
+                            "description": "User's full name",
+                            "example": "John Doe"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email",
+                            "description": "User's email address",
+                            "example": "johndoe@example.com"
+                          },
+                          "isVerified": {
+                            "type": "boolean",
+                            "description": "Whether the user's email is verified",
+                            "example": true
+                          }
+                        }
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "JWT token for authentication",
+                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request - Google authentication failed",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Google authentication failed"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Token not provided or invalid",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Access denied, token must be provided"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/host": {
+        "post": {
+          "summary": "Create a new host account",
+          "description": "Registers a new host in the system after validating inputs and ensuring uniqueness of email and full name.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "fullName",
+                    "email",
+                    "password",
+                    "repeatPassword"
+                  ],
+                  "properties": {
+                    "fullName": {
+                      "type": "string",
+                      "minLength": 3,
+                      "pattern": "^[A-Za-z ]+$",
+                      "description": "Full name must contain only alphabets and spaces, at least 3 characters.",
+                      "example": "John Doe"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "description": "Must be a valid email format.",
+                      "example": "johndoe@example.com"
+                    },
+                    "password": {
+                      "type": "string",
+                      "minLength": 8,
+                      "pattern": "^(?=.*\\d)(?=.*[!@#$%^&*])(?=.*[a-z])(?=.*[A-Z]).{8,}$",
+                      "description": "Password must be at least 8 characters long, contain one uppercase, one lowercase, one number, and one special character (!@#$%^&*).",
+                      "example": "StrongPassword@123"
+                    },
+                    "repeatPassword": {
+                      "type": "string",
+                      "description": "Must match the password.",
+                      "example": "StrongPassword@123"
+                    }
+                  }
+                },
+                "examples": {
+                  "ValidRequest": {
+                    "summary": "Correct input",
+                    "value": {
+                      "fullName": "John Doe",
+                      "email": "johndoe@example.com",
+                      "password": "StrongPassword@123",
+                      "repeatPassword": "StrongPassword@123"
+                    }
+                  },
+                  "InvalidName": {
+                    "summary": "Name contains numbers",
+                    "value": {
+                      "fullName": "John123",
+                      "email": "johndoe@example.com",
+                      "password": "StrongPassword@123",
+                      "repeatPassword": "StrongPassword@123"
+                    }
+                  },
+                  "InvalidPassword": {
+                    "summary": "Password missing special character",
+                    "value": {
+                      "fullName": "John Doe",
+                      "email": "johndoe@example.com",
+                      "password": "StrongPassword123",
+                      "repeatPassword": "StrongPassword123"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Host created successfully.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host created successfully.",
+                    "host": {
+                      "_id": "64b8aef5f1e3b2d5c3a12345",
+                      "fullName": "John Doe",
+                      "email": "johndoe@example.com"
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Validation error or email already in use.",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "MissingFields": {
+                      "summary": "Missing required fields",
+                      "value": {
+                        "error": "Please provide fullName, email, password, and repeatPassword"
+                      }
+                    },
+                    "PasswordMismatch": {
+                      "summary": "Passwords do not match",
+                      "value": {
+                        "message": "Passwords do not match"
+                      }
+                    },
+                    "EmailInUse": {
+                      "summary": "Email already in use",
+                      "value": {
+                        "message": "Email: johndoe@example.com is already in use"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Internal server error",
+                    "details": "Database connection failed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "get": {
+          "summary": "Retrieve all hosts",
+          "description": "Fetches a list of all hosts from the database.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "Hosts retrieved successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "host retrived successfully",
+                    "hosts": [
+                      {
+                        "_id": "64f1a2b3c4d5e6f7890a1b2c",
+                        "name": "John Doe",
+                        "email": "johndoe@example.com"
+                      },
+                      {
+                        "_id": "64f1a2b3c4d5e6f7890a1b2d",
+                        "name": "Jane Smith",
+                        "email": "janesmith@example.com"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Failed to fetch hosts",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to fetch hosts"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/hostlogin": {
+        "post": {
+          "summary": "Host login",
+          "description": "Authenticates a host using email and password, and returns a JWT token.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "password"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "example": "host@example.com"
+                    },
+                    "password": {
+                      "type": "string",
+                      "example": "myStrongPassword123"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Host login successful",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host Login successful",
+                    "data": {
+                      "_id": "64b0f3f1f2e45a1234567890",
+                      "name": "John Doe",
+                      "email": "host@example.com",
+                      "createdAt": "2025-08-12T12:34:56.789Z",
+                      "updatedAt": "2025-08-12T12:34:56.789Z"
+                    },
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Missing fields or invalid credentials",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Invalid Password"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Host not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/hostlogout": {
+        "post": {
+          "summary": "Logout a host",
+          "description": "Marks a host (tournament organizer) as logged out.   The host must provide their ID in the request body.   Once logged out, the isLoggedIn flag is set to false in the database.  \n",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the host logging out",
+                      "example": "64f9c23d8f9b1234abcd5678"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Host logged out successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Logout successful"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - missing or invalid host ID",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Unauthorized. tenant not authenticated"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Host not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error during logout",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Error logging out tenant",
+                    "error": "Detailed error message"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/host/{id}": {
+        "get": {
+          "summary": "Get a host by ID",
+          "description": "Fetches a specific host from the database using its unique ID.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "description": "The unique MongoDB ObjectId of the host.",
+              "schema": {
+                "type": "string",
+                "example": "64f1a2b3c4d5e6f7890a1b2c"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Host retrieved successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "_id": "64f1a2b3c4d5e6f7890a1b2c",
+                    "name": "John Doe",
+                    "email": "johndoe@example.com",
+                    "phone": "+2348012345678",
+                    "createdAt": "2025-08-01T12:00:00.000Z",
+                    "updatedAt": "2025-08-05T15:30:00.000Z"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid host ID format",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Invalid host ID"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Host not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Host not found"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "summary": "Update an existing host",
+          "description": "Update the fullName and/or email of a host by their ID.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID of the host to update."
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fullName": {
+                      "type": "string",
+                      "example": "Michael Johnson"
+                    },
+                    "email": {
+                      "type": "string",
+                      "example": "michael.johnson@example.com"
+                    }
+                  }
+                },
+                "example": {
+                  "fullName": "Michael Johnson",
+                  "email": "michael.johnson@example.com"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Host successfully updated.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host updated",
+                    "host": {
+                      "_id": "66b9055a582f53e6d8b12345",
+                      "fullName": "Michael Johnson",
+                      "email": "michael.johnson@example.com",
+                      "createdAt": "2025-08-12T09:00:00.000Z",
+                      "updatedAt": "2025-08-12T09:10:00.000Z"
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request (nothing to update or invalid data).",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Nothing to update"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Host not found.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Host not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Something went wrong",
+                    "details": "Error details here"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete a host",
+          "description": "Permanently removes a host from the database by their unique ID.",
+          "tags": [
+            "Host"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "description": "The unique ID of the host to delete.",
+              "schema": {
+                "type": "string",
+                "example": "64e13d7a2c3f4b0021f6b8c1"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Host successfully deleted",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host deleted"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid host ID",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Invalid host ID"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Host not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Host not found"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/match": {
+        "post": {
+          "summary": "Create a match room (Bluetooth/Hotspot pairing flow).   🔹 Backend does NOT handle the actual Bluetooth/Wi-Fi connection — the app does this using native APIs.   🔹 Backend only creates a room and generates a bluetoothToken that Player A shares with Player B.\n",
+          "tags": [
+            "Match Room"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "example": "64f9c2e3a12bcd45ef567890"
+                    },
+                    "gameType": {
+                      "type": "string",
+                      "example": "TicTacToe"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Match room created successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Match room created",
+                    "roomId": "650a6d123b7c11f7e09f45c9",
+                    "room": {
+                      "_id": "650a6d123b7c11f7e09f45c9",
+                      "user": "64f9c2e3a12bcd45ef567890",
+                      "gameType": "chess",
+                      "status": "waiting"
+                    },
+                    "bluetoothToken": "abc123xy"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "matchRoom not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "matchRoom not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/match/{roomId}": {
+        "post": {
+          "summary": "Join a match room (Bluetooth/Hotspot flow).   🔹 The mobile app must first connect devices via Bluetooth or hotspot.   🔹 Once Player B is connected locally and has the bluetoothToken, the app calls this API to register Player B in the backend.\n",
+          "tags": [
+            "Match Room"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "roomId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID of the match room created by Player A"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "example": "64f9c2e3a12bcd45ef567891"
+                    },
+                    "handshakeToken": {
+                      "type": "string",
+                      "example": "abc123xy"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Player joined successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Player added successfully",
+                    "room": {
+                      "_id": "650a6d123b7c11f7e09f45c9",
+                      "player1": "64f9c2e3a12bcd45ef567890",
+                      "player2": "64f9c2e3a12bcd45ef567891",
+                      "gameType": "chess",
+                      "status": "paired"
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Error if user already joined or room is full",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Room is already full"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Room not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Room not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/matchs": {
+        "get": {
+          "summary": "Get all match rooms",
+          "tags": [
+            "Match Room"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "List of all match rooms",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "All match rooms",
+                    "rooms": [
+                      {
+                        "_id": "650a6d123b7c11f7e09f45c9",
+                        "gameType": "chess",
+                        "status": "waiting",
+                        "player1": {
+                          "_id": "64f9...",
+                          "username": "Alice"
+                        },
+                        "player2": null
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Room not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Room not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/matchs/{roomId}": {
+        "get": {
+          "summary": "Get one match room by ID",
+          "tags": [
+            "Match Room"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "roomId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Match room details",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Match room fetched",
+                    "room": {
+                      "_id": "650a6d123b7c11f7e09f45c9",
+                      "gameType": "chess",
+                      "status": "paired",
+                      "player1": {
+                        "_id": "64f9...",
+                        "username": "Alice"
+                      },
+                      "player2": {
+                        "_id": "64f9...",
+                        "username": "Bob"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Room not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Room not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete a match room",
+          "tags": [
+            "Match Room"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "roomId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Match room deleted successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Match room deleted successfully"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Room not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Room not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments": {
+        "post": {
+          "summary": "Create a new tournament and generate an invite link",
+          "description": "Creates a tournament (by host or user) and returns the tournament data plus a unique invite link.   Use this link to allow others to join.  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "createdBy"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "example": "Summer Championship"
+                    },
+                    "maxPlayers": {
+                      "type": "string",
+                      "example": "25"
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "description": "ID of the user or host creating the tournament",
+                      "example": "64f2b8d91a32f9c8b1c12345"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Tournament created successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament created",
+                    "tournament": {
+                      "id": "64f2b8d91a32f9c8b1c67890",
+                      "name": "Summer Championship",
+                      "inviteLink": "http://localhost:5000/api/v1/tournaments/join/abc123"
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Missing required fields or invalid data",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Tournament name is required"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        },
+        "get": {
+          "summary": "Get all tournaments",
+          "description": "Returns a list of all tournaments created in the system.   Useful for browsing or admin dashboards.  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "List of tournaments",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "tournaments": [
+                      {
+                        "id": "64f2b8d91a32f9c8b1c67890",
+                        "name": "Summer Championship"
+                      },
+                      {
+                        "id": "64f2b8d91a32f9c8b1c54321",
+                        "name": "Winter Cup"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments/join/{inviteCode}": {
+        "post": {
+          "summary": "Join a tournament using an invite code",
+          "description": "A player can join an existing tournament if they have the valid invite code.   Prevents duplicate joins.  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "inviteCode",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The invite code from the invite link",
+              "example": "abc123"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "example": "64f2c1a01a32f9c8b1c99999"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Player successfully joined the tournament",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Player joined tournament"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid invite code or already joined",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "invalid": {
+                      "summary": "Invalid Code",
+                      "value": {
+                        "error": "Invalid invite code"
+                      }
+                    },
+                    "duplicate": {
+                      "summary": "Already Joined",
+                      "value": {
+                        "error": "Player already joined"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments/{tournamentId}/invite": {
+        "get": {
+          "summary": "Get the invite link for a tournament",
+          "description": "Retrieves the stored invite link for a given tournament.   Useful if the frontend needs to re-display or share the link.  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "tournamentId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "example": "64f2b8d91a32f9c8b1c67890"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Invite link retrieved",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "inviteLink": "http://localhost:5000/api/v1/tournaments/join/abc123"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Tournament not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Tournament not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments/{id}/start": {
+        "post": {
+          "summary": "Start a tournament",
+          "description": "Marks the tournament as started.   Can only be started once players have joined.  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "example": "64f2b8d91a32f9c8b1c67890"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Tournament started successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament started"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid request (already started, no players, etc.)",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Tournament already started"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Tournament not found"
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments/{id}": {
+        "get": {
+          "summary": "Get details of a single tournament",
+          "description": "Retrieves full information about one tournament (players, status, invite link, etc.).  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "example": "64f2b8d91a32f9c8b1c67890"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Tournament details",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "id": "64f2b8d91a32f9c8b1c67890",
+                    "name": "Summer Championship",
+                    "players": [
+                      "64f2c1a01a32f9c8b1c99999"
+                    ]
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Tournament not found"
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete a tournament",
+          "description": "Permanently deletes a tournament.   Only the creator should be allowed to delete.  \n",
+          "tags": [
+            "Tournaments"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "example": "64f2b8d91a32f9c8b1c67890"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Tournament deleted successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament deleted"
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Unauthorized (not creator)",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Only the creator can delete this tournament"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Tournament not found"
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments/{tournamentId}/winners": {
+        "get": {
+          "summary": "Get winners of a completed tournament",
+          "description": "Retrieves the first, second, and third place winners of a completed tournament.   This endpoint only works if the tournament has already ended.\n",
+          "tags": [
+            "Tournaments"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "tournamentId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The ID of the tournament",
+              "example": "64f2b8d91a32f9c8b1c67890"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Tournament winners retrieved successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament winners retrieved successfully",
+                    "winners": {
+                      "first": "64f2b8d91a32f9c8b1c11111",
+                      "second": "64f2b8d91a32f9c8b1c22222",
+                      "third": "64f2b8d91a32f9c8b1c33333"
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Tournament has not yet finished",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament is not yet completed. Winners will be available after the final round."
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Tournament not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal server error: database connection failed"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/google-autheticate": {
+        "get": {
+          "summary": "Authenticate a user with Google",
+          "description": "Redirects the user to Google for authentication using OAuth.",
+          "tags": [
+            "Google Authentication"
+          ],
+          "security": [],
+          "responses": {
+            "302": {
+              "description": "Redirects to Google for authentication"
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/auth/google/login": {
+        "get": {
+          "summary": "Login a user using Google OAuth",
+          "description": "Authenticates a user via Google and returns a JWT token upon successful login.",
+          "tags": [
+            "Google Authentication"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "Google authentication successful, JWT token generated",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "GoogleAuth Login Successful"
+                      },
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "_id": {
+                            "type": "string",
+                            "description": "User ID",
+                            "example": "605c72b1f1a3c619946b57da"
+                          },
+                          "fullName": {
+                            "type": "string",
+                            "description": "User's full name",
+                            "example": "John Doe"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email",
+                            "description": "User's email address",
+                            "example": "johndoe@example.com"
+                          },
+                          "isVerified": {
+                            "type": "boolean",
+                            "description": "Whether the user's email is verified",
+                            "example": true
+                          }
+                        }
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "JWT token for authentication",
+                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request - Google authentication failed",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Google authentication failed"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Token not provided or invalid",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Access denied, token must be provided"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/users": {
+        "post": {
+          "summary": "Register a new user",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "description": "Creates a new user account after validating input fields, ensuring unique email and username, and matching passwords.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "fullName",
+                    "email",
+                    "password",
+                    "repeatPassword"
+                  ],
+                  "properties": {
+                    "fullName": {
+                      "type": "string",
+                      "minLength": 3,
+                      "pattern": "^[A-Za-z ]+$",
+                      "description": "Full name must be at least 3 characters long and contain only alphabets and spaces.",
+                      "example": "John Doe"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "description": "Must be a valid email address.",
+                      "example": "john.doe@example.com"
+                    },
+                    "password": {
+                      "type": "string",
+                      "minLength": 8,
+                      "pattern": "^(?=.*\\d)(?=.*[!@#$%^&*])(?=.*[a-z])(?=.*[A-Z]).{8,}$",
+                      "description": "Password must be at least 8 characters long, contain one uppercase, one lowercase, one number, and one special character (!@#$%^&*).",
+                      "example": "StrongPass123!"
+                    },
+                    "repeatPassword": {
+                      "type": "string",
+                      "description": "Must match the password exactly.",
+                      "example": "StrongPass123!"
+                    }
+                  }
+                },
+                "examples": {
+                  "ValidRequest": {
+                    "summary": "Correct input",
+                    "value": {
+                      "fullName": "John Doe",
+                      "email": "john.doe@example.com",
+                      "password": "StrongPass123!",
+                      "repeatPassword": "StrongPass123!"
+                    }
+                  },
+                  "InvalidName": {
+                    "summary": "Name with numbers",
+                    "value": {
+                      "fullName": "John123",
+                      "email": "john.doe@example.com",
+                      "password": "StrongPass123!",
+                      "repeatPassword": "StrongPass123!"
+                    }
+                  },
+                  "InvalidPassword": {
+                    "summary": "Missing special character",
+                    "value": {
+                      "fullName": "John Doe",
+                      "email": "john.doe@example.com",
+                      "password": "StrongPass123",
+                      "repeatPassword": "StrongPass123"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "User registered successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "User registered successfully. Please check your email to verify your account.",
+                    "data": {
+                      "_id": "64f0b67f8c1b2a6d3c45e789",
+                      "fullName": "John Doe",
+                      "email": "john.doe@example.com",
+                      "password": "$2b$10$hashedPasswordExample",
+                      "createdAt": "2025-08-12T10:15:30.000Z",
+                      "updatedAt": "2025-08-12T10:15:30.000Z"
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Validation error or duplicate record",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "MissingFields": {
+                      "summary": "Required fields missing",
+                      "value": {
+                        "message": "Please provide fullName, email, password, and repeatPassword"
+                      }
+                    },
+                    "PasswordMismatch": {
+                      "summary": "Passwords do not match",
+                      "value": {
+                        "message": "Passwords do not match"
+                      }
+                    },
+                    "EmailInUse": {
+                      "summary": "Email already exists",
+                      "value": {
+                        "message": "Email: john.doe@example.com already in use"
+                      }
+                    },
+                    "NameInUse": {
+                      "summary": "Name already exists",
+                      "value": {
+                        "message": "Name: John Doe already in use"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "get": {
+          "summary": "Retrieve a list of all users",
+          "description": "Fetches all users from the database.",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "A list of users",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "example": "64d234ab1234567890abcdef"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "John Doe"
+                        },
+                        "email": {
+                          "type": "string",
+                          "example": "john.doe@example.com"
+                        },
+                        "role": {
+                          "type": "string",
+                          "example": "user"
+                        }
+                      }
+                    }
+                  },
+                  "example": [
+                    {
+                      "_id": "64d234ab1234567890abcdef",
+                      "name": "John Doe",
+                      "email": "john.doe@example.com",
+                      "role": "user"
+                    },
+                    {
+                      "_id": "64d234ab1234567890abcdea",
+                      "name": "Jane Smith",
+                      "email": "jane.smith@example.com",
+                      "role": "admin"
+                    }
+                  ]
+                }
+              }
+            },
+            "500": {
+              "description": "Failed to fetch users",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to fetch users"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/login": {
+        "post": {
+          "summary": "User login",
+          "description": "Authenticates a user using email and password and returns a JWT token on success.",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "password"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "example": "john.doe@example.com"
+                    },
+                    "password": {
+                      "type": "string",
+                      "format": "password",
+                      "example": "Password123!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Login successful",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Login successful"
+                      },
+                      "data": {
+                        "type": "object",
+                        "example": {
+                          "_id": "64a3b1d1f9a1b2c3d4e5f678",
+                          "email": "john.doe@example.com",
+                          "name": "John Doe"
+                        }
+                      },
+                      "token": {
+                        "type": "string",
+                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Missing email/password or invalid password",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "please enter email and password"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "User not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal Server Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/logout-user": {
+        "post": {
+          "summary": "Logout a user",
+          "description": "Marks a user as logged out.   The user must provide their ID in the request body.   Once logged out, the isLoggedIn flag is set to false in the database.  \n",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the user logging out",
+                      "example": "64fc1e29a9b01234dcba5678"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "User logged out successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Logout successful"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - missing or invalid user ID",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Unauthorized. tenant not authenticated"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "User not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error during logout",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Error logging out tenant",
+                    "error": "Detailed error message"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/users/{id}": {
+        "get": {
+          "summary": "Get a user by ID",
+          "description": "Retrieves a single user based on their unique MongoDB ObjectID.",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "description": "MongoDB ObjectID of the user to retrieve",
+              "schema": {
+                "type": "string",
+                "example": "64d7f15be4b0c4d8b2a9f6b1"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successfully retrieved the user",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "_id": "64d7f15be4b0c4d8b2a9f6b1",
+                    "name": "John Doe",
+                    "email": "johndoe@example.com",
+                    "role": "user",
+                    "createdAt": "2025-08-01T12:34:56.789Z",
+                    "updatedAt": "2025-08-01T12:34:56.789Z"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid user ID format",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Invalid user ID"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "User not found"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "summary": "Update a user's information",
+          "description": "Updates the specified user's fullName and/or email. If both fields are missing in the request body, it will return a 400 error.",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "description": "The ID of the user to update",
+              "schema": {
+                "type": "string",
+                "example": "64df0f9c5d1b6c1f8e2b1234"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fullName": {
+                      "type": "string",
+                      "example": "John Doe"
+                    },
+                    "email": {
+                      "type": "string",
+                      "example": "johndoe@example.com"
+                    }
+                  },
+                  "example": {
+                    "fullName": "Jane Doe",
+                    "email": "janedoe@example.com"
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "User updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "_id": {
+                        "type": "string",
+                        "example": "64df0f9c5d1b6c1f8e2b1234"
+                      },
+                      "fullName": {
+                        "type": "string",
+                        "example": "Jane Doe"
+                      },
+                      "email": {
+                        "type": "string",
+                        "example": "janedoe@example.com"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "No fields provided to update",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Nothing to update"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to update user"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete a user by ID",
+          "description": "Permanently removes a user from the system using their unique ID.",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "description": "The ID of the user to delete.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "64b8aef5f1e3b2d5c3a12345"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "User successfully deleted.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "User deleted"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid user ID.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Invalid user ID"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "User not found"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/request-host-access": {
+        "post": {
+          "summary": "Request host access (user)",
+          "description": "Allows a user to request host access.   Requirement: user must have joined at least 2 tournaments.   The request will be flagged for manual admin approval.  \n",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "description": "The ID of the requesting user",
+                      "example": "64fd1e29a9b01234dcba5678"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Request submitted successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Request submitted, awaiting admin approval"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "User has not met tournament requirement",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "You must play in at least 2 tournaments before requesting host access"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "User not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to request host access",
+                    "details": "Error details here"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/auth/grant-host-access": {
+        "post": {
+          "summary": "Grant host access (admin)",
+          "description": "Allows an admin to grant host access to a user.   This sets the canHostTournament flag to true in the user's record.  \n",
+          "tags": [
+            "Users"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "description": "The ID of the user receiving host access",
+                      "example": "64fd1e29a9b01234dcba5678"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Host access granted successfully",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host access granted",
+                    "user": {
+                      "_id": "64fd1e29a9b01234dcba5678",
+                      "username": "player123",
+                      "canHostTournament": true
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "User not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to grant host access",
+                    "details": "Error details here"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tags": []
+}

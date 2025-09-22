@@ -109,8 +109,7 @@ export default function OnboardingPage() {
 
   // Handle Google sign in (placeholder)
   const handleGoogleSignIn = () => {
-    // TODO: Implement Google OAuth
-    console.log("Google sign in not implemented yet")
+    window.location.href = "https://mooves.onrender.com/api/v1/auth/google/login";
   }
 
   return (

@@ -147,12 +147,16 @@ export default function HelpPage() {
             <Plus className="w-4 h-4" />
           </div>
 
-          {/* User Profile */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
             <User className="w-5 h-5" />
             USER 002
           </div>
 
+          {/* User Profile */}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
+            <User className="w-5 h-5" />
+            {typeof window !== "undefined" && window.localStorage.getItem("username") ? window.localStorage.getItem("username") : "User"}
+          </div>
           {/* Notification Bell */}
           <button className="flex items-center justify-center w-12 h-12 rounded-lg bg-green-600 text-white shadow-lg hover:bg-green-700 transition-colors">
             <Bell className="w-5 h-5" />

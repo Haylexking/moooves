@@ -155,12 +155,16 @@ export default function StatsPage() {
             <Plus className="w-4 h-4" />
           </div>
 
-          {/* User Profile */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
             <User className="w-5 h-5" />
             USER 002
           </div>
 
+          {/* User Profile */}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
+            <User className="w-5 h-5" />
+            {typeof window !== "undefined" && window.localStorage.getItem("username") ? window.localStorage.getItem("username") : "User"}
+          </div>
           {/* Notification Bell */}
           <button className="flex items-center justify-center w-12 h-12 rounded-lg bg-green-600 text-white shadow-lg hover:bg-green-700 transition-colors">
             <Bell className="w-5 h-5" />
@@ -283,10 +287,16 @@ export default function StatsPage() {
                   </div>
                 </div>
 
-                {/* Start Game Button */}
-                <div className="flex justify-center">
+                {/* Start Game, Start Tournament, Join Tournament Buttons */}
+                <div className="flex flex-col items-center gap-4">
                   <GameButton onClick={handleStartGame} className="w-48">
                     Start a game
+                  </GameButton>
+                  <GameButton onClick={() => { /* TODO: Add start tournament flow */ }} className="w-48">
+                    Start tournament
+                  </GameButton>
+                  <GameButton onClick={() => { /* TODO: Add join tournament flow */ }} className="w-48">
+                    Join tournament
                   </GameButton>
                 </div>
               </>

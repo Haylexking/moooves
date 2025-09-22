@@ -47,7 +47,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Tournament</DialogTitle>
+          <DialogTitle>Setup Tournament</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -72,7 +72,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
               onChange={(e) => setEntryFee(Number(e.target.value))}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">Minimum ₦1,000</p>
+            <p className="text-xs text-gray-500 mt-1">Minimum ₦500</p>
           </div>
 
           <div>

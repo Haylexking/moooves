@@ -469,9 +469,9 @@ export function TournamentDashboard() {
                     <div className="bg-green-100/50 rounded-lg p-4">
                       <h4 className="font-bold text-green-800 mb-2">Entry Requirements</h4>
                       <ul className="text-green-700 text-sm space-y-1">
-                        <li>• Minimum entry fee: ₦1,000 per player</li>
+                        <li>• Minimum entry fee: ₦500 per player</li>
                         <li>• Minimum 6 players, maximum 50 players</li>
-                        <li>• Minimum prize pool: ₦100,000</li>
+                        <li>• Minimum cash pool: ₦20,000</li>
                       </ul>
                     </div>
 
@@ -486,13 +486,13 @@ export function TournamentDashboard() {
                     </div>
 
                     <div className="bg-green-100/50 rounded-lg p-4">
-                      <h4 className="font-bold text-green-800 mb-2">Prize Distribution</h4>
+                      <h4 className="font-bold text-green-800 mb-2">Cash Distribution</h4>
                       <ul className="text-green-700 text-sm space-y-1">
-                        <li>• 1st Place: 20% of prize pool</li>
-                        <li>• 2nd Place: 12% of prize pool</li>
-                        <li>• 3rd Place: 8% of prize pool</li>
-                        <li>• Host: 50% of prize pool</li>
-                        <li>• Platform: 10% of prize pool</li>
+                        <li>• 1st Place: 20% of cash pool</li>
+                        <li>• 2nd Place: 12% of cash pool</li>
+                        <li>• 3rd Place: 8% of cash pool</li>
+                        <li>• Host: 50% of cash pool</li>
+                        <li>• Platform: 10% of cash pool</li>
                       </ul>
                     </div>
                   </div>

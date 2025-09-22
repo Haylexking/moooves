@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Menu, Settings, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
+import { GameScore } from "./game-score"
+import { MatchResultModal } from "./match-result-modal"
 import { useGameStore } from "@/lib/stores/game-store"
 import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
@@ -14,13 +16,14 @@ interface BattleGroundProps {
   gameMode?: "player-vs-player" | "player-vs-computer"
   onMoveMade?: (row: number, col: number, byPlayer: Player) => void
 }
-
 export function BattleGround({
   player1 = "USER 002",
   player2 = "COMPUTER",
   gameMode = "player-vs-computer",
   onMoveMade,
 }: BattleGroundProps) {
+  const [resultModalOpen, setResultModalOpen] = useState(false)
+  const [resultType, setResultType] = useState<"win" | "lose">("lose")
   const [expanded, setExpanded] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const {
@@ -40,6 +43,21 @@ export function BattleGround({
     // Initialize game when component mounts
     initializeGame("timed")
   }, [initializeGame])
+
+  // Show result modal on game end
+  useEffect(() => {
+    if (gameStatus === "completed") {
+      // For player-vs-computer, X is human, O is computer
+      if (scores.X > scores.O) {
+        setResultType("win")
+      } else {
+        setResultType("lose")
+      }
+      setResultModalOpen(true)
+    } else {
+      setResultModalOpen(false)
+    }
+  }, [gameStatus, scores])
 
   useEffect(() => {
     if (gameStatus === "playing") {
@@ -135,6 +153,12 @@ export function BattleGround({
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
+      {/* Match Result Modal */}
+      <MatchResultModal
+        open={resultModalOpen}
+        onClose={() => setResultModalOpen(false)}
+        result={resultType}
+      />
       {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"
@@ -285,71 +309,42 @@ export function BattleGround({
         </div>
       </div>
 
-      {/* Bottom Control Panel */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-        <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-4 shadow-2xl">
-          {/* Player Info */}
-          <div className="text-center mb-4">
-            <div className="flex items-center justify-center gap-4 text-green-800 font-bold">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <span>{player1} (X)</span>
-                <span className="text-blue-600 font-bold">{scores.X}</span>
-                {currentPlayer === "X" && gameStatus === "playing" && (
-                  <span className="text-xs bg-blue-200 px-2 py-1 rounded">Your Turn</span>
-                )}
-              </div>
+      {/* Score Panel - now above the board */}
+      <div className="w-full flex justify-center mt-4">
+        <GameScore
+          player1={player1}
+          player2={player2}
+          scoreX={scores.X}
+          scoreO={scores.O}
+          currentPlayer={currentPlayer}
+          gameStatus={gameStatus}
+          gameMode={gameMode}
+        />
+      </div>
 
-              <span className="mx-2">VS</span>
-
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
-                  {gameMode === "player-vs-computer" ? (
-                    <span className="text-white text-xs">🤖</span>
-                  ) : (
-                    <User className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <span>{player2} (O)</span>
-                <span className="text-red-600 font-bold">{scores.O}</span>
-                {currentPlayer === "O" && gameStatus === "playing" && (
-                  <span className="text-xs bg-red-200 px-2 py-1 rounded">
-                    {gameMode === "player-vs-computer" ? "Computer Turn" : "Turn"}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Control Buttons */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleGameRules}
-              className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors"
-            >
-              GAME RULES
-            </button>
-
-            <button
-              onClick={handlePlay}
-              disabled={gameStatus === "playing"}
-              className={`px-8 py-2 font-bold rounded-lg transition-colors ${gameStatus === "playing"
-                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-                }`}
-            >
-              {gameStatus === "playing" ? "PLAYING" : "PLAY"}
-            </button>
-
-            <div
-              className={`px-6 py-2 font-bold rounded-lg ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
-                }`}
-            >
-              {formatTime(timeLeft)}
-            </div>
-          </div>
+  {/* Control Buttons - below the board */}
+      <div className="w-full flex justify-center gap-4 mt-4">
+        <button
+          onClick={handleGameRules}
+          className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors"
+        >
+          GAME RULES
+        </button>
+        <button
+          onClick={handlePlay}
+          disabled={gameStatus === "playing"}
+          className={`px-8 py-2 font-bold rounded-lg transition-colors ${gameStatus === "playing"
+            ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+            : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+            }`}
+        >
+          {gameStatus === "playing" ? "PLAYING" : "PLAY"}
+        </button>
+        <div
+          className={`px-6 py-2 font-bold rounded-lg ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
+            }`}
+        >
+          {formatTime(timeLeft)}
         </div>
       </div>
     </div>

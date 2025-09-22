@@ -119,7 +119,7 @@ function evaluateThreatBlockedByMove(
   col: number,
 ): number {
   // Block threats by occupying the empty that would extend or keep open an opponent line
-  // Score higher for blocking longer, more open lines (e.g., open-4, open-3)
+  // Score higher for blocking longer, more open lines (e.g., open-3, open-2)
   let total = 0
   const directions: Position[] = [
     [-1, -1],
@@ -130,19 +130,19 @@ function evaluateThreatBlockedByMove(
     [1, -1],
     [1, 0],
     [1, 1],
-  ]
+  ];
 
   for (const [dr, dc] of directions) {
-    const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc)
-    // Only consider emerging threats (2–4) with at least one open end
-    if (length >= 2 && length <= 4 && openEnds > 0) {
+    const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc);
+    // Only consider emerging threats (2–3) with at least one open end
+    if (length >= 2 && length <= 3 && openEnds > 0) {
       // Heuristic: longer lines and more open ends are more dangerous
-      const threatScore = length * length * (openEnds === 2 ? 2 : 1)
-      total += threatScore
+      const threatScore = length * length * (openEnds === 2 ? 2 : 1);
+      total += threatScore;
     }
   }
 
-  return total
+  return total;
 }
 
 function measureLine(

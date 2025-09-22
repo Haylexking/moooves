@@ -2,18 +2,21 @@
 import Image from "next/image"
 import type React from "react"
 
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { GameButton } from "@/components/ui/game-button"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { Alert } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export default function OnboardingPage() {
   const [tab, setTab] = useState<"register" | "login">("register")
   const [formData, setFormData] = useState({
-    fullName: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
-    phone: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
@@ -34,8 +37,8 @@ export default function OnboardingPage() {
     const newErrors: Record<string, string> = {}
 
     if (tab === "register") {
-      if (!formData.fullName.trim()) {
-        newErrors.fullName = "Full name is required"
+      if (!formData.username.trim()) {
+        newErrors.username = "Username is required"
       }
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = "Please confirm your password"
@@ -56,38 +59,39 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  // DEVELOPMENT MODE: Skip real authentication
+
+  const { login, register, isLoading, error, clearError } = useAuthStore()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validateForm()) return
-
     setLoading(true)
-
     try {
-      // Simulate network delay for realistic feel
-      await new Promise((res) => setTimeout(res, 1000))
-
       if (tab === "register") {
-        console.log("✅ Development Mode: Registration bypassed, going to verification")
-        // Only registration goes to verification
+        await register(
+          formData.username.trim(),
+          formData.email.trim(),
+          formData.password
+        )
+        // After registration, go to verification page
         router.push("/onboarding/verification")
       } else {
-        console.log("✅ Development Mode: Login bypassed, going directly to dashboard")
-        // Login goes directly to dashboard
+        await login(formData.email.trim(), formData.password)
+        // After login, go to dashboard
         router.push("/dashboard")
       }
     } catch (err) {
-      console.error("Auth error:", err)
+      // Error is handled by the store
+      // Optionally show a toast or alert
     } finally {
       setLoading(false)
     }
   }
 
-  // Handle Google sign in (placeholder)
+
+  // Handle Google sign in (real)
   const handleGoogleSignIn = () => {
-    console.log("✅ Development Mode: Google sign in bypassed, going to dashboard")
-    router.push("/dashboard")
+    window.location.href = "https://mooves.onrender.com/api/v1/auth/google/login"
   }
 
   return (
@@ -108,10 +112,17 @@ export default function OnboardingPage() {
           <Image src="/images/XO.png" alt="XO Logo" width={120} height={60} className="drop-shadow-xl" />
         </div>
 
-        {/* Development Mode Indicator */}
-        <div className="mb-4 text-center w-full">
-          <div className="text-xs text-green-700 bg-green-200 px-2 py-1 rounded">🚧 DEV MODE: Any credentials work</div>
-        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 w-full">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+              <button className="ml-2 text-xs underline" onClick={clearError}>Dismiss</button>
+            </Alert>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-8 mb-6 text-lg font-extrabold text-[#002B03] w-full justify-center">
@@ -139,7 +150,7 @@ export default function OnboardingPage() {
         <form className="flex flex-col gap-4 w-full" onSubmit={handleSubmit}>
           {tab === "register" && (
             <>
-              <label className="text-[#002B03] font-bold">Full Name</label>
+              <label className="text-[#002B03] font-bold">Username</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
                   <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
@@ -154,15 +165,15 @@ export default function OnboardingPage() {
                 </span>
                 <input
                   type="text"
-                  placeholder="Enter your full name"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange("fullName", e.target.value)}
+                  placeholder="Enter your username"
+                  value={formData.username}
+                  onChange={(e) => handleInputChange("username", e.target.value)}
                   className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${
-                    errors.fullName ? "border-red-500" : "border-[#BFC4BF]"
+                    errors.username ? "border-red-500" : "border-[#BFC4BF]"
                   }`}
                 />
               </div>
-              {errors.fullName && <p className="text-red-500 text-sm -mt-2">{errors.fullName}</p>}
+              {errors.username && <p className="text-red-500 text-sm -mt-2">{errors.username}</p>}
             </>
           )}
 
@@ -233,27 +244,6 @@ export default function OnboardingPage() {
               </div>
               {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
 
-              <label className="text-[#002B03] font-bold">Phone (Optional)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
-                  <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
-                    <path
-                      d="M2 3a1 1 0 0 1 1-1h2.153a1 1 0 0 1 .986.836l.74 4.435a1 1 0 0 1-.54 1.06l-1.548.773a11.037 11.037 0 0 0 6.105 6.105l.774-1.548a1 1 0 0 1 1.059-.54l4.435.74a1 1 0 0 1 .836.986V17a1 1 0 0 1-1 1h-2C7.82 18 2 12.18 2 5V3Z"
-                      stroke="#6AC56E"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                <input
-                  type="tel"
-                  placeholder="+234..."
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border border-[#BFC4BF] text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]"
-                />
-              </div>
             </>
           )}
 
