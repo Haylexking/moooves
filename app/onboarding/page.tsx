@@ -2,13 +2,13 @@
 import Image from "next/image"
 import type React from "react"
 
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Alert } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { apiClient } from "@/lib/api/client"
 
 export default function OnboardingPage() {
   const [tab, setTab] = useState<"register" | "login">("register")
@@ -59,7 +59,6 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
-
   const { login, register, isLoading, error, clearError } = useAuthStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,13 +67,8 @@ export default function OnboardingPage() {
     setLoading(true)
     try {
       if (tab === "register") {
-        await register(
-          formData.username.trim(),
-          formData.email.trim(),
-          formData.password
-        )
-        // After registration, go to verification page
-        router.push("/onboarding/verification")
+        await register(formData.username.trim(), formData.email.trim(), formData.password)
+        router.push(`/onboarding/verification?email=${encodeURIComponent(formData.email.trim())}`)
       } else {
         await login(formData.email.trim(), formData.password)
         // After login, go to dashboard
@@ -88,10 +82,10 @@ export default function OnboardingPage() {
     }
   }
 
-
   // Handle Google sign in (real)
   const handleGoogleSignIn = () => {
-    window.location.href = "https://mooves.onrender.com/api/v1/auth/google/login"
+    // Use the apiClient method to get the correct Google OAuth URL
+    window.location.href = apiClient.getGoogleAuthUrl()
   }
 
   return (
@@ -112,14 +106,15 @@ export default function OnboardingPage() {
           <Image src="/images/XO.png" alt="XO Logo" width={120} height={60} className="drop-shadow-xl" />
         </div>
 
-
         {/* Error Alert */}
         {error && (
           <div className="mb-4 w-full">
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <span>{error}</span>
-              <button className="ml-2 text-xs underline" onClick={clearError}>Dismiss</button>
+              <button className="ml-2 text-xs underline" onClick={clearError}>
+                Dismiss
+              </button>
             </Alert>
           </div>
         )}
@@ -243,7 +238,6 @@ export default function OnboardingPage() {
                 />
               </div>
               {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
-
             </>
           )}
 
@@ -252,7 +246,11 @@ export default function OnboardingPage() {
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white border border-[#BFC4BF] text-[#002B03] font-semibold mt-2 mb-2 shadow-sm hover:bg-[#f3fff3] transition"
           >
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+            <img
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/google-color-fFx4pHHuSmJkntGfB5HIFxytaZrBRy.svg"
+              alt="Google"
+              className="w-5 h-5"
+            />
             Continue with Google
           </button>
 

@@ -1,120 +1,224 @@
-import type { StateCreator } from "zustand"
-import type { User } from "@/lib/types"
-import { apiClient } from "@/lib/api/client"
+import { API_CONFIG } from "@/lib/config/api-config"
 
-export interface AuthSlice {
-  user: User | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
-
-  // Actions
-  login: (email: string, password: string) => Promise<void>
-  register: (fullName: string, email: string, password: string, phone?: string) => Promise<void>
-  verifyEmail: (code: string) => Promise<void>
-  logout: () => void
-  clearError: () => void
+interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: string
+  message?: string
 }
 
-export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  error: null,
+interface LoginResponse {
+  token: string
+  user: {
+    id: string
+    email: string
+    fullName: string
+    phone?: string
+    emailVerified: boolean
+  }
+}
 
-  login: async (email: string, password: string) => {
-    set({ isLoading: true, error: null })
+interface RegisterResponse {
+  token: string
+  user: {
+    id: string
+    email: string
+    fullName: string
+    phone?: string
+    emailVerified: boolean
+  }
+}
 
-    try {
-      const response = await apiClient.login(email, password)
+class ApiClient {
+  private baseUrl: string
+  private token: string | null = null
 
-      if (response.success && response.data) {
-        apiClient.setToken(response.data.token)
-        set({
-          user: response.data.user,
-          isAuthenticated: true,
-          isLoading: false,
-        })
-      } else {
-        set({
-          error: response.error || "Login failed",
-          isLoading: false,
-        })
-      }
-    } catch (error) {
-      set({
-        error: "Network error occurred",
-        isLoading: false,
-      })
+  constructor() {
+    this.baseUrl = API_CONFIG.BASE_URL + API_CONFIG.VERSION
+    // Try to get token from localStorage on initialization
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token")
     }
-  },
+  }
 
-  register: async (fullName: string, email: string, password: string, phone?: string) => {
-    set({ isLoading: true, error: null })
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    const url = `${this.baseUrl}${endpoint}`
 
-    try {
-      const response = await apiClient.register(fullName, email, password, phone)
-
-      if (response.success && response.data) {
-        apiClient.setToken(response.data.token)
-        set({
-          user: response.data.user,
-          isAuthenticated: true,
-          isLoading: false,
-        })
-      } else {
-        set({
-          error: response.error || "Registration failed",
-          isLoading: false,
-        })
-      }
-    } catch (error) {
-      set({
-        error: "Network error occurred",
-        isLoading: false,
-      })
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...options.headers,
     }
-  },
 
-  verifyEmail: async (code: string) => {
-    set({ isLoading: true, error: null })
+    // Add authorization header if token exists
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`
+    }
 
     try {
-      const response = await apiClient.verifyEmail(code)
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        timeout: API_CONFIG.TIMEOUT,
+      })
 
-      if (response.success) {
-        // Update user verification status
-        const currentUser = get().user
-        if (currentUser) {
-          set({
-            user: { ...currentUser, emailVerified: true },
-            isLoading: false,
-          })
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || data.error || `HTTP ${response.status}`,
         }
-      } else {
-        set({
-          error: response.error || "Verification failed",
-          isLoading: false,
-        })
+      }
+
+      return {
+        success: true,
+        data,
       }
     } catch (error) {
-      set({
-        error: "Network error occurred",
-        isLoading: false,
-      })
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Network error",
+      }
     }
-  },
+  }
 
-  logout: () => {
-    apiClient.clearToken()
-    set({
-      user: null,
-      isAuthenticated: false,
-      error: null,
+  // Token management
+  setToken(token: string) {
+    this.token = token
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", token)
+    }
+  }
+
+  clearToken() {
+    this.token = null
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token")
+    }
+  }
+
+  getToken(): string | null {
+    return this.token
+  }
+
+  // Auth methods
+  async login(email: string, password: string): Promise<ApiResponse<LoginResponse>> {
+    return this.request<LoginResponse>("/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
     })
-  },
+  }
 
-  clearError: () => {
-    set({ error: null })
-  },
-})
+  async register(
+    fullName: string,
+    email: string,
+    password: string,
+    phone?: string,
+  ): Promise<ApiResponse<RegisterResponse>> {
+    return this.request<RegisterResponse>("/users", {
+      method: "POST",
+      body: JSON.stringify({
+        fullName,
+        email,
+        password,
+        repeatPassword: password, // API requires repeatPassword field
+        phone,
+      }),
+    })
+  }
+
+  async verifyEmail(code: string): Promise<ApiResponse<any>> {
+    return this.request("/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    })
+  }
+
+  // Google OAuth methods
+  getGoogleAuthUrl(): string {
+    return `${this.baseUrl}/google-authenticate`
+  }
+
+  getHostGoogleAuthUrl(): string {
+    return `${this.baseUrl}/host-google-authenticate`
+  }
+
+  // Host auth methods
+  async hostLogin(email: string, password: string): Promise<ApiResponse<LoginResponse>> {
+    return this.request<LoginResponse>("/hostlogin", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    })
+  }
+
+  async createHost(
+    fullName: string,
+    email: string,
+    password: string,
+    phone?: string,
+  ): Promise<ApiResponse<RegisterResponse>> {
+    return this.request<RegisterResponse>("/host", {
+      method: "POST",
+      body: JSON.stringify({ fullName, email, password, phone }),
+    })
+  }
+
+  // User methods
+  async getCurrentUser(): Promise<ApiResponse<any>> {
+    return this.request("/users/me")
+  }
+
+  async updateUser(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.request(`/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Tournament methods (placeholder for future implementation)
+  async getTournaments(): Promise<ApiResponse<any>> {
+    return this.request("/tournaments")
+  }
+
+  async createTournament(data: any): Promise<ApiResponse<any>> {
+    return this.request("/tournaments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async joinTournament(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/tournaments/${id}/join`, {
+      method: "POST",
+    })
+  }
+
+  // Game methods (placeholder for future implementation)
+  async getGames(): Promise<ApiResponse<any>> {
+    return this.request("/games")
+  }
+
+  async createGame(data: any): Promise<ApiResponse<any>> {
+    return this.request("/games", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async makeMove(gameId: string, move: any): Promise<ApiResponse<any>> {
+    return this.request(`/games/${gameId}/moves`, {
+      method: "POST",
+      body: JSON.stringify(move),
+    })
+  }
+}
+
+// Create and export a singleton instance
+export const apiClient = new ApiClient()
+
+// Also export the Fetcher for OpenAPI if needed
+import { Fetcher } from "openapi-typescript-fetch"
+import type { paths } from "../types/api"
+
+export const api = Fetcher.for<paths>()
+api.configure({ baseUrl: API_CONFIG.BASE_URL })

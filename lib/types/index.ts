@@ -140,6 +140,8 @@ export interface Move {
   position: Position
   timestamp: number
   sequencesScored: number
+  row?: number
+  col?: number
 }
 
 export interface GameResult {

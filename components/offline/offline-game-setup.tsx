@@ -9,7 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useBluetoothConnection } from "@/lib/hooks/use-bluetooth-connection"
 import { useWiFiConnection } from "@/lib/hooks/use-wifi-connection"
+import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { Bluetooth, Wifi, Users, Smartphone, AlertCircle, CheckCircle, Copy } from "lucide-react"
+import { apiClient } from "@/lib/api/client"
 
 export function OfflineGameSetup() {
   const [roomCode, setRoomCode] = useState("")
@@ -17,6 +19,7 @@ export function OfflineGameSetup() {
 
   const bluetooth = useBluetoothConnection()
   const wifi = useWiFiConnection()
+  const matchRoom = useMatchRoom()
 
   // Copy room code to clipboard
   const copyRoomCode = async () => {
@@ -38,11 +41,17 @@ export function OfflineGameSetup() {
 
   const handleBluetoothScan = async () => {
     await bluetooth.scanForDevices()
+    if (bluetooth.isConnected && bluetooth.connectedDevice) {
+      await matchRoom.createRoom(`bt_${bluetooth.connectedDevice.id}`)
+    }
   }
 
   const handleWiFiHost = async () => {
     try {
-      await wifi.hostGame()
+      const wifiRoomCode = await wifi.hostGame()
+      if (wifiRoomCode) {
+        await matchRoom.createRoom(`wifi_${wifiRoomCode}`)
+      }
     } catch (error) {
       console.error("Failed to host game:", error)
     }
@@ -53,6 +62,11 @@ export function OfflineGameSetup() {
 
     try {
       await wifi.joinGame(roomCode.trim().toUpperCase())
+      const rooms = await apiClient.getAllMatchRooms()
+      const targetRoom = rooms.data?.find((room: any) => room.bluetoothToken === `wifi_${roomCode.trim().toUpperCase()}`)
+      if (targetRoom) {
+        await matchRoom.joinRoom(targetRoom.id, `handshake_${Date.now()}`)
+      }
     } catch (error) {
       console.error("Failed to join game:", error)
     }
@@ -250,9 +264,10 @@ export function OfflineGameSetup() {
             </div>
             <h3 className="text-lg font-semibold text-green-800 mb-2">Connected!</h3>
             <p className="text-green-700 mb-4">
-              Connected via {wifi.isConnected ? "WiFi" : "Bluetooth"}. Ready to start playing.
+              Connected via {wifi.isConnected ? "WiFi" : "Bluetooth"}.
+              {matchRoom.roomId && ` Match room: ${matchRoom.roomId.slice(-6)}`}
             </p>
-            <Button className="w-full" size="lg">
+            <Button className="w-full" size="lg" onClick={() => (window.location.href = "/offline/play")}>
               Start Game
             </Button>
           </CardContent>

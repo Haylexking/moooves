@@ -5,11 +5,13 @@ import { BattleGround } from "@/components/game/battle-ground"
 import { useBluetoothConnection } from "@/lib/hooks/use-bluetooth-connection"
 import { useWiFiConnection } from "@/lib/hooks/use-wifi-connection"
 import { useGameStore } from "@/lib/stores/game-store"
+import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import type { Player } from "@/lib/types"
 
 export default function OfflinePlayPage() {
     const wifi = useWiFiConnection()
     const bt = useBluetoothConnection()
+    const matchRoom = useMatchRoom()
     const { makeMove, gameStatus } = useGameStore()
 
     useEffect(() => {
@@ -32,9 +34,23 @@ export default function OfflinePlayPage() {
         }
     }, [wifi, bt, makeMove, gameStatus])
 
-    const handleLocalMove = (row: number, col: number, byPlayer: Player) => {
+    const handleLocalMove = async (row: number, col: number, byPlayer: Player) => {
         // Forward local moves to the connected peer over whichever channel is active
         const payload = { row, col, by: byPlayer }
+
+        try {
+            if (matchRoom.roomId) {
+                await matchRoom.makeMove({
+                    player: byPlayer,
+                    position: [row, col],
+                    timestamp: Date.now(),
+                    sequencesScored: 0,
+                })
+            }
+        } catch (error) {
+            console.error("Failed to record move in match room:", error)
+        }
+
         if (wifi.isConnected) {
             void wifi.sendMessage("move", payload)
         } else if (bt.isConnected) {
@@ -48,5 +64,3 @@ export default function OfflinePlayPage() {
         </div>
     )
 }
-
-
