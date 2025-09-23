@@ -12,12 +12,13 @@ export default function VerificationPage() {
   const [code, setCode] = useState(["", "", "", "", "", ""])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [resendLoading, setResendLoading] = useState(false)
-  const [resendSuccess, setResendSuccess] = useState(false)
+  // const [resendLoading, setResendLoading] = useState(false)
+  // const [resendSuccess, setResendSuccess] = useState(false)
   const inputs = useRef<Array<HTMLInputElement | null>>(Array.from({ length: 6 }, () => null))
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { verifyEmail, resendVerificationCode } = useAuthStore()
+  // const { resendVerificationCode } = useAuthStore() // Resend not supported yet
+  const { verifyEmail } = useAuthStore()
 
   // Get email from URL params
   const email = searchParams.get("email")
@@ -76,7 +77,7 @@ export default function VerificationPage() {
         throw new Error("Email not found. Please go back and try again.")
       }
 
-      await verifyEmail(email, verificationCode)
+  await verifyEmail(verificationCode)
       router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "Verification failed")
@@ -85,23 +86,21 @@ export default function VerificationPage() {
     }
   }
 
-  async function handleResendCode() {
-    if (!email) return
-
-    setResendLoading(true)
-    setError(null)
-    setResendSuccess(false)
-
-    try {
-      await resendVerificationCode(email)
-      setResendSuccess(true)
-      setTimeout(() => setResendSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || "Failed to resend code")
-    } finally {
-      setResendLoading(false)
-    }
-  }
+  // async function handleResendCode() {
+  //   if (!email) return
+  //   setResendLoading(true)
+  //   setError(null)
+  //   setResendSuccess(false)
+  //   try {
+  //     await resendVerificationCode(email)
+  //     setResendSuccess(true)
+  //     setTimeout(() => setResendSuccess(false), 3000)
+  //   } catch (err: any) {
+  //     setError(err.message || "Failed to resend code")
+  //   } finally {
+  //     setResendLoading(false)
+  //   }
+  // }
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-black overflow-hidden">
@@ -144,17 +143,18 @@ export default function VerificationPage() {
             ))}
           </div>
           {error && <div className="text-red-600 text-sm font-semibold mb-2 text-center w-full">{error}</div>}
-          {resendSuccess && (
+          {/* {resendSuccess && (
             <div className="text-green-600 text-sm font-semibold mb-2 text-center w-full">
               Verification code resent successfully!
             </div>
-          )}
+          )} */}
           <GameButton type="submit" className="w-40 mx-auto" disabled={code.some((c) => !c) || loading}>
             {loading ? "Verifying..." : "Submit"}
           </GameButton>
         </form>
 
         <div className="mt-4 text-center w-full space-y-2">
+          {/*
           <button
             type="button"
             onClick={handleResendCode}
@@ -163,6 +163,7 @@ export default function VerificationPage() {
           >
             {resendLoading ? "Resending..." : "Resend Code"}
           </button>
+          */}
           <div>
             <button onClick={() => router.push("/onboarding")} className="text-[#002B03] text-sm hover:underline">
               ← Back to Login

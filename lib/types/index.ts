@@ -393,8 +393,7 @@ export interface TournamentState {
   isLoading: boolean
 }
 
-
-export interface TournamentState {
+export interface GameStoreState {
   currentGame: GameState | null
   gameHistory: GameResult[]
   isPlaying: boolean
