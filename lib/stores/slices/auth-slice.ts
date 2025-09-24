@@ -1,4 +1,3 @@
-
 import type { StateCreator } from "zustand"
 import type { User, UserRole } from "@/lib/types"
 import { apiClient } from "@/lib/api/client"
@@ -11,7 +10,9 @@ export interface AuthSlice {
 
   // Actions
   login: (email: string, password: string) => Promise<void>
-  register: (fullName: string, email: string, password: string, phone?: string) => Promise<void>
+  register: (fullName: string, email: string, password: string) => Promise<void>
+  hostLogin: (email: string, password: string) => Promise<void>
+  hostRegister: (fullName: string, email: string, password: string) => Promise<void>
   verifyEmail: (code: string) => Promise<void>
   logout: () => void
   clearError: () => void
@@ -26,27 +27,25 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   isLoading: false,
   error: null,
 
-
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.login(email, password)
       if (response.success && response.data) {
-        const { token, user: userData } = response.data
-        apiClient.setToken(token)
+        const token = response.data.token
+        const userData = response.data.data
+        if (token) apiClient.setToken(token)
         set({
           user: {
-            ...userData,
-            id: userData.id,
+            id: userData._id,
             email: userData.email,
-            fullName: userData.fullName,
-            phone: userData.phone,
-            emailVerified: userData.emailVerified || false,
-            role: ((userData as any).role as UserRole) || "user",
-            gamesPlayed: typeof (userData as any).gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
-            canHost: typeof (userData as any).canHost === "boolean" ? (userData as any).canHost : false,
-            createdAt: (userData as any).createdAt || new Date().toISOString(),
-            lastActive: (userData as any).lastActive || new Date().toISOString(),
+            fullName: (userData as any)?.fullName ?? (userData as any)?.name ?? "",
+            emailVerified: (userData as any)?.emailVerified ?? false,
+            role: (userData as any)?.role ?? "player",
+            gamesPlayed: typeof (userData as any)?.gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
+            canHost: typeof (userData as any)?.canHost === "boolean" ? (userData as any).canHost : false,
+            createdAt: new Date(userData.createdAt || new Date()).getTime(),
+            lastActive: new Date(userData.updatedAt || new Date()).getTime(),
           },
           isAuthenticated: true,
           isLoading: false,
@@ -65,33 +64,107 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
     }
   },
 
-
-  register: async (fullName: string, email: string, password: string, phone?: string) => {
+  hostLogin: async (email: string, password: string) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await apiClient.register(fullName, email, password, phone)
+      const response = await apiClient.hostLogin(email, password)
       if (response.success && response.data) {
-        const userData = response.data.user
+        const token = response.data.token
+        const userData = response.data.data
+        if (token) apiClient.setToken(token)
         set({
           user: {
-            ...userData,
-            id: userData.id,
+            id: userData._id,
             email: userData.email,
-            fullName: userData.fullName,
-            phone: userData.phone,
-            emailVerified: false,
-            role: ((userData as any).role as UserRole) || "user",
-            gamesPlayed: typeof (userData as any).gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
-            canHost: typeof (userData as any).canHost === "boolean" ? (userData as any).canHost : false,
-            createdAt: (userData as any).createdAt || new Date().toISOString(),
-            lastActive: (userData as any).lastActive || new Date().toISOString(),
+            fullName: (userData as any)?.name ?? (userData as any)?.fullName ?? "",
+            emailVerified: (userData as any)?.emailVerified ?? false,
+            role: "host" as UserRole,
+            gamesPlayed: typeof (userData as any)?.gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
+            canHost: true,
+            createdAt: new Date(userData.createdAt || new Date()).getTime(),
+            lastActive: new Date(userData.updatedAt || new Date()).getTime(),
           },
-          isAuthenticated: false,
+          isAuthenticated: true,
+          isLoading: false,
+        })
+      } else {
+        set({
+          error: response.error || "Host login failed",
+          isLoading: false,
+        })
+      }
+    } catch (error) {
+      set({
+        error: "Network error occurred",
+        isLoading: false,
+      })
+    }
+  },
+
+  register: async (fullName: string, email: string, password: string) => {
+    set({ isLoading: true, error: null })
+    try {
+  const response = await apiClient.register(fullName, email, password)
+      if (response.success && response.data) {
+        const token = response.data.token
+        const userData = response.data.data
+        if (token) apiClient.setToken(token)
+        set({
+          user: {
+            id: userData._id,
+            email: userData.email,
+            fullName: (userData as any)?.fullName ?? (userData as any)?.name ?? "",
+            emailVerified: (userData as any)?.emailVerified ?? false,
+            role: "player" as UserRole,
+            gamesPlayed: 0,
+            canHost: false,
+            createdAt: new Date(userData.createdAt || new Date()).getTime(),
+            lastActive: new Date(userData.updatedAt || new Date()).getTime(),
+          },
+          isAuthenticated: true,
           isLoading: false,
         })
       } else {
         set({
           error: response.error || "Registration failed",
+          isLoading: false,
+        })
+      }
+    } catch (error) {
+      set({
+        error: "Network error occurred",
+        isLoading: false,
+      })
+    }
+  },
+
+  hostRegister: async (fullName: string, email: string, password: string) => {
+    set({ isLoading: true, error: null })
+    try {
+  const response = await apiClient.createHost(fullName, email, password)
+      if (response.success && response.data) {
+        const token = (response.data as any)?.token
+        // Host registration returns host object, not data
+        const hostData = (response.data as any)?.host ?? (response.data as any)?.data
+        if (token) apiClient.setToken(token)
+        set({
+          user: {
+            id: hostData._id,
+            email: hostData.email,
+            fullName: (hostData as any)?.fullName ?? (hostData as any)?.name ?? "",
+            emailVerified: false,
+            role: "host" as UserRole,
+            gamesPlayed: 0,
+            canHost: true,
+            createdAt: new Date(hostData.createdAt || new Date()).getTime(),
+            lastActive: new Date(hostData.updatedAt || new Date()).getTime(),
+          },
+          isAuthenticated: true,
+          isLoading: false,
+        })
+      } else {
+        set({
+          error: response.error || "Host registration failed",
           isLoading: false,
         })
       }
@@ -145,7 +218,6 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   setToken: (token: string) => {
     apiClient.setToken(token)
   },
-
 
   setUser(user) {
     set({ user })

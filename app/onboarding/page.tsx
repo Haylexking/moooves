@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api/client"
 
 export default function OnboardingPage() {
   const [tab, setTab] = useState<"register" | "login">("register")
+  const [userType, setUserType] = useState<"user" | "host">("user")
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -59,7 +60,7 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const { login, register, isLoading, error, clearError } = useAuthStore()
+  const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,10 +68,18 @@ export default function OnboardingPage() {
     setLoading(true)
     try {
       if (tab === "register") {
-        await register(formData.username.trim(), formData.email.trim(), formData.password)
-        router.push(`/onboarding/verification?email=${encodeURIComponent(formData.email.trim())}`)
+        if (userType === "host") {
+          await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
+        } else {
+          await register(formData.username.trim(), formData.email.trim(), formData.password)
+        }
+        router.push("/dashboard")
       } else {
-        await login(formData.email.trim(), formData.password)
+        if (userType === "host") {
+          await hostLogin(formData.email.trim(), formData.password)
+        } else {
+          await login(formData.email.trim(), formData.password)
+        }
         // After login, go to dashboard
         router.push("/dashboard")
       }
@@ -84,8 +93,11 @@ export default function OnboardingPage() {
 
   // Handle Google sign in (real)
   const handleGoogleSignIn = () => {
-    // Use the apiClient method to get the correct Google OAuth URL
-    window.location.href = apiClient.getGoogleAuthUrl()
+    if (userType === "host") {
+      window.location.href = apiClient.getHostGoogleAuthUrl()
+    } else {
+      window.location.href = apiClient.getGoogleAuthUrl()
+    }
   }
 
   return (
@@ -118,6 +130,25 @@ export default function OnboardingPage() {
             </Alert>
           </div>
         )}
+
+        <div className="flex gap-4 mb-4 text-sm font-bold text-[#002B03] w-full justify-center">
+          <button
+            className={`px-3 py-1 rounded-full transition-all duration-150 ${
+              userType === "user" ? "bg-[#6AC56E] text-white" : "bg-transparent border border-[#6AC56E]"
+            }`}
+            onClick={() => setUserType("user")}
+          >
+            Player
+          </button>
+          <button
+            className={`px-3 py-1 rounded-full transition-all duration-150 ${
+              userType === "host" ? "bg-[#6AC56E] text-white" : "bg-transparent border border-[#6AC56E]"
+            }`}
+            onClick={() => setUserType("host")}
+          >
+            Host
+          </button>
+        </div>
 
         {/* Tabs */}
         <div className="flex gap-8 mb-6 text-lg font-extrabold text-[#002B03] w-full justify-center">
@@ -247,7 +278,7 @@ export default function OnboardingPage() {
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white border border-[#BFC4BF] text-[#002B03] font-semibold mt-2 mb-2 shadow-sm hover:bg-[#f3fff3] transition"
           >
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/google-color-fFx4pHHuSmJkntGfB5HIFxytaZrBRy.svg"
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/google-color-SXMzEgXIYrSGdaJTIzfnwjMHvCpp8z.svg"
               alt="Google"
               className="w-5 h-5"
             />
@@ -255,7 +286,11 @@ export default function OnboardingPage() {
           </button>
 
           <GameButton type="submit" className="mt-2" disabled={loading}>
-            {loading ? "Loading..." : tab === "register" ? "Register" : "Login"}
+            {loading
+              ? "Loading..."
+              : tab === "register"
+                ? `Register as ${userType === "host" ? "Host" : "Player"}`
+                : "Login"}
           </GameButton>
         </form>
       </div>

@@ -8,25 +8,28 @@ interface ApiResponse<T = any> {
 }
 
 interface LoginResponse {
-  token: string
-  user: {
-    id: string
+  message: string
+  data: {
+    _id: string
     email: string
-    fullName: string
-    phone?: string
-    emailVerified: boolean
+    name: string
+    createdAt: string
+    updatedAt: string
   }
+  token: string
 }
 
 interface RegisterResponse {
-  token: string
-  user: {
-    id: string
-    email: string
+  message: string
+  data: {
+    _id: string
     fullName: string
-    phone?: string
-    emailVerified: boolean
+    email: string
+    password: string
+    createdAt: string
+    updatedAt: string
   }
+  token?: string
 }
 
 class ApiClient {
@@ -134,11 +137,11 @@ class ApiClient {
 
   // Google OAuth methods
   getGoogleAuthUrl(): string {
-    return `${this.baseUrl}/google-authenticate`
+    return `${API_CONFIG.BASE_URL}/auth/google/login`
   }
 
   getHostGoogleAuthUrl(): string {
-    return `${this.baseUrl}/host-google-authenticate`
+    return `${API_CONFIG.BASE_URL}/host/auth/google/login`
   }
 
   // Host auth methods
@@ -157,7 +160,13 @@ class ApiClient {
   ): Promise<ApiResponse<RegisterResponse>> {
     return this.request<RegisterResponse>("/host", {
       method: "POST",
-      body: JSON.stringify({ fullName, email, password, phone }),
+      body: JSON.stringify({
+        fullName,
+        email,
+        password,
+        repeatPassword: password, // API requires repeatPassword field
+        phone,
+      }),
     })
   }
 

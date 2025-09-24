@@ -54,11 +54,11 @@ export interface Tournament {
   inviteLink: string
 
   // Entry & Prize Pool
-  entryFee: number // Minimum ₦1,000
+  entryFee: number // Minimum ₦500
   minPlayers: number // 6
   maxPlayers: number // 50
   currentPlayers: number
-  totalPool: number // Minimum ₦100,000
+  totalPool: number // Minimum ₦20,000
 
   // Tournament Settings
   gameMode: GameMode

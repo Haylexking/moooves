@@ -17,3 +17,13 @@ export const useAuthStore = create<AuthSlice>()(
     { name: "auth-store" },
   ),
 )
+if (process.env.NODE_ENV === "development") {
+  useAuthStore.subscribe((state) => {
+    console.log("Auth Store Updated:", state)
+  })
+}
+
+// For debugging purposes
+if (process.env.NODE_ENV === "development") {
+  (window as any).useAuthStore = useAuthStore
+}
