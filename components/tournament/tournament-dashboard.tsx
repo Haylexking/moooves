@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+
+import { useAuthStore } from "@/lib/stores/auth-store"
 import Image from "next/image"
 import {
   Menu,
@@ -46,7 +48,9 @@ export function TournamentDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("leaderboard")
   const [hasTournament, setHasTournament] = useState(false)
   const [userStatus, setUserStatus] = useState<UserTournamentStatus>("not_registered")
-  const currentUserId = "002" // Current user ID
+  const { user } = useAuthStore()
+  const currentUserId = user?.id || ""
+  const currentUserName = user?.fullName || "Player"
 
   const menuItems = [
     { icon: Gamepad2, label: "Play game", href: "/dashboard" },
@@ -74,15 +78,10 @@ export function TournamentDashboard() {
   ]
 
   // Mock leaderboard data
+  // TODO: Replace with real leaderboard data from backend
   const leaderboardData: LeaderboardEntry[] = [
-    { rank: 1, userId: "004", username: "User 004", score: 100, medal: "gold" },
-    { rank: 2, userId: "003", username: "User 003", score: 80, medal: "silver" },
-    { rank: 3, userId: "001", username: "User 001", score: 60, medal: "bronze" },
-    { rank: 4, userId: "010", username: "User 010", score: 40 },
-    { rank: 5, userId: "005", username: "User 005", score: 10 },
-    { rank: 6, userId: "006", username: "User 006", score: 10 },
-    { rank: 7, userId: "007", username: "User 007", score: 10 },
-    { rank: 8, userId: "008", username: "User 008", score: 10 },
+    { rank: 1, userId: currentUserId, username: currentUserName, score: 100, medal: "gold" },
+    // ...other users from backend or mock
   ]
 
   const handleStartTournament = () => {
@@ -95,14 +94,7 @@ export function TournamentDashboard() {
     console.log("Entering tournament...")
   }
 
-  const simulateTournamentState = () => {
-    setHasTournament(true)
-    // Cycle through different user states for demonstration
-    const states: UserTournamentStatus[] = ["not_registered", "registered_active", "eliminated", "completed"]
-    const currentIndex = states.indexOf(userStatus)
-    const nextIndex = (currentIndex + 1) % states.length
-    setUserStatus(states[nextIndex])
-  }
+
 
   const getMatchesByStage = (stage: TournamentStage) => {
     return tournamentMatches.filter((match) => match.stage === stage)
@@ -230,7 +222,8 @@ export function TournamentDashboard() {
         priority
       />
 
-      {/* Side Menu */}
+
+      {/* Side Menu (restored original design) */}
       <div
         className={`fixed left-0 top-0 h-full w-64 bg-black/40 backdrop-blur-sm z-40 transform transition-transform duration-300 ${
           isMenuOpen ? "translate-x-0" : "-translate-x-full"
@@ -297,7 +290,7 @@ export function TournamentDashboard() {
           {/* User Profile */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
             <User className="w-5 h-5" />
-            USER 002
+            {currentUserName}
           </div>
 
           {/* Notification Bell */}
@@ -365,12 +358,7 @@ export function TournamentDashboard() {
                       <GameButton onClick={handleStartTournament} className="w-48">
                         Start a tournament
                       </GameButton>
-                      <button
-                        onClick={simulateTournamentState}
-                        className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                      >
-                        Simulate Tournament
-                      </button>
+
                     </div>
                   ) : (
                     // Leaderboard with Data
@@ -387,12 +375,7 @@ export function TournamentDashboard() {
                           >
                             Clear
                           </button>
-                          <button
-                            onClick={simulateTournamentState}
-                            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors"
-                          >
-                            Next State
-                          </button>
+
                         </div>
                       </div>
                       <div className="space-y-2">

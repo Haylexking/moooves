@@ -24,6 +24,6 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // For debugging purposes
-if (process.env.NODE_ENV === "development") {
+if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
   (window as any).useAuthStore = useAuthStore
 }

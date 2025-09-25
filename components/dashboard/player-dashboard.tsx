@@ -53,40 +53,21 @@ export function PlayerDashboard() {
   ]
 
   const getUserDisplayName = () => {
-    if (!user) return "Guest User"
-
-    // Try to get a short display name from fullName
-    const fullName = user.fullName?.trim()
-    if (fullName) {
-      const nameParts = fullName.split(" ")
-      if (nameParts.length >= 2) {
-        // Return first name + last initial (e.g., "John D.")
-        return `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
-      }
-      // If only one name, return it (up to 10 chars)
-      return fullName.length > 10 ? `${fullName.substring(0, 10)}...` : fullName
+    if (!user) return "User"
+    const username = user.fullName?.trim()
+    if (username) {
+      return username.length > 16 ? `${username.substring(0, 16)}...` : username
     }
-
     // Fallback to email prefix
     const emailPrefix = user.email?.split("@")[0]
     return emailPrefix ? (emailPrefix.length > 8 ? `${emailPrefix.substring(0, 8)}...` : emailPrefix) : "User"
   }
 
-  const getUserInitials = () => {
-    if (!user) return "GU"
-
-    const fullName = user.fullName?.trim()
-    if (fullName) {
-      const nameParts = fullName.split(" ")
-      if (nameParts.length >= 2) {
-        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-      }
-      return fullName.substring(0, 2).toUpperCase()
-    }
-
-    // Fallback to email initials
-    const emailPrefix = user.email?.split("@")[0]
-    return emailPrefix ? emailPrefix.substring(0, 2).toUpperCase() : "U"
+  // Avatar: first letter of username or 'U'
+  const getUserAvatarLetter = () => {
+    if (!user) return "U";
+    const username = user.fullName?.trim();
+    return username && username.length > 0 ? username[0].toUpperCase() : "U";
   }
 
   const handlePlay1v1 = () => setSelectedGameMode("1v1")
@@ -139,7 +120,7 @@ export function PlayerDashboard() {
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2 p-4 font-bold text-lg">
-              <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">{getUserInitials()}</span>
+              <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">{getUserAvatarLetter()}</span>
               {getUserDisplayName()}
             </div>
           </SidebarHeader>

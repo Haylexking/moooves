@@ -11,13 +11,14 @@ import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
 
 interface BattleGroundProps {
-  player1?: string
-  player2?: string
-  gameMode?: "player-vs-player" | "player-vs-computer"
-  onMoveMade?: (row: number, col: number, byPlayer: Player) => void
+  player1?: string;
+  player2?: string;
+  gameMode?: "player-vs-player" | "player-vs-computer";
+  onMoveMade?: (row: number, col: number, byPlayer: Player) => void;
 }
+
 export function BattleGround({
-  player1 = "USER 002",
+  player1 = "User",
   player2 = "COMPUTER",
   gameMode = "player-vs-computer",
   onMoveMade,
@@ -309,7 +310,7 @@ export function BattleGround({
         </div>
       </div>
 
-      {/* Score Panel - now above the board */}
+      {/* Score Panel - always visible above the board */}
       <div className="w-full flex justify-center mt-4">
         <GameScore
           player1={player1}
