@@ -6,9 +6,11 @@ export const API_CONFIG = {
     // Auth endpoints from Swagger (email/password + Google)
     AUTH: {
       LOGIN: "/login", // POST /api/v1/login
-      GOOGLE_AUTHENTICATE: "/google-authenticate", // GET /api/v1/google-authenticate
-      GOOGLE_LOGIN: "/auth/google/login", // GET /api/v1/auth/google/login
       REGISTER: "/users", // POST /api/v1/users
+
+      // 🔥 Fixed according to Swagger
+      GOOGLE_AUTHENTICATE: "/google-autheticate", // GET /api/v1/google-autheticate (typo is in Swagger)
+      GOOGLE_LOGIN: "/auth/google/login", // GET /api/v1/auth/google/login
     },
 
     // Users
@@ -27,8 +29,10 @@ export const API_CONFIG = {
       UPDATE: "/hosts/:id", // PUT /api/v1/hosts/:id
       DELETE: "/hosts/:id", // DELETE /api/v1/hosts/:id
       LOGIN: "/hostlogin", // POST /api/v1/hostlogin
-      GOOGLE_AUTHENTICATE: "/google-authenticate", // GET /api/v1/google-authenticate
-      GOOGLE_LOGIN: "/auth/google/login", // GET /api/v1/auth/google/login
+
+      // 🔥 Fixed according to Swagger
+      GOOGLE_AUTHENTICATE: "/host-google-autheticate", // GET /api/v1/host-google-autheticate (typo in Swagger)
+      GOOGLE_LOGIN: "/host/auth/google/login", // GET /api/v1/host/auth/google/login
     },
 
     // Tournaments
@@ -39,7 +43,6 @@ export const API_CONFIG = {
       JOIN: "/tournaments/:id/join", // POST /api/v1/tournaments/:id/join
       USER_TOURNAMENTS: "/users/:id/tournaments", // GET /api/v1/users/:id/tournaments
     },
-
 
     // Games endpoints (from Swagger)
     GAMES: {
