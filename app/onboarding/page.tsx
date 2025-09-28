@@ -33,14 +33,28 @@ export default function OnboardingPage() {
     }
   }
 
-  // Basic validation for UI feedback
+  const validatePassword = (password: string): string | null => {
+    if (!password) return "Password is required"
+    if (password.length < 8) return "Password must be at least 8 characters long"
+    if (!/(?=.*[a-z])/.test(password)) return "Password must contain at least one lowercase letter"
+    if (!/(?=.*[A-Z])/.test(password)) return "Password must contain at least one uppercase letter"
+    if (!/(?=.*\d)/.test(password)) return "Password must contain at least one number"
+    if (!/(?=.*[!@#$%^&*])/.test(password)) return "Password must contain at least one special character (!@#$%^&*)"
+    return null
+  }
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
     if (tab === "register") {
       if (!formData.username.trim()) {
         newErrors.username = "Username is required"
+      } else if (formData.username.trim().length < 3) {
+        newErrors.username = "Username must be at least 3 characters long"
+      } else if (!/^[A-Za-z ]+$/.test(formData.username.trim())) {
+        newErrors.username = "Username must contain only letters and spaces"
       }
+
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = "Please confirm your password"
       } else if (formData.password !== formData.confirmPassword) {
@@ -50,10 +64,14 @@ export default function OnboardingPage() {
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = "Please enter a valid email address"
     }
 
-    if (!formData.password) {
-      newErrors.password = "Password is required"
+    // Apply password validation
+    const passwordError = validatePassword(formData.password)
+    if (passwordError) {
+      newErrors.password = passwordError
     }
 
     setErrors(newErrors)
@@ -247,6 +265,11 @@ export default function OnboardingPage() {
             />
           </div>
           {errors.password && <p className="text-red-500 text-sm -mt-2">{errors.password}</p>}
+          {tab === "register" && (
+            <div className="text-xs text-[#002B03]/70 -mt-2">
+              Password must be at least 8 characters with uppercase, lowercase, number, and special character (!@#$%^&*)
+            </div>
+          )}
 
           {tab === "register" && (
             <>

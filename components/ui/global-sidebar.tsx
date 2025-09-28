@@ -1,17 +1,8 @@
+"use client"
 
-
-import React, { useState } from "react";
-import Link from "next/link";
-import {
-  Menu,
-  X,
-  Gamepad2,
-  Trophy,
-  BarChart3,
-  Wallet,
-  HelpCircle,
-  LogOut,
-} from "lucide-react";
+import React, { useState } from "react"
+import Link from "next/link"
+import { Menu, X, Gamepad2, Trophy, BarChart3, Wallet, HelpCircle, LogOut } from "lucide-react"
 
 const menuItems = [
   { icon: Gamepad2, label: "Play game", href: "/dashboard" },
@@ -20,57 +11,52 @@ const menuItems = [
   { icon: Wallet, label: "Wallet", href: "/wallet" },
   { icon: HelpCircle, label: "Need help", href: "/help" },
   { icon: LogOut, label: "Exit game", href: "/" },
-];
+]
 
 export function GlobalSidebar() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
   return (
     <>
-      {/* Hamburger menu button */}
       {!open && (
         <button
-          className="fixed top-6 left-6 z-50 bg-white/90 rounded-lg shadow-lg flex items-center gap-2 px-4 py-2 font-semibold text-gray-800 hover:bg-green-100 transition-colors"
+          className="fixed top-6 left-6 z-50 bg-white/90 rounded-lg shadow-lg flex items-center gap-2 px-4 py-2 font-semibold text-gray-800 hover:bg-white transition-colors"
           onClick={() => setOpen(true)}
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5" />
           Menu
         </button>
       )}
-      {/* Sidebar overlay */}
+
+      {open && <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />}
+
       {open && (
-        <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
-      )}
-      {/* Sidebar */}
-      {open && (
-        <aside className="fixed top-6 left-6 z-50 flex flex-col gap-4 bg-white/90 rounded-2xl shadow-2xl p-4 border-4 border-green-600 min-w-[220px] max-w-xs">
-          {/* Collapse button */}
-          <button
-            className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg font-semibold text-gray-800 shadow hover:bg-green-100 transition-colors mb-2"
-            onClick={() => setOpen(false)}
-          >
-            <X className="w-6 h-6" />
-            Collapse
-          </button>
-          {/* Menu items */}
-          {menuItems.map((item) => (
-            <Link href={item.href} key={item.label} legacyBehavior>
-              <a
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg font-semibold shadow transition-colors text-lg w-full
-                  ${item.label === "Play game"
-                    ? "bg-green-600 text-white hover:bg-green-700"
-                    : "bg-white text-green-800 hover:bg-green-100"}
-                `}
-                onClick={() => setOpen(false)}
-              >
-                {item.icon && React.createElement(item.icon, { className: "w-6 h-6" })}
-                {item.label}
-              </a>
-            </Link>
-          ))}
+        <aside className="fixed left-0 top-0 h-full w-64 bg-black/40 backdrop-blur-sm z-50 transform transition-transform duration-300 translate-x-0">
+          <div className="p-4 space-y-2">
+            {/* Collapse Button */}
+            <button
+              className="flex items-center gap-3 w-full p-3 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <X className="w-5 h-5" />
+              Collapse
+            </button>
+
+            {/* Menu Items */}
+            {menuItems.map((item) => (
+              <Link href={item.href} key={item.label} legacyBehavior>
+                <a
+                  className="flex items-center gap-3 w-full p-3 rounded-lg font-semibold transition-colors bg-white/90 text-gray-800 hover:bg-green-100 hover:text-green-800"
+                  onClick={() => setOpen(false)}
+                >
+                  {item.icon && React.createElement(item.icon, { className: "w-5 h-5" })}
+                  {item.label}
+                </a>
+              </Link>
+            ))}
+          </div>
         </aside>
       )}
     </>
-  );
-// removed extra closing brace
+  )
 }

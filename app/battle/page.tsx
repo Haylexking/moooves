@@ -1,7 +1,7 @@
 "use client"
 
 import { BattleGround } from "@/components/game/battle-ground"
-import { BattlePair } from "@/components/game/battle-pair"
+import BattlePair from "@/components/game/battle-pair"
 import { useState } from "react"
 
 export default function BattlePage() {

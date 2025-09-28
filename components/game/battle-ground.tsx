@@ -9,12 +9,14 @@ import { useGameStore } from "@/lib/stores/game-store"
 import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { getUserDisplayName } from "@/lib/utils/display-name"
 
 interface BattleGroundProps {
-  player1?: string;
-  player2?: string;
-  gameMode?: "player-vs-player" | "player-vs-computer";
-  onMoveMade?: (row: number, col: number, byPlayer: Player) => void;
+  player1?: string
+  player2?: string
+  gameMode?: "player-vs-player" | "player-vs-computer"
+  onMoveMade?: (row: number, col: number, byPlayer: Player) => void
 }
 
 export function BattleGround({
@@ -39,6 +41,7 @@ export function BattleGround({
     switchPlayer,
   } = useGameStore()
   const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(10 * 60) // 10 minutes
+  const { user } = useAuthStore()
 
   useEffect(() => {
     // Initialize game when component mounts
@@ -152,14 +155,12 @@ export function BattleGround({
     { label: "Exit Game", href: "/" },
   ]
 
+  const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Match Result Modal */}
-      <MatchResultModal
-        open={resultModalOpen}
-        onClose={() => setResultModalOpen(false)}
-        result={resultType}
-      />
+      <MatchResultModal open={resultModalOpen} onClose={() => setResultModalOpen(false)} result={resultType} />
       {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"
@@ -224,14 +225,14 @@ export function BattleGround({
             <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
               <span className="text-xs">₦</span>
             </div>
-            100,000
+            0
             <Plus className="w-4 h-4" />
           </div>
 
-          {/* User Profile */}
+          {/* User Profile - Show actual username */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
             <User className="w-5 h-5" />
-            USER 002
+            {displayUsername}
           </div>
 
           {/* Notification Bell */}
@@ -263,8 +264,8 @@ export function BattleGround({
           {/* 30x30 Grid Container */}
           <div
             className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
-              ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
-              : "w-[70vw] h-[70vw] max-w-[600px] max-h-[600px]"
+                ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
+                : "w-[70vw] h-[70vw] max-w-[600px] max-h-[600px]"
               }`}
           >
             {/* Actual 30x30 Grid */}
@@ -323,29 +324,43 @@ export function BattleGround({
         />
       </div>
 
-  {/* Control Buttons - below the board */}
-      <div className="w-full flex justify-center gap-4 mt-4">
-        <button
-          onClick={handleGameRules}
-          className="px-6 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors"
-        >
-          GAME RULES
-        </button>
-        <button
-          onClick={handlePlay}
-          disabled={gameStatus === "playing"}
-          className={`px-8 py-2 font-bold rounded-lg transition-colors ${gameStatus === "playing"
-            ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-            : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-            }`}
-        >
-          {gameStatus === "playing" ? "PLAYING" : "PLAY"}
-        </button>
-        <div
-          className={`px-6 py-2 font-bold rounded-lg ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
-            }`}
-        >
-          {formatTime(timeLeft)}
+      {/* Control Panel - Added game info panel below the board */}
+      <div className="w-full flex justify-center mt-4">
+        <div className="bg-black/60 backdrop-blur-sm rounded-lg px-8 py-4 flex items-center gap-6 text-white font-bold">
+          {/* Player vs Player/Computer Display */}
+          <div className="flex items-center gap-2">
+            <span className="text-blue-400">{displayUsername} (X)</span>
+            <span>VS</span>
+            <span className="text-red-400">{player2} (O)</span>
+          </div>
+
+          {/* Game Rules Button */}
+          <button
+            onClick={handleGameRules}
+            className="px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors"
+          >
+            GAME RULES
+          </button>
+
+          {/* Play Button */}
+          <button
+            onClick={handlePlay}
+            disabled={gameStatus === "playing"}
+            className={`px-6 py-2 font-bold rounded-lg transition-colors ${gameStatus === "playing"
+                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+              }`}
+          >
+            {gameStatus === "playing" ? "PLAYING" : "PLAY"}
+          </button>
+
+          {/* Timer */}
+          <div
+            className={`px-4 py-2 font-bold rounded-lg ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
+              }`}
+          >
+            {formatTime(timeLeft)}
+          </div>
         </div>
       </div>
     </div>

@@ -1,3 +1,8 @@
+// Allow importing CSS files as modules (for Next.js global CSS import)
+declare module "*.css" {
+  const content: { [className: string]: string };
+  export default content;
+}
 // Fix for Next.js/Node build: declare browser Bluetooth types if missing
 
 

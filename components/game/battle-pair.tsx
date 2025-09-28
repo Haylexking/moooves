@@ -1,8 +1,11 @@
 "use client"
 
+
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Menu, Settings, User, Plus, Bell } from "lucide-react"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { getUserDisplayName } from "@/lib/utils/display-name"
 
 interface BattlePairProps {
   player1?: string
@@ -10,8 +13,12 @@ interface BattlePairProps {
   onMatchStart?: () => void
 }
 
-export function BattlePair({ player1 = "USER 002", player2 = "USER 004", onMatchStart }: BattlePairProps) {
+
+export default function BattlePair(props: BattlePairProps) {
   const [countdown, setCountdown] = useState(5)
+  const { user } = useAuthStore();
+  const displayName = user ? getUserDisplayName(user) : "Unknown Player";
+  const { player2, onMatchStart } = props;
 
   useEffect(() => {
     if (countdown > 0) {
@@ -58,7 +65,7 @@ export function BattlePair({ player1 = "USER 002", player2 = "USER 004", onMatch
           {/* User Profile */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
             <User className="w-5 h-5" />
-            USER 002
+            {displayName}
           </div>
 
           {/* Notification Bell */}
@@ -82,7 +89,7 @@ export function BattlePair({ player1 = "USER 002", player2 = "USER 004", onMatch
               <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <User className="w-12 h-12 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-green-800">{player1}</h3>
+              <h3 className="text-xl font-bold text-green-800">{displayName}</h3>
             </div>
 
             {/* VS */}

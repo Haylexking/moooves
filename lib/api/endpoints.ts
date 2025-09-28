@@ -33,24 +33,31 @@ export const hostEndpoints = {
   delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.DELETE, { id }),
 }
 
-// Tournament endpoints (placeholder for future)
+// Tournament endpoints
 export const tournamentEndpoints = {
-  create: () => "/tournaments",
-  list: () => "/tournaments",
-  getById: (id: string) => buildEndpoint("/tournaments/:id", { id }),
-  join: (id: string) => buildEndpoint("/tournaments/:id/join", { id }),
-  start: (id: string) => buildEndpoint("/tournaments/:id/start", { id }),
-  getByInvite: (code: string) => buildEndpoint("/tournaments/invite/:code", { code }),
-  leave: (id: string) => buildEndpoint("/tournaments/:id/leave", { id }),
+  list: () => API_CONFIG.ENDPOINTS.TOURNAMENTS.LIST,
+  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.GET_BY_ID, { id }),
+  create: () => API_CONFIG.ENDPOINTS.TOURNAMENTS.CREATE,
+  join: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.JOIN, { id }),
+  userTournaments: (userId: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.USER_TOURNAMENTS, { id: userId }),
 }
 
-// Game endpoints (placeholder for future)
+// Game endpoints (from API_CONFIG)
 export const gameEndpoints = {
-  create: () => "/games",
-  getById: (id: string) => buildEndpoint("/games/:id", { id }),
-  makeMove: (id: string) => buildEndpoint("/games/:id/moves", { id }),
-  getMoves: (id: string) => buildEndpoint("/games/:id/moves", { id }),
-  endGame: (id: string) => buildEndpoint("/games/:id/end", { id }),
+  list: () => API_CONFIG.ENDPOINTS.GAMES.LIST,
+  create: () => API_CONFIG.ENDPOINTS.GAMES.CREATE,
+  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.GET_BY_ID, { id }),
+  update: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.UPDATE, { id }),
+  delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.DELETE, { id }),
+}
+
+// MatchRoom endpoints (from API_CONFIG)
+export const matchRoomEndpoints = {
+  list: () => API_CONFIG.ENDPOINTS.MATCHROOM.LIST,
+  create: () => API_CONFIG.ENDPOINTS.MATCHROOM.CREATE,
+  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.MATCHROOM.GET_BY_ID, { id }),
+  update: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.MATCHROOM.UPDATE, { id }),
+  delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.MATCHROOM.DELETE, { id }),
 }
 
 // Payment endpoints (placeholder for future)

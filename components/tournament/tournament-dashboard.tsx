@@ -1,26 +1,14 @@
 "use client"
 
-import { useState } from "react"
-
+import { useState, useEffect } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiClient } from "@/lib/api/client"
+import type { Tournament } from "@/lib/types"
 import Image from "next/image"
-import {
-  Menu,
-  X,
-  Plus,
-  User,
-  Settings,
-  Gamepad2,
-  Trophy,
-  BarChart3,
-  Wallet,
-  HelpCircle,
-  LogOut,
-  Bell,
-  Check,
-  ChevronRight,
-} from "lucide-react"
+import { Check, ChevronRight, User } from "lucide-react"
 import { GameButton } from "@/components/ui/game-button"
+import { GlobalSidebar } from "@/components/ui/global-sidebar"
+import { TopNavigation } from "@/components/ui/top-navigation"
 
 type TabType = "leaderboard" | "matches" | "rules"
 type TournamentStage = "knockout" | "quarterfinal" | "semifinal" | "final"
@@ -43,58 +31,129 @@ interface Match {
   stage: TournamentStage
 }
 
-export function TournamentDashboard() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+export default function TournamentDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("leaderboard")
-  const [hasTournament, setHasTournament] = useState(false)
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [loading, setLoading] = useState(false)
   const [userStatus, setUserStatus] = useState<UserTournamentStatus>("not_registered")
+  const [tournamentMatches, setTournamentMatches] = useState<Match[]>([])
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [joinCode, setJoinCode] = useState("")
+  const [joinLoading, setJoinLoading] = useState(false)
+
   const { user } = useAuthStore()
   const currentUserId = user?.id || ""
   const currentUserName = user?.fullName || "Player"
 
-  const menuItems = [
-    { icon: Gamepad2, label: "Play game", href: "/dashboard" },
-    { icon: Trophy, label: "Tournament", href: "/tournaments", active: true },
-    { icon: BarChart3, label: "Statistics", href: "/stats" },
-    { icon: Wallet, label: "Wallet", href: "/wallet" },
-    { icon: HelpCircle, label: "Need help", href: "/help" },
-    { icon: LogOut, label: "Exit game", href: "/" },
-  ]
+  // Fetch only tournaments the user is registered for
+  useEffect(() => {
+    if (!user) return
+    setLoading(true)
+    apiClient.getAllTournaments().then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        // Filter tournaments where user is a participant
+        const userTournaments = res.data.filter((t: any) =>
+          t.participants?.some((p: any) => p.userId === user.id)
+        )
+        setTournaments(userTournaments)
+      }
+      setLoading(false)
+    })
+  }, [user])
 
-  const tournamentMatches: Match[] = [
-    // Quarterfinal stage
-    { id: "qf1", player1: "004", player2: "001", winner: "004", completed: true, stage: "quarterfinal" },
-    { id: "qf2", player1: "010", player2: "003", winner: "010", completed: true, stage: "quarterfinal" },
-    { id: "qf3", player1: "010", player2: "003", winner: "010", completed: true, stage: "quarterfinal" },
-    { id: "qf4", player1: "005", player2: "007", completed: false, stage: "quarterfinal" },
-
-    // Knockout stage
-    { id: "ko1", player1: "005", player2: "001", winner: "005", completed: true, stage: "knockout" },
-    { id: "ko2", player1: "010", player2: "008", winner: "010", completed: true, stage: "knockout" },
-    { id: "ko3", player1: "004", player2: "008", winner: "004", completed: true, stage: "knockout" },
-    { id: "ko4", player1: "002", player2: "003", winner: "002", completed: true, stage: "knockout" },
-    { id: "ko5", player1: "005", player2: "007", completed: false, stage: "knockout" },
-    { id: "ko6", player1: "005", player2: "007", winner: "005", completed: true, stage: "knockout" },
-  ]
-
-  // Mock leaderboard data
-  // TODO: Replace with real leaderboard data from backend
-  const leaderboardData: LeaderboardEntry[] = [
-    { rank: 1, userId: currentUserId, username: currentUserName, score: 100, medal: "gold" },
-    // ...other users from backend or mock
-  ]
+  useEffect(() => {
+    if (!selectedTournament) return
+    setLoading(true)
+    apiClient.getTournament(selectedTournament.id).then((res) => {
+      if (res.success && res.data && res.data.bracket && Array.isArray(res.data.bracket.rounds)) {
+        const allMatches = res.data.bracket.rounds.flatMap((round: any) =>
+          round.matches.map((m: any) => ({
+            id: m.id,
+            player1: m.player1Id,
+            player2: m.player2Id,
+            winner: m.winnerId,
+            completed: m.status === "completed",
+            stage: `round${round.roundNumber}` as TournamentStage,
+          }))
+        )
+        setTournamentMatches(allMatches)
+      } else {
+        setTournamentMatches([])
+      }
+      setLoading(false)
+    })
+    apiClient.getTournamentWinners(selectedTournament.id).then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setLeaderboard(
+          res.data.map((entry: any, idx: number) => ({
+            rank: entry.rank || idx + 1,
+            userId: entry.userId,
+            username: entry.username || `User ${entry.userId.substring(0, 6)}`,
+            score: entry.prize || 0,
+            medal:
+              entry.rank === 1
+                ? "gold"
+                : entry.rank === 2
+                  ? "silver"
+                  : entry.rank === 3
+                    ? "bronze"
+                    : undefined,
+          }))
+        )
+      } else {
+        setLeaderboard([])
+      }
+    })
+  }, [selectedTournament])
 
   const handleStartTournament = () => {
-    // Navigate back to dashboard to start tournament creation
     window.location.href = "/dashboard"
   }
 
   const handleEnterTournament = () => {
     setUserStatus("registered_active")
+    // TODO: Call API to join tournament
     console.log("Entering tournament...")
   }
 
+  const handleJoinByCode = async () => {
+    if (!joinCode || !user) return
+    setJoinLoading(true)
+    try {
+      const res = await apiClient.joinTournamentWithCode(joinCode, user.id)
+      if (res.success) {
+        // Refetch tournaments after joining
+        apiClient.getAllTournaments().then((res2) => {
+          if (res2.success && Array.isArray(res2.data)) {
+            const userTournaments = res2.data.filter((t: any) =>
+              t.participants?.some((p: any) => p.userId === user.id)
+            )
+            setTournaments(userTournaments)
+          }
+        })
+        setJoinCode("")
+        alert("Joined tournament!")
+      } else {
+        alert(res.error || "Failed to join tournament")
+      }
+    } catch (err) {
+      alert("Error joining tournament")
+    }
+    setJoinLoading(false)
+  }
 
+  useEffect(() => {
+    if (!selectedTournament) return
+    const tournament = tournaments.find((t) => t.id === selectedTournament.id)
+    if (tournament) {
+      setUserStatus(
+        tournament.participants?.some((p: any) => p.userId === user?.id)
+          ? "registered_active"
+          : "not_registered"
+      )
+    }
+  }, [selectedTournament, tournaments, user])
 
   const getMatchesByStage = (stage: TournamentStage) => {
     return tournamentMatches.filter((match) => match.stage === stage)
@@ -104,14 +163,15 @@ export function TournamentDashboard() {
     return match.player1 === currentUserId || match.player2 === currentUserId
   }
 
+  const hasTournament = !!selectedTournament
+
   const getTournamentButton = () => {
-    if (!hasTournament) {
+    if (!selectedTournament) {
       return { text: "Start a tournament", action: handleStartTournament }
     }
-
     switch (userStatus) {
       case "not_registered":
-        return { text: "Enter tournament", action: handleEnterTournament }
+        return { text: "Register for tournament", action: handleJoinByCode }
       case "registered_active":
         return { text: "Continue tournament", action: () => console.log("Continue tournament") }
       case "eliminated":
@@ -119,14 +179,13 @@ export function TournamentDashboard() {
       case "completed":
         return { text: "Tournament completed", action: () => console.log("Tournament completed") }
       default:
-        return { text: "Enter tournament", action: handleEnterTournament }
+        return { text: "Register for tournament", action: handleJoinByCode }
     }
   }
 
   const renderMatch = (match: Match) => {
     const isUserMatch = isUserInMatch(match)
     const userIsActive = userStatus === "registered_active"
-
     return (
       <div
         key={match.id}
@@ -139,47 +198,37 @@ export function TournamentDashboard() {
             <ChevronRight className="w-5 h-5 text-gray-600" />
           )}
         </div>
-
         <div className="flex items-center gap-4">
-          {/* Player 1 */}
           <div
-            className={`flex items-center gap-2 ${
-              isUserMatch && match.player1 === currentUserId && userIsActive
+            className={`flex items-center gap-2 ${isUserMatch && match.player1 === currentUserId && userIsActive
                 ? "text-green-600 font-bold"
                 : "text-gray-700"
-            }`}
+              }`}
           >
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                isUserMatch && match.player1 === currentUserId && userIsActive ? "bg-green-600" : "bg-gray-600"
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${isUserMatch && match.player1 === currentUserId && userIsActive ? "bg-green-600" : "bg-gray-600"
+                }`}
             >
               <User className="w-5 h-5 text-white" />
             </div>
             <span>User {match.player1}</span>
           </div>
-
           <span className="font-bold text-gray-600">VS</span>
-
-          {/* Player 2 */}
           <div
-            className={`flex items-center gap-2 ${
-              isUserMatch && match.player2 === currentUserId && userIsActive
+            className={`flex items-center gap-2 ${isUserMatch && match.player2 === currentUserId && userIsActive
                 ? "text-green-600 font-bold"
                 : "text-gray-700"
-            }`}
+              }`}
           >
             <span>User {match.player2}</span>
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                isUserMatch && match.player2 === currentUserId && userIsActive ? "bg-green-600" : "bg-gray-600"
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${isUserMatch && match.player2 === currentUserId && userIsActive ? "bg-green-600" : "bg-gray-600"
+                }`}
             >
               <User className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-2">{match.completed && <Check className="w-5 h-5 text-green-600" />}</div>
       </div>
     )
@@ -213,7 +262,6 @@ export function TournamentDashboard() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
-      {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"
         alt="Dashboard Background"
@@ -221,270 +269,163 @@ export function TournamentDashboard() {
         className="object-cover object-center z-0"
         priority
       />
-
-
-      {/* Side Menu (restored original design) */}
-      <div
-        className={`fixed left-0 top-0 h-full w-64 bg-black/40 backdrop-blur-sm z-40 transform transition-transform duration-300 ${
-          isMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="p-4 space-y-2">
-          {/* Collapse Button */}
-          <button
-            onClick={() => setIsMenuOpen(false)}
-            className="flex items-center gap-3 w-full p-3 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-            Collapse
-          </button>
-
-          {/* Menu Items */}
-          {menuItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                if (item.href) {
-                  window.location.href = item.href
-                }
-                setIsMenuOpen(false)
-              }}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg font-semibold transition-colors ${
-                item.active
-                  ? "bg-green-200 text-green-800"
-                  : "bg-white/90 text-gray-800 hover:bg-green-100 hover:text-green-800"
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </button>
-          ))}
-        </div>
+      <GlobalSidebar />
+      <div className="relative z-20">
+        <TopNavigation />
       </div>
-
-      {/* Menu Overlay */}
-      {isMenuOpen && <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setIsMenuOpen(false)} />}
-
-      {/* Top Header */}
-      <div className="relative z-20 flex items-center justify-between p-4">
-        {/* Menu Button */}
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors shadow-lg"
-        >
-          <Menu className="w-5 h-5" />
-          Menu
-        </button>
-
-        {/* Right Side Buttons */}
-        <div className="flex items-center gap-3">
-          {/* Balance */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-xs">₦</span>
-            </div>
-            100,000
-            <Plus className="w-4 h-4" />
+      <div className="relative z-10 flex items-center justify-center mt-4">
+        <div className="w-full max-w-3xl">
+          {/* Tournaments Modal */}
+          <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl mb-6">
+            <h2 className="text-2xl font-bold text-green-800 text-center mb-6">Tournaments</h2>
+            {loading ? (
+              <div className="text-green-700 text-center py-8">Loading tournaments...</div>
+            ) : tournaments.length === 0 ? (
+              <div className="text-green-700 text-center py-8">No tournaments available.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tournaments.map((tournament) => (
+                  <div
+                    key={tournament.id}
+                    className={`bg-green-200/50 border-2 border-green-400 rounded-xl p-4 flex flex-col gap-2 shadow-md ${selectedTournament?.id === tournament.id ? "ring-2 ring-green-600" : ""
+                      }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-green-900 text-lg">{tournament.name}</div>
+                        <div className="text-xs text-green-700">
+                          Status:{" "}
+                          <span className="font-semibold">{tournament.status}</span>
+                        </div>
+                        <div className="text-xs text-green-700">
+                          Entry Fee: ₦{tournament.entryFee?.toLocaleString?.() ?? "-"}
+                        </div>
+                        <div className="text-xs text-green-700">
+                          Players: {tournament.currentPlayers} / {tournament.maxPlayers}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 min-w-[120px]">
+                        <GameButton
+                          onClick={() => setSelectedTournament(tournament)}
+                          variant={selectedTournament?.id === tournament.id ? "pressed" : "default"}
+                        >
+                          {selectedTournament?.id === tournament.id ? "Selected" : "View"}
+                        </GameButton>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
-            <User className="w-5 h-5" />
-            {currentUserName}
-          </div>
-
-          {/* Notification Bell */}
-          <button className="flex items-center justify-center w-12 h-12 rounded-lg bg-green-600 text-white shadow-lg hover:bg-green-700 transition-colors">
-            <Bell className="w-5 h-5" />
-          </button>
-
-          {/* Settings */}
-          <button className="flex items-center justify-center w-12 h-12 rounded-lg bg-white/90 text-gray-800 hover:bg-white transition-colors shadow-lg">
-            <Settings className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-100px)] p-4">
-        <div className="w-full max-w-4xl">
-          {/* Tournament Panel */}
+          {/* Join by code UI - Moved below the modal */}
           <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl">
-            {/* Tab Navigation */}
-            <div className="flex justify-center mb-6">
-              <div className="flex bg-green-200/50 rounded-lg p-1">
+            <h3 className="text-xl font-bold text-green-800 text-center mb-4">Join Tournament</h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="border border-green-400 rounded-lg px-3 py-2 flex-1"
+                placeholder="Paste tournament invite code here"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                disabled={joinLoading}
+              />
+              <GameButton onClick={handleJoinByCode} disabled={joinLoading || !joinCode}>
+                {joinLoading ? "Joining..." : "Join"}
+              </GameButton>
+            </div>
+          </div>
+        </div>
+      </div>
+      {selectedTournament && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl">
+            <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl relative">
+              <button
+                onClick={() => setSelectedTournament(null)}
+                className="absolute top-4 right-4 w-8 h-8 bg-green-800 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors"
+              >
+                <span className="w-5 h-5">×</span>
+              </button>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-green-800">{selectedTournament.name} Details</h3>
+                <span className="text-green-700 text-sm">Status: {selectedTournament.status}</span>
+              </div>
+              <div className="flex gap-4 mb-4">
                 <button
+                  className={`px-4 py-2 rounded-lg font-semibold ${activeTab === "leaderboard"
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-green-700 border border-green-400"
+                    }`}
                   onClick={() => setActiveTab("leaderboard")}
-                  className={`px-6 py-2 rounded-md font-semibold transition-colors ${
-                    activeTab === "leaderboard"
-                      ? "bg-green-600 text-white shadow-md"
-                      : "text-green-800 hover:bg-green-300/50"
-                  }`}
                 >
                   Leaderboard
                 </button>
                 <button
+                  className={`px-4 py-2 rounded-lg font-semibold ${activeTab === "matches"
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-green-700 border border-green-400"
+                    }`}
                   onClick={() => setActiveTab("matches")}
-                  className={`px-6 py-2 rounded-md font-semibold transition-colors ${
-                    activeTab === "matches"
-                      ? "bg-green-600 text-white shadow-md"
-                      : "text-green-800 hover:bg-green-300/50"
-                  }`}
                 >
                   Matches
                 </button>
-                {hasTournament && (
-                  <button
-                    onClick={() => setActiveTab("rules")}
-                    className={`px-6 py-2 rounded-md font-semibold transition-colors ${
-                      activeTab === "rules"
-                        ? "bg-green-600 text-white shadow-md"
-                        : "text-green-800 hover:bg-green-300/50"
+                <button
+                  className={`px-4 py-2 rounded-lg font-semibold ${activeTab === "rules"
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-green-700 border border-green-400"
                     }`}
-                  >
-                    Rules
-                  </button>
+                  onClick={() => setActiveTab("rules")}
+                >
+                  Rules
+                </button>
+              </div>
+              <div>
+                {activeTab === "leaderboard" && (
+                  <div>
+                    <h4 className="font-bold text-green-800 mb-2">Leaderboard</h4>
+                    {leaderboard.length === 0 ? (
+                      <div className="text-green-700">No leaderboard data yet.</div>
+                    ) : (
+                      <ul className="divide-y divide-green-200">
+                        {leaderboard.map((entry) => (
+                          <li key={entry.userId} className="flex items-center gap-4 py-2">
+                            <span className={`text-2xl ${getMedalColor(entry.medal)}`}>{getMedalIcon(entry.medal)}</span>
+                            <span className="font-semibold text-green-900">{entry.username}</span>
+                            <span className="ml-auto font-bold text-green-700">{entry.score}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                {activeTab === "matches" && (
+                  <div>
+                    <h4 className="font-bold text-green-800 mb-2">Matches</h4>
+                    {tournamentMatches.length === 0 ? (
+                      <div className="text-green-700">No matches yet.</div>
+                    ) : (
+                      <div>{tournamentMatches.map((match) => renderMatch(match))}</div>
+                    )}
+                  </div>
+                )}
+                {activeTab === "rules" && (
+                  <div className="text-green-700">
+                    <h4 className="font-bold text-green-800 mb-2">Tournament Rules</h4>
+                    <ul className="list-disc pl-6">
+                      <li>Win by 5 in a row or highest score if time/board ends.</li>
+                      <li>Scoring: 2 in a row = 1pt, 3 in a row = 3pt, 4 in a row = 5pt.</li>
+                      <li>Top 3 get prizes. Entry fee required.</li>
+                      <li>Elimination on loss. Bracket advances each round.</li>
+                    </ul>
+                  </div>
                 )}
               </div>
             </div>
-
-            {/* Tab Content */}
-            <div className="bg-green-200/30 rounded-lg p-6 min-h-[400px]">
-              {activeTab === "leaderboard" && (
-                <div>
-                  {!hasTournament ? (
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
-                      <h3 className="text-2xl font-bold text-green-600/60 mb-8">No Data Available</h3>
-                      <GameButton onClick={handleStartTournament} className="w-48">
-                        Start a tournament
-                      </GameButton>
-
-                    </div>
-                  ) : (
-                    // Leaderboard with Data
-                    <div>
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-green-800">Tournament Leaderboard</h3>
-                        <div className="flex gap-2">
-                          <GameButton onClick={getTournamentButton().action} className="w-40">
-                            {getTournamentButton().text}
-                          </GameButton>
-                          <button
-                            onClick={() => setHasTournament(false)}
-                            className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors"
-                          >
-                            Clear
-                          </button>
-
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        {leaderboardData.map((entry) => (
-                          <div
-                            key={entry.userId}
-                            className="flex items-center justify-between p-3 bg-green-100/50 rounded-lg border border-green-300/50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`text-2xl ${getMedalColor(entry.medal)}`}>
-                                {getMedalIcon(entry.medal)}
-                              </div>
-                              <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                                <User className="w-5 h-5 text-white" />
-                              </div>
-                              <span className="font-semibold text-green-800">{entry.username}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-2xl font-bold text-green-800">
-                                {entry.score.toString().padStart(3, "0")}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "matches" && (
-                <div>
-                  {!hasTournament ? (
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
-                      <h3 className="text-2xl font-bold text-green-600/60 mb-8">No Data Available</h3>
-                      <GameButton onClick={handleStartTournament} className="w-48">
-                        Start a tournament
-                      </GameButton>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {/* Quarterfinal Stage */}
-                      {getMatchesByStage("quarterfinal").length > 0 && (
-                        <div>
-                          <h4 className="text-lg font-bold text-green-800 mb-4 text-center">Quarterfinal stage</h4>
-                          <div className="space-y-2">{getMatchesByStage("quarterfinal").map(renderMatch)}</div>
-                        </div>
-                      )}
-
-                      {/* Knockout Stage */}
-                      {getMatchesByStage("knockout").length > 0 && (
-                        <div>
-                          <h4 className="text-lg font-bold text-green-800 mb-4 text-center">Knockout stage</h4>
-                          <div className="space-y-2">{getMatchesByStage("knockout").map(renderMatch)}</div>
-                        </div>
-                      )}
-
-                      {/* Tournament Action Button */}
-                      <div className="flex justify-center mt-6">
-                        <GameButton onClick={getTournamentButton().action} className="w-48">
-                          {getTournamentButton().text}
-                        </GameButton>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "rules" && hasTournament && (
-                <div className="space-y-6">
-                  <h3 className="text-2xl font-bold text-green-800 text-center">Tournament Rules</h3>
-
-                  <div className="space-y-4">
-                    <div className="bg-green-100/50 rounded-lg p-4">
-                      <h4 className="font-bold text-green-800 mb-2">Entry Requirements</h4>
-                      <ul className="text-green-700 text-sm space-y-1">
-                        <li>• Minimum entry fee: ₦500 per player</li>
-                        <li>• Minimum 6 players, maximum 50 players</li>
-                        <li>• Minimum cash pool: ₦20,000</li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-green-100/50 rounded-lg p-4">
-                      <h4 className="font-bold text-green-800 mb-2">Game Rules</h4>
-                      <ul className="text-green-700 text-sm space-y-1">
-                        <li>• 30x30 grid playing field</li>
-                        <li>• 10 minutes per match</li>
-                        <li>• Score points by getting 5 in a row</li>
-                        <li>• Player with most points wins</li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-green-100/50 rounded-lg p-4">
-                      <h4 className="font-bold text-green-800 mb-2">Cash Distribution</h4>
-                      <ul className="text-green-700 text-sm space-y-1">
-                        <li>• 1st Place: 20% of cash pool</li>
-                        <li>• 2nd Place: 12% of cash pool</li>
-                        <li>• 3rd Place: 8% of cash pool</li>
-                        <li>• Host: 50% of cash pool</li>
-                        <li>• Platform: 10% of cash pool</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -21,6 +21,24 @@ export interface AuthSlice {
   setIsAuthenticated: (isAuthenticated: boolean) => void
 }
 
+const parseApiError = (error: string): string => {
+  if (error.includes("Email:") && error.includes("already in use")) {
+    const emailMatch = error.match(/Email: ([^\s]+) already in use/)
+    return emailMatch ? `Email ${emailMatch[1]} is already registered` : "Email is already in use"
+  }
+  if (error.includes("Name:") && error.includes("already in use")) {
+    const nameMatch = error.match(/Name: ([^]+) already in use/)
+    return nameMatch ? `Username "${nameMatch[1]}" is already taken` : "Username is already taken"
+  }
+  if (error.includes("Passwords do not match")) {
+    return "Passwords do not match"
+  }
+  if (error.includes("Invalid email or password")) {
+    return "Invalid email or password"
+  }
+  return error
+}
+
 export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   user: null,
   isAuthenticated: false,
@@ -52,7 +70,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         })
       } else {
         set({
-          error: response.error || "Login failed",
+          error: parseApiError(response.error || "Login failed"),
           isLoading: false,
         })
       }
@@ -89,7 +107,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         })
       } else {
         set({
-          error: response.error || "Host login failed",
+          error: parseApiError(response.error || "Host login failed"),
           isLoading: false,
         })
       }
@@ -104,7 +122,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   register: async (fullName: string, email: string, password: string) => {
     set({ isLoading: true, error: null })
     try {
-  const response = await apiClient.register(fullName, email, password)
+      const response = await apiClient.register(fullName, email, password)
       if (response.success && response.data) {
         const token = response.data.token
         const userData = response.data.data
@@ -126,7 +144,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         })
       } else {
         set({
-          error: response.error || "Registration failed",
+          error: parseApiError(response.error || "Registration failed"),
           isLoading: false,
         })
       }
@@ -141,7 +159,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   hostRegister: async (fullName: string, email: string, password: string) => {
     set({ isLoading: true, error: null })
     try {
-  const response = await apiClient.createHost(fullName, email, password)
+      const response = await apiClient.createHost(fullName, email, password)
       if (response.success && response.data) {
         const token = (response.data as any)?.token
         // Host registration returns host object, not data
@@ -164,7 +182,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         })
       } else {
         set({
-          error: response.error || "Host registration failed",
+          error: parseApiError(response.error || "Host registration failed"),
           isLoading: false,
         })
       }

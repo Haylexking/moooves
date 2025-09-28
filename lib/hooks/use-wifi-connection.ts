@@ -30,6 +30,7 @@ export function useWiFiConnection() {
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const messageHandlersRef = useRef<Map<string, (data: any) => void>>(new Map())
   const pendingCandidatesRef = useRef<RTCIceCandidate[]>([])
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // WebRTC configuration with free STUN servers
   const rtcConfig: RTCConfiguration = {
@@ -84,11 +85,20 @@ export function useWiFiConnection() {
       setState((prev) => ({
         ...prev,
         isConnected: connectionState === "connected",
-        error: connectionState === "failed" ? "Connection failed" : null,
+        error: connectionState === "failed" ? "Connection failed - please try again" : null,
       }))
 
       if (connectionState === "connected") {
         console.log("WebRTC connection established")
+        // Clear connection timeout
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current)
+          connectionTimeoutRef.current = null
+        }
+      } else if (connectionState === "failed" || connectionState === "disconnected") {
+        setTimeout(() => {
+          disconnect()
+        }, 2000)
       }
     }
 
@@ -106,12 +116,17 @@ export function useWiFiConnection() {
     (dataChannel: RTCDataChannel) => {
       dataChannel.onopen = () => {
         console.log("Data channel opened")
-        setState((prev) => ({ ...prev, isConnected: true }))
+        setState((prev) => ({ ...prev, isConnected: true, error: null }))
       }
 
       dataChannel.onclose = () => {
         console.log("Data channel closed")
         setState((prev) => ({ ...prev, isConnected: false }))
+      }
+
+      dataChannel.onerror = (error) => {
+        console.error("Data channel error:", error)
+        setState((prev) => ({ ...prev, error: "Connection error occurred" }))
       }
 
       dataChannel.onmessage = handleDataChannelMessage
@@ -162,6 +177,16 @@ export function useWiFiConnection() {
       // Start polling for answer
       pollForAnswer(roomCode)
 
+      connectionTimeoutRef.current = setTimeout(
+        () => {
+          setState((prev) => ({
+            ...prev,
+            error: "Connection timeout - no one joined the room",
+          }))
+        },
+        5 * 60 * 1000,
+      ) // 5 minutes
+
       return roomCode
     } catch (error) {
       setState((prev) => ({
@@ -206,12 +231,18 @@ export function useWiFiConnection() {
         // Look for offer with matching room code
         const offerData = localStorage.getItem("moooves_offer")
         if (!offerData) {
-          throw new Error("Room not found")
+          throw new Error("Room not found - make sure the host created a room first")
         }
 
-        const { offer, roomCode: storedRoomCode } = JSON.parse(offerData)
+        const { offer, roomCode: storedRoomCode, timestamp } = JSON.parse(offerData)
+
+        if (Date.now() - timestamp > 10 * 60 * 1000) {
+          // 10 minutes
+          throw new Error("Room code expired - ask the host to create a new room")
+        }
+
         if (storedRoomCode !== roomCode.toUpperCase()) {
-          throw new Error("Invalid room code")
+          throw new Error("Invalid room code - please check and try again")
         }
 
         const peerConnection = initializePeerConnection()
@@ -240,6 +271,13 @@ export function useWiFiConnection() {
 
         // Process any pending ICE candidates
         processPendingCandidates()
+
+        connectionTimeoutRef.current = setTimeout(() => {
+          setState((prev) => ({
+            ...prev,
+            error: "Connection timeout - failed to connect to host",
+          }))
+        }, 30 * 1000) // 30 seconds
       } catch (error) {
         setState((prev) => ({
           ...prev,
@@ -312,6 +350,12 @@ export function useWiFiConnection() {
   // Disconnect from game
   const disconnect = useCallback(() => {
     try {
+      // Clear connection timeout
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current)
+        connectionTimeoutRef.current = null
+      }
+
       if (dataChannelRef.current) {
         dataChannelRef.current.close()
         dataChannelRef.current = null

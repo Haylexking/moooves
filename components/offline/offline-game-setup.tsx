@@ -10,12 +10,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useBluetoothConnection } from "@/lib/hooks/use-bluetooth-connection"
 import { useWiFiConnection } from "@/lib/hooks/use-wifi-connection"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
-import { Bluetooth, Wifi, Users, Smartphone, AlertCircle, CheckCircle, Copy } from "lucide-react"
+import { Bluetooth, Wifi, Users, Smartphone, AlertCircle, CheckCircle, Copy, RefreshCw } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 
 export function OfflineGameSetup() {
   const [roomCode, setRoomCode] = useState("")
   const [copied, setCopied] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
 
   const bluetooth = useBluetoothConnection()
   const wifi = useWiFiConnection()
@@ -30,6 +31,15 @@ export function OfflineGameSetup() {
         setTimeout(() => setCopied(false), 2000)
       } catch (error) {
         console.error("Failed to copy room code:", error)
+        // Fallback for browsers that don't support clipboard API
+        const textArea = document.createElement("textarea")
+        textArea.value = wifi.roomCode
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand("copy")
+        document.body.removeChild(textArea)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
       }
     }
   }
@@ -40,20 +50,27 @@ export function OfflineGameSetup() {
   }, [bluetooth])
 
   const handleBluetoothScan = async () => {
-    await bluetooth.scanForDevices()
-    if (bluetooth.isConnected && bluetooth.connectedDevice) {
-      await matchRoom.createRoom(`bt_${bluetooth.connectedDevice.id}`)
+    try {
+      setRetryCount(0)
+      await bluetooth.scanForDevices()
+      if (bluetooth.isConnected && bluetooth.connectedDevice) {
+        await matchRoom.createRoom(`bt_${bluetooth.connectedDevice.id}`)
+      }
+    } catch (error) {
+      console.error("Bluetooth scan failed:", error)
     }
   }
 
   const handleWiFiHost = async () => {
     try {
+      setRetryCount(0)
       const wifiRoomCode = await wifi.hostGame()
       if (wifiRoomCode) {
         await matchRoom.createRoom(`wifi_${wifiRoomCode}`)
       }
     } catch (error) {
       console.error("Failed to host game:", error)
+      setRetryCount((prev) => prev + 1)
     }
   }
 
@@ -61,14 +78,35 @@ export function OfflineGameSetup() {
     if (!roomCode.trim()) return
 
     try {
+      setRetryCount(0)
       await wifi.joinGame(roomCode.trim().toUpperCase())
       const rooms = await apiClient.getAllMatchRooms()
-      const targetRoom = rooms.data?.find((room: any) => room.bluetoothToken === `wifi_${roomCode.trim().toUpperCase()}`)
+      const targetRoom = rooms.data?.find(
+        (room: any) => room.bluetoothToken === `wifi_${roomCode.trim().toUpperCase()}`,
+      )
       if (targetRoom) {
         await matchRoom.joinRoom(targetRoom.id, `handshake_${Date.now()}`)
       }
     } catch (error) {
       console.error("Failed to join game:", error)
+      setRetryCount((prev) => prev + 1)
+    }
+  }
+
+  const handleRetry = () => {
+    if (wifi.error) {
+      wifi.disconnect()
+      setTimeout(() => {
+        if (wifi.roomCode) {
+          handleWiFiHost()
+        }
+      }, 1000)
+    }
+    if (bluetooth.error) {
+      bluetooth.disconnect()
+      setTimeout(() => {
+        handleBluetoothScan()
+      }, 1000)
     }
   }
 
@@ -113,7 +151,15 @@ export function OfflineGameSetup() {
               {wifi.error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{wifi.error}</AlertDescription>
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{wifi.error}</span>
+                    {retryCount < 3 && (
+                      <Button size="sm" variant="outline" onClick={handleRetry} className="ml-2 bg-transparent">
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Retry
+                      </Button>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -201,7 +247,15 @@ export function OfflineGameSetup() {
               {bluetooth.error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{bluetooth.error}</AlertDescription>
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{bluetooth.error}</span>
+                    {retryCount < 3 && (
+                      <Button size="sm" variant="outline" onClick={handleRetry} className="ml-2 bg-transparent">
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Retry
+                      </Button>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -289,6 +343,10 @@ export function OfflineGameSetup() {
           </p>
           <p>
             <strong>Note:</strong> Both methods work without internet once connected.
+          </p>
+          <p>
+            <strong>Troubleshooting:</strong> If connection fails, try moving closer together and ensure both devices
+            have the app open.
           </p>
         </CardContent>
       </Card>

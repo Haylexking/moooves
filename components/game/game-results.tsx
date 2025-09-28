@@ -1,86 +1,117 @@
 "use client"
 
+import React, { FC } from "react"
 import { useGameStore } from "@/lib/stores/game-store"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Trophy, RotateCcw, Users, Clock, Target } from "lucide-react"
 import { formatTime } from "@/lib/utils/time"
-import type { GameResultsProps } from "@/lib/types"
+import { Trophy, Clock, Users, Pause, Play } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import type { GameHeaderProps } from "@/lib/types"
 
-export function GameResults({ onPlayAgain, onBackToMenu }: GameResultsProps) {
-  const { initializeGame, getGameResult } = useGameStore()
-  const result = getGameResult()
+type GameResultsProps = {
+  onPlayAgain?: () => void;
+  onBackToMenu?: () => void;
+};
 
-  const handlePlayAgain = () => {
-    if (onPlayAgain) {
-      onPlayAgain()
-    } else {
-      initializeGame()
+export const GameResults: FC<GameResultsProps> = ({ onPlayAgain, onBackToMenu }) => {
+  return (
+    <div className="flex flex-col items-center justify-center p-8">
+      <h2 className="text-2xl font-bold mb-4">Game Over</h2>
+      <div className="flex gap-4">
+        {onPlayAgain && (
+          <Button onClick={onPlayAgain} className="bg-blue-500 text-white px-4 py-2 rounded">Play Again</Button>
+        )}
+        {onBackToMenu && (
+          <Button onClick={onBackToMenu} className="bg-gray-500 text-white px-4 py-2 rounded">Back to Menu</Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export function GameHeader({ timeLeft, showDebugInfo = false }: GameHeaderProps) {
+  const { scores, gameStatus, currentPlayer, moveHistory, pauseGame, resumeGame } = useGameStore()
+
+  const handlePauseResume = () => {
+    if (gameStatus === "playing") {
+      pauseGame()
+    } else if (gameStatus === "paused") {
+      resumeGame()
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-            <Trophy className="w-8 h-8 text-yellow-600" />
-          </div>
-          <CardTitle className="text-2xl">{result.isDraw ? "It's a Draw!" : `Player ${result.winnerId} Wins!`}</CardTitle>
-        </CardHeader>
+    <header className="bg-white shadow-sm border-b p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">MOOOVES</h1>
 
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                <span className="font-semibold text-blue-900">Player X</span>
-              </div>
-              <div className="text-3xl font-bold text-blue-900">{result.player1Score}</div>
-              <div className="text-sm text-blue-700">points</div>
-            </div>
-
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-red-600" />
-                <span className="font-semibold text-red-900">Player O</span>
-              </div>
-              <div className="text-3xl font-bold text-red-900">{result.player2Score}</div>
-              <div className="text-sm text-red-700">points</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 text-center text-sm">
-            <div className="flex flex-col items-center gap-1">
-              <Target className="w-4 h-4 text-gray-600" />
-              <span className="font-semibold">0</span>
-              <span className="text-gray-600">Sequences</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <Users className="w-4 h-4 text-gray-600" />
-              <span className="font-semibold">{result.totalMoves}</span>
-              <span className="text-gray-600">Moves</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <Clock className="w-4 h-4 text-gray-600" />
-              <span className="font-semibold">{formatTime(Math.floor(result.gameDuration / 1000))}</span>
-              <span className="text-gray-600">Duration</span>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={handlePlayAgain} className="flex-1" size="lg">
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Play Again
-            </Button>
-            {onBackToMenu && (
-              <Button onClick={onBackToMenu} variant="outline" size="lg">
-                Menu
+          <div className="flex items-center gap-4">
+            {gameStatus === "playing" || gameStatus === "paused" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePauseResume}
+                className="flex items-center gap-2 bg-transparent"
+              >
+                {gameStatus === "playing" ? (
+                  <>
+                    <Pause className="w-4 h-4" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Resume
+                  </>
+                )}
               </Button>
-            )}
+            ) : null}
+
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Clock className="w-4 h-4" />
+              <span className={timeLeft < 60 ? "text-red-600 font-bold" : ""}>{formatTime(timeLeft)}</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-blue-600" />
+              <span className="font-semibold text-blue-900">Player X</span>
+              {currentPlayer === "X" && gameStatus === "playing" && (
+                <span className="text-xs bg-blue-200 px-2 py-1 rounded">Turn</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-blue-600" />
+              <span className="text-xl font-bold text-blue-900">{scores.X}</span>
+            </div>
+          </div>
+
+          <div className="bg-red-50 p-3 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-red-600" />
+              <span className="font-semibold text-red-900">Player O</span>
+              {currentPlayer === "O" && gameStatus === "playing" && (
+                <span className="text-xs bg-red-200 px-2 py-1 rounded">Turn</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-red-600" />
+              <span className="text-xl font-bold text-red-900">{scores.O}</span>
+            </div>
+          </div>
+        </div>
+
+        {showDebugInfo && (
+          <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+            <p>
+              Status: {gameStatus} | Moves: {moveHistory.length}
+            </p>
+          </div>
+        )}
+      </div>
+    </header>
   )
 }
