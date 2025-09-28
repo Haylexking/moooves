@@ -1,31 +1,30 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export default function AuthCallback() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setToken, setUser, setIsAuthenticated } = useAuthStore.getState();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const role = params.get("role"); // 👈 add role=user|host in query when redirecting
+    const code = searchParams.get("code");
+    const type = searchParams.get("type"); // "user" or "host"
 
-    if (!code || !role) {
+    if (!code || !type) {
       router.replace("/onboarding");
       return;
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     const endpoint =
-      role === "host"
-        ? `${baseUrl}/host/auth/google/login?code=${code}`
-        : `${baseUrl}/users/auth/google/login?code=${code}`;
+      type === "host"
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/host/auth/google/login?code=${code}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/google/login?code=${code}`;
 
-    fetch(endpoint, { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
+    fetch(endpoint)
+      .then((res) => res.json())
+      .then((data) => {
         if (data?.token) {
           setToken(data.token);
           setIsAuthenticated(true);
@@ -36,7 +35,7 @@ export default function AuthCallback() {
         }
       })
       .catch(() => router.replace("/onboarding"));
-  }, [router, setToken, setUser, setIsAuthenticated]);
+  }, [router, searchParams, setToken, setUser, setIsAuthenticated]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
