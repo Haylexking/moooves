@@ -13,24 +13,24 @@ export function buildEndpoint(endpoint: string, params?: Record<string, string>)
   return url
 }
 
-// Auth API endpoints
+// Auth API endpoints (Users)
 export const authEndpoints = {
-  login: () => API_CONFIG.ENDPOINTS.AUTH.LOGIN,
-  register: () => API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-  googleAuthenticate: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_AUTHENTICATE,
-  googleLogin: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN,
+  login: () => "/login",
+  register: () => "/users",
+  googleAuthenticate: () => "/google-authenticate", // redirect to Google
+  googleLogin: () => "/auth/google/login", // callback returns token + user
 }
 
 // Host API endpoints
 export const hostEndpoints = {
-  googleAuthenticate: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_AUTHENTICATE,
-  googleLogin: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_LOGIN,
-  create: () => API_CONFIG.ENDPOINTS.HOSTS.CREATE,
-  list: () => API_CONFIG.ENDPOINTS.HOSTS.LIST,
-  login: () => API_CONFIG.ENDPOINTS.HOSTS.LOGIN,
-  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.GET_BY_ID, { id }),
-  update: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.UPDATE, { id }),
-  delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.DELETE, { id }),
+  googleAuthenticate: () => "/host-google-authenticate", // redirect to Google
+  googleLogin: () => "/host/auth/google/login", // callback returns token + user
+  create: () => "/api/v1/host",
+  list: () => "/api/v1/hosts",
+  login: () => "/hostlogin",
+  getById: (id: string) => buildEndpoint("/api/v1/hosts/{id}", { id }),
+  update: (id: string) => buildEndpoint("/api/v1/hosts/{id}", { id }),
+  delete: (id: string) => buildEndpoint("/api/v1/hosts/{id}", { id }),
 }
 
 // Tournament endpoints
