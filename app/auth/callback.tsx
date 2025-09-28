@@ -8,28 +8,29 @@ export default function AuthCallback() {
   const { setToken, setUser, setIsAuthenticated } = useAuthStore.getState();
 
   useEffect(() => {
-    // Parse query params from URL
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    const user = params.get("user");
+    const code = params.get("code");
 
-    if (token) {
-      setToken(token);
-      setIsAuthenticated(true);
-      // Optionally, parse user info if provided
-      if (user) {
-        try {
-          setUser(JSON.parse(decodeURIComponent(user)));
-        } catch (e) {
-          // fallback: just set token
-        }
-      }
-      router.replace("/dashboard");
-    } else {
-      // No token, redirect to login
-      router.replace("/onboarding");
+    if (!code) {
+      router.replace("/onboarding"); // No code, fallback
+      return;
     }
-  }, [router]);
+
+    // Exchange code for JWT + user
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/host/auth/google/login?code=${code}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.token) {
+          setToken(data.token);
+          setIsAuthenticated(true);
+          setUser(data.data);
+          router.replace("/dashboard");
+        } else {
+          router.replace("/onboarding");
+        }
+      })
+      .catch(() => router.replace("/onboarding"));
+  }, [router, setToken, setUser, setIsAuthenticated]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
