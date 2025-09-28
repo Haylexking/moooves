@@ -15,22 +15,22 @@ export function buildEndpoint(endpoint: string, params?: Record<string, string>)
 
 // Auth API endpoints (Users)
 export const authEndpoints = {
-  login: () => "/login",
-  register: () => "/users",
-  googleAuthenticate: () => "/google-authenticate", // redirect to Google
-  googleLogin: () => "/auth/google/login", // callback returns token + user
+  login: () => API_CONFIG.ENDPOINTS.AUTH.LOGIN,
+  register: () => API_CONFIG.ENDPOINTS.AUTH.REGISTER,
+  googleAuthenticate: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_AUTHENTICATE, // redirect to Google
+  googleLogin: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN, // callback returns token + user
 }
 
 // Host API endpoints
 export const hostEndpoints = {
-  googleAuthenticate: () => "/host-google-authenticate", // redirect to Google
-  googleLogin: () => "/host/auth/google/login", // callback returns token + user
-  create: () => "/api/v1/host",
-  list: () => "/api/v1/hosts",
-  login: () => "/hostlogin",
-  getById: (id: string) => buildEndpoint("/api/v1/hosts/{id}", { id }),
-  update: (id: string) => buildEndpoint("/api/v1/hosts/{id}", { id }),
-  delete: (id: string) => buildEndpoint("/api/v1/hosts/{id}", { id }),
+  googleAuthenticate: () => "/host-google-autheticate", // redirect to Google (Swagger typo kept)
+  googleLogin: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_LOGIN, // callback returns token + user
+  create: () => API_CONFIG.ENDPOINTS.HOSTS.CREATE,
+  list: () => API_CONFIG.ENDPOINTS.HOSTS.LIST,
+  login: () => API_CONFIG.ENDPOINTS.HOSTS.LOGIN,
+  getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.GET_BY_ID, { id }),
+  update: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.UPDATE, { id }),
+  delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.DELETE, { id }),
 }
 
 // Tournament endpoints
@@ -39,10 +39,11 @@ export const tournamentEndpoints = {
   getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.GET_BY_ID, { id }),
   create: () => API_CONFIG.ENDPOINTS.TOURNAMENTS.CREATE,
   join: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.JOIN, { id }),
-  userTournaments: (userId: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.USER_TOURNAMENTS, { id: userId }),
+  userTournaments: (userId: string) =>
+    buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.USER_TOURNAMENTS, { id: userId }),
 }
 
-// Game endpoints (from API_CONFIG)
+// Game endpoints
 export const gameEndpoints = {
   list: () => API_CONFIG.ENDPOINTS.GAMES.LIST,
   create: () => API_CONFIG.ENDPOINTS.GAMES.CREATE,
@@ -51,7 +52,7 @@ export const gameEndpoints = {
   delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.DELETE, { id }),
 }
 
-// MatchRoom endpoints (from API_CONFIG)
+// MatchRoom endpoints
 export const matchRoomEndpoints = {
   list: () => API_CONFIG.ENDPOINTS.MATCHROOM.LIST,
   create: () => API_CONFIG.ENDPOINTS.MATCHROOM.CREATE,
