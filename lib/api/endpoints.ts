@@ -13,18 +13,18 @@ export function buildEndpoint(endpoint: string, params?: Record<string, string>)
   return url
 }
 
-// Auth API endpoints (Users)
+// 🔹 Auth API endpoints (Users)
 export const authEndpoints = {
   login: () => API_CONFIG.ENDPOINTS.AUTH.LOGIN,
   register: () => API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-  googleAuthenticate: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_AUTHENTICATE, // redirect to Google
-  googleLogin: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN, // callback returns token + user
+  googleAuthenticate: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_AUTHENTICATE, // /google-autheticate (typo in Swagger)
+  googleLogin: () => API_CONFIG.ENDPOINTS.AUTH.GOOGLE_LOGIN, // /auth/google/login
 }
 
-// Host API endpoints
+// 🔹 Host API endpoints
 export const hostEndpoints = {
-  googleAuthenticate: () => "/host-google-autheticate", // redirect to Google (Swagger typo kept)
-  googleLogin: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_LOGIN, // callback returns token + user
+  googleAuthenticate: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_AUTHENTICATE, // /host-google-autheticate (typo in Swagger)
+  googleLogin: () => API_CONFIG.ENDPOINTS.HOSTS.GOOGLE_LOGIN, // /host/auth/google/login
   create: () => API_CONFIG.ENDPOINTS.HOSTS.CREATE,
   list: () => API_CONFIG.ENDPOINTS.HOSTS.LIST,
   login: () => API_CONFIG.ENDPOINTS.HOSTS.LOGIN,
@@ -33,7 +33,7 @@ export const hostEndpoints = {
   delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.HOSTS.DELETE, { id }),
 }
 
-// Tournament endpoints
+// 🔹 Tournament endpoints
 export const tournamentEndpoints = {
   list: () => API_CONFIG.ENDPOINTS.TOURNAMENTS.LIST,
   getById: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.GET_BY_ID, { id }),
@@ -43,7 +43,7 @@ export const tournamentEndpoints = {
     buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.USER_TOURNAMENTS, { id: userId }),
 }
 
-// Game endpoints
+// 🔹 Game endpoints
 export const gameEndpoints = {
   list: () => API_CONFIG.ENDPOINTS.GAMES.LIST,
   create: () => API_CONFIG.ENDPOINTS.GAMES.CREATE,
@@ -52,7 +52,7 @@ export const gameEndpoints = {
   delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.GAMES.DELETE, { id }),
 }
 
-// MatchRoom endpoints
+// 🔹 MatchRoom endpoints
 export const matchRoomEndpoints = {
   list: () => API_CONFIG.ENDPOINTS.MATCHROOM.LIST,
   create: () => API_CONFIG.ENDPOINTS.MATCHROOM.CREATE,
@@ -61,7 +61,7 @@ export const matchRoomEndpoints = {
   delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.MATCHROOM.DELETE, { id }),
 }
 
-// Payment endpoints (placeholder for future)
+// 🔹 Payment endpoints (placeholder for future)
 export const paymentEndpoints = {
   initiate: () => "/payments/initiate",
   verify: (reference: string) => buildEndpoint("/payments/verify/:reference", { reference }),
