@@ -23,15 +23,15 @@ export const API_CONFIG = {
 
     // Hosts (from Swagger)
     HOSTS: {
-      CREATE: "/hosts", // POST /api/v1/hosts
+      CREATE: "/host", // POST /api/v1/host
       LIST: "/hosts", // GET /api/v1/hosts
       GET_BY_ID: "/hosts/:id", // GET /api/v1/hosts/:id
       UPDATE: "/hosts/:id", // PUT /api/v1/hosts/:id
       DELETE: "/hosts/:id", // DELETE /api/v1/hosts/:id
       LOGIN: "/hostlogin", // POST /api/v1/hostlogin
 
-      // 🔥 Fixed according to Swagger
-      GOOGLE_AUTHENTICATE: "/host-google-autheticate", // GET /api/v1/host-google-autheticate (typo in Swagger)
+      // According to Swagger
+      GOOGLE_AUTHENTICATE: "/host-google-autheticate", // GET /api/v1/host-google-autheticate
       GOOGLE_LOGIN: "/host/auth/google/login", // GET /api/v1/host/auth/google/login
     },
 

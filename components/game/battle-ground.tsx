@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Menu, Settings, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
+import { GlobalSidebar } from "@/components/ui/global-sidebar"
+import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameScore } from "./game-score"
-import { MatchResultModal } from "./match-result-modal"
+import { GameResultModal } from "./game-result-modal"
 import { useGameStore } from "@/lib/stores/game-store"
 import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
@@ -26,20 +28,18 @@ export function BattleGround({
   onMoveMade,
 }: BattleGroundProps) {
   const [resultModalOpen, setResultModalOpen] = useState(false)
-  const [resultType, setResultType] = useState<"win" | "lose">("lose")
+  const [resultType, setResultType] = useState<"win" | "lose" | "draw">("lose")
   const [expanded, setExpanded] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const {
-    board,
-    currentPlayer,
-    gameStatus,
-    scores,
-    makeMove,
-    initializeGame,
-    usedSequences,
-    setCurrentPlayer,
-    switchPlayer,
-  } = useGameStore()
+  const board = useGameStore((state) => state.board)
+  const currentPlayer = useGameStore((state) => state.currentPlayer)
+  const gameStatus = useGameStore((state) => state.gameStatus)
+  const scores = useGameStore((state) => state.scores)
+  const makeMove = useGameStore((state) => state.makeMove)
+  const initializeGame = useGameStore((state) => state.initializeGame)
+  const usedSequences = useGameStore((state) => state.usedSequences)
+  const setCurrentPlayer = useGameStore((state) => state.setCurrentPlayer)
+  const switchPlayer = useGameStore((state) => state.switchPlayer)
   const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(10 * 60) // 10 minutes
   const { user } = useAuthStore()
 
@@ -54,8 +54,10 @@ export function BattleGround({
       // For player-vs-computer, X is human, O is computer
       if (scores.X > scores.O) {
         setResultType("win")
-      } else {
+      } else if (scores.X < scores.O) {
         setResultType("lose")
+      } else {
+        setResultType("draw")
       }
       setResultModalOpen(true)
     } else {
@@ -159,8 +161,10 @@ export function BattleGround({
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
+      <GlobalSidebar />
+      <TopNavigation username={displayUsername} balance={0} />
       {/* Match Result Modal */}
-      <MatchResultModal open={resultModalOpen} onClose={() => setResultModalOpen(false)} result={resultType} />
+  <GameResultModal open={resultModalOpen} onClose={() => setResultModalOpen(false)} result={resultType} scoreX={scores.X} scoreO={scores.O} />
       {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"
@@ -170,82 +174,7 @@ export function BattleGround({
         priority
       />
 
-      {/* Side Menu */}
-      <div
-        className={`fixed left-0 top-0 h-full w-64 bg-black/40 backdrop-blur-sm z-40 transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-      >
-        <div className="p-4 space-y-2">
-          {/* Collapse Button */}
-          <button
-            onClick={() => setIsMenuOpen(false)}
-            className="flex items-center gap-3 w-full p-3 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-            Collapse
-          </button>
 
-          {/* Menu Items */}
-          {menuItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                if (item.href) {
-                  window.location.href = item.href
-                }
-                setIsMenuOpen(false)
-              }}
-              className="flex items-center gap-3 w-full p-3 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors"
-            >
-              {item.icon && <item.icon className="w-5 h-5" />}
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Menu Overlay */}
-      {isMenuOpen && <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setIsMenuOpen(false)} />}
-
-      {/* Top Header */}
-      <div className="relative z-20 flex items-center justify-between p-4">
-        {/* Menu Button - NOW FUNCTIONAL */}
-        <button
-          onClick={() => setIsMenuOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors shadow-lg"
-        >
-          <Menu className="w-5 h-5" />
-          Menu
-        </button>
-
-        {/* Right Side Buttons */}
-        <div className="flex items-center gap-3">
-          {/* Balance */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-xs">₦</span>
-            </div>
-            0
-            <Plus className="w-4 h-4" />
-          </div>
-
-          {/* User Profile - Show actual username */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-bold shadow-lg">
-            <User className="w-5 h-5" />
-            {displayUsername}
-          </div>
-
-          {/* Notification Bell */}
-          <button className="flex items-center justify-center w-12 h-12 rounded-lg bg-green-600 text-white shadow-lg hover:bg-green-700 transition-colors">
-            <Bell className="w-5 h-5" />
-          </button>
-
-          {/* Settings */}
-          <button className="flex items-center justify-center w-12 h-12 rounded-lg bg-white/90 text-gray-800 hover:bg-green-100 hover:text-green-800 transition-colors shadow-lg">
-            <Settings className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
 
       {/* Expand/Collapse Button */}
       <div className="absolute top-20 left-4 z-20">
@@ -258,14 +187,29 @@ export function BattleGround({
         </button>
       </div>
 
+
+      {/* Scoreboard - now above the board and closer, with responsive margin */}
+      <div className="w-full flex justify-center mt-2 mb-2 sm:mt-4 sm:mb-4">
+  {/* Scoreboard */}
+        <GameScore
+          player1={player1}
+          player2={player2}
+          scoreX={scores.X}
+          scoreO={scores.O}
+          currentPlayer={currentPlayer}
+          gameStatus={gameStatus}
+          gameMode={gameMode}
+        />
+      </div>
+
       {/* Game Board - Fixed 30x30 Grid */}
-      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-200px)] p-4">
+      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-200px)] p-2 sm:p-4">
         <div className="relative">
           {/* 30x30 Grid Container */}
           <div
             className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
                 ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
-                : "w-[70vw] h-[70vw] max-w-[600px] max-h-[600px]"
+                : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
               }`}
           >
             {/* Actual 30x30 Grid */}
@@ -311,55 +255,45 @@ export function BattleGround({
         </div>
       </div>
 
-      {/* Score Panel - always visible above the board */}
+      {/* Control Panel - Responsive: column on mobile, row on desktop */}
       <div className="w-full flex justify-center mt-4">
-        <GameScore
-          player1={player1}
-          player2={player2}
-          scoreX={scores.X}
-          scoreO={scores.O}
-          currentPlayer={currentPlayer}
-          gameStatus={gameStatus}
-          gameMode={gameMode}
-        />
-      </div>
-
-      {/* Control Panel - Added game info panel below the board */}
-      <div className="w-full flex justify-center mt-4">
-        <div className="bg-black/60 backdrop-blur-sm rounded-lg px-8 py-4 flex items-center gap-6 text-white font-bold">
-          {/* Player vs Player/Computer Display */}
-          <div className="flex items-center gap-2">
+        <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-white font-bold w-full max-w-[95vw] sm:max-w-fit">
+          {/* Scoreboard (Player vs Player/Computer Display) */}
+          <div className="flex items-center gap-2 mb-2 sm:mb-0">
             <span className="text-blue-400">{displayUsername} (X)</span>
             <span>VS</span>
             <span className="text-red-400">{player2} (O)</span>
           </div>
 
-          {/* Game Rules Button */}
-          <button
-            onClick={handleGameRules}
-            className="px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors"
-          >
-            GAME RULES
-          </button>
+          {/* Buttons and Timer - stack on mobile */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            {/* Game Rules Button */}
+            <button
+              onClick={handleGameRules}
+              className="px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors w-full sm:w-auto"
+            >
+              GAME RULES
+            </button>
 
-          {/* Play Button */}
-          <button
-            onClick={handlePlay}
-            disabled={gameStatus === "playing"}
-            className={`px-6 py-2 font-bold rounded-lg transition-colors ${gameStatus === "playing"
-                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-              }`}
-          >
-            {gameStatus === "playing" ? "PLAYING" : "PLAY"}
-          </button>
+            {/* Play Button */}
+            <button
+              onClick={handlePlay}
+              disabled={gameStatus === "playing"}
+              className={`px-6 py-2 font-bold rounded-lg transition-colors w-full sm:w-auto ${gameStatus === "playing"
+                  ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                  : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+                }`}
+            >
+              {gameStatus === "playing" ? "PLAYING" : "PLAY"}
+            </button>
 
-          {/* Timer */}
-          <div
-            className={`px-4 py-2 font-bold rounded-lg ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
-              }`}
-          >
-            {formatTime(timeLeft)}
+            {/* Timer */}
+            <div
+              className={`px-4 py-2 font-bold rounded-lg w-full sm:w-auto text-center ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
+                }`}
+            >
+              {formatTime(timeLeft)}
+            </div>
           </div>
         </div>
       </div>

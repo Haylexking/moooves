@@ -2,12 +2,13 @@
 
 import { BattleGround } from "@/components/game/battle-ground"
 import { useAuthStore } from "@/lib/stores/auth-store"
-import { GameResults } from "@/components/game/game-results"
+import { GameResultModal } from "@/components/game/game-result-modal"
 import { useGameStore } from "@/lib/stores/game-store"
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { GlobalSidebar } from "@/components/ui/global-sidebar"
 
 export default function GamePage() {
-  const { gameStatus, initializeGame } = useGameStore();
+  const { gameStatus, initializeGame, scores } = useGameStore();
   const { user } = useAuthStore();
 
   const handlePlayAgain = () => {
@@ -20,11 +21,15 @@ export default function GamePage() {
 
   return (
     <ProtectedRoute>
-      {gameStatus === "completed" ? (
-        <GameResults onPlayAgain={handlePlayAgain} onBackToMenu={handleBackToMenu} />
-      ) : (
-        <BattleGround player1={user?.fullName || "User"} />
-      )}
+      <GlobalSidebar />
+      <BattleGround player1={user?.fullName || "User"} />
+      <GameResultModal
+        open={gameStatus === "completed"}
+        onClose={handleBackToMenu}
+        result={scores.X > scores.O ? "win" : scores.X < scores.O ? "lose" : "draw"}
+        scoreX={scores.X}
+        scoreO={scores.O}
+      />
     </ProtectedRoute>
   );
 }

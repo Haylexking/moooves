@@ -63,9 +63,9 @@ export const useGameStore = create<GameStore>()(
           state.usedPositions,
         )
 
-        // Update scores if there are new sequences
+        // Always update scores with the latest from checkWinConditions
+        set({ scores: updatedScores })
         if (newSequences.length > 0) {
-          state.updateScore(state.currentPlayer, newSequences.length)
           state.addUsedSequences(newSequences)
           state.addUsedPositions(newUsedPositions)
         }

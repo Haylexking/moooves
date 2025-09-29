@@ -12,7 +12,6 @@ import { apiClient } from "@/lib/api/client"
 
 export default function OnboardingPage() {
   const [tab, setTab] = useState<"register" | "login">("register")
-  const [userType, setUserType] = useState<"user" | "host">("user")
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -34,13 +33,13 @@ export default function OnboardingPage() {
   }
 
   const validatePassword = (password: string): string | null => {
-    if (!password) return "Password is required"
-    if (password.length < 8) return "Password must be at least 8 characters long"
-    if (!/(?=.*[a-z])/.test(password)) return "Password must contain at least one lowercase letter"
-    if (!/(?=.*[A-Z])/.test(password)) return "Password must contain at least one uppercase letter"
-    if (!/(?=.*\d)/.test(password)) return "Password must contain at least one number"
-    if (!/(?=.*[!@#$%^&*])/.test(password)) return "Password must contain at least one special character (!@#$%^&*)"
-    return null
+    if (!password) return "Password is required";
+    if (password.trim() === "") return "Password cannot be Empty";
+    if (password.length < 8) return "Password must be at least 8 characters";
+    if (!/(?=.*[a-z])/.test(password)) return "Password must include at least one lowercase letter";
+    if (!/(?=.*[A-Z])/.test(password)) return "Password must include at least one Uppercase letter";
+    if (!/(?=.*[!@#$%^&*])/.test(password)) return "Password must be minimum of 8 characters and include at least one Uppercase, lowercase and a special character [!@#$%^&*]";
+    return null;
   }
 
   const validateForm = () => {
@@ -78,7 +77,7 @@ export default function OnboardingPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
+  const { login, register, isLoading, error, clearError } = useAuthStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,24 +85,14 @@ export default function OnboardingPage() {
     setLoading(true)
     try {
       if (tab === "register") {
-        if (userType === "host") {
-          await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
-        } else {
-          await register(formData.username.trim(), formData.email.trim(), formData.password)
-        }
+        await register(formData.username.trim(), formData.email.trim(), formData.password)
         router.push("/dashboard")
       } else {
-        if (userType === "host") {
-          await hostLogin(formData.email.trim(), formData.password)
-        } else {
-          await login(formData.email.trim(), formData.password)
-        }
-        // After login, go to dashboard
+        await login(formData.email.trim(), formData.password)
         router.push("/dashboard")
       }
     } catch (err) {
       // Error is handled by the store
-      // Optionally show a toast or alert
     } finally {
       setLoading(false)
     }
@@ -111,11 +100,7 @@ export default function OnboardingPage() {
 
   // Handle Google sign in (real)
   const handleGoogleSignIn = () => {
-    if (userType === "host") {
-      window.location.href = apiClient.getHostGoogleAuthUrl()
-    } else {
-      window.location.href = apiClient.getGoogleAuthUrl()
-    }
+    window.location.href = apiClient.getGoogleAuthUrl()
   }
 
   return (
@@ -149,24 +134,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        <div className="flex gap-4 mb-4 text-sm font-bold text-[#002B03] w-full justify-center">
-          <button
-            className={`px-3 py-1 rounded-full transition-all duration-150 ${
-              userType === "user" ? "bg-[#6AC56E] text-white" : "bg-transparent border border-[#6AC56E]"
-            }`}
-            onClick={() => setUserType("user")}
-          >
-            Player
-          </button>
-          <button
-            className={`px-3 py-1 rounded-full transition-all duration-150 ${
-              userType === "host" ? "bg-[#6AC56E] text-white" : "bg-transparent border border-[#6AC56E]"
-            }`}
-            onClick={() => setUserType("host")}
-          >
-            Host
-          </button>
-        </div>
+
 
         {/* Tabs */}
         <div className="flex gap-8 mb-6 text-lg font-extrabold text-[#002B03] w-full justify-center">
@@ -312,7 +280,7 @@ export default function OnboardingPage() {
             {loading
               ? "Loading..."
               : tab === "register"
-                ? `Register as ${userType === "host" ? "Host" : "Player"}`
+                ? "Register as Player"
                 : "Login"}
           </GameButton>
         </form>

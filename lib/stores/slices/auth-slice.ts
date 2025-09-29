@@ -28,13 +28,13 @@ const parseApiError = (error: string): string => {
   }
   if (error.includes("Name:") && error.includes("already in use")) {
     const nameMatch = error.match(/Name: ([^]+) already in use/)
-    return nameMatch ? `Username "${nameMatch[1]}" is already taken` : "Username is already taken"
+    return nameMatch ? `Username \"${nameMatch[1]}\" is already taken` : "Username is already taken"
   }
   if (error.includes("Passwords do not match")) {
     return "Passwords do not match"
   }
-  if (error.includes("Invalid email or password")) {
-    return "Invalid email or password"
+  if (error.toLowerCase().includes("invalid email or password") || error.toLowerCase().includes("incorrect password") || error.toLowerCase().includes("wrong password")) {
+    return "Your password is incorrect. Please try again."
   }
   return error
 }

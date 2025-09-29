@@ -29,12 +29,16 @@ export default function AuthCallback() {
           setToken(data.token);
           setIsAuthenticated(true);
           setUser(data.data);
-          router.replace("/dashboard");
+          if (type === "host") {
+            router.replace("/host-dashboard");
+          } else {
+            router.replace("/dashboard");
+          }
         } else {
-          router.replace("/onboarding");
+          router.replace(type === "host" ? "/host" : "/onboarding");
         }
       })
-      .catch(() => router.replace("/onboarding"));
+      .catch(() => router.replace(type === "host" ? "/host" : "/onboarding"));
   }, [router, searchParams, setToken, setUser, setIsAuthenticated]);
 
   return (
