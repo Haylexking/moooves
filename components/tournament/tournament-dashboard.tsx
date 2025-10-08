@@ -63,8 +63,8 @@ export default function TournamentDashboard() {
   }, [user])
 
   useEffect(() => {
-    if (!selectedTournament) return
-    setLoading(true)
+    if (!selectedTournament) return;
+    setLoading(true);
     apiClient.getTournament(selectedTournament.id).then((res) => {
       if (res.success && res.data && res.data.bracket && Array.isArray(res.data.bracket.rounds)) {
         const allMatches = res.data.bracket.rounds.flatMap((round: any) =>
@@ -76,14 +76,14 @@ export default function TournamentDashboard() {
             completed: m.status === "completed",
             stage: `round${round.roundNumber}` as TournamentStage,
           }))
-        )
-        setTournamentMatches(allMatches)
+        );
+        setTournamentMatches(allMatches);
       } else {
-        setTournamentMatches([])
+        setTournamentMatches([]);
       }
-      setLoading(false)
-    })
-    apiClient.getTournamentWinners(selectedTournament.id).then((res) => {
+      setLoading(false);
+    });
+    apiClient.getTournamentWinners(selectedTournament.id).then(async (res) => {
       if (res.success && Array.isArray(res.data)) {
         setLeaderboard(
           res.data.map((entry: any, idx: number) => ({
@@ -100,12 +100,33 @@ export default function TournamentDashboard() {
                     ? "bronze"
                     : undefined,
           }))
-        )
+        );
+        // Automatically trigger payout if tournament is completed and winners exist
+        if (selectedTournament.status === "completed" && res.data.length >= 3) {
+          try {
+            const payoutRes = await fetch(`/api/v1/payouts/distribute/${selectedTournament.id}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+              },
+              body: JSON.stringify({ winners: res.data }),
+            });
+            const payoutData = await payoutRes.json();
+            if (!payoutRes.ok || !payoutData.success) {
+              console.error("Payout distribution failed:", payoutData.error);
+            } else {
+              console.log("Payout distribution successful.");
+            }
+          } catch (err) {
+            console.error("Error distributing payout:", err);
+          }
+        }
       } else {
-        setLeaderboard([])
+        setLeaderboard([]);
       }
-    })
-  }, [selectedTournament])
+    });
+  }, [selectedTournament]);
 
   const handleStartTournament = () => {
     window.location.href = "/dashboard"

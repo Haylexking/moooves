@@ -10,6 +10,7 @@ import { createGameStateSlice } from "./slices/game-state-slice"
 import { createScoreSlice } from "./slices/score-slice"
 import { checkWinConditions } from "@/lib/utils/game-logic"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
+import { serializeUsedPositions, serializeUsedSequences } from "@/lib/utils/game-serialize"
 import type { GameMode, GameResult, Move } from "@/lib/types"
 
 type GameStore = GameBoardSlice &
@@ -17,6 +18,8 @@ type GameStore = GameBoardSlice &
   ScoreSlice & {
     // Combined actions
     aiAutoEnabled: boolean
+    serverAuthoritative?: boolean
+    applyServerMatchState?: (match: any) => void
     initializeGame: (mode?: GameMode) => void
     makeMove: (row: number, col: number) => void
     endGame: () => void
@@ -37,6 +40,7 @@ export const useGameStore = create<GameStore>()(
       aiAutoEnabled: false,
 
       // Combined actions
+  serverAuthoritative: false,
       initializeGame: (mode: GameMode = "timed") => {
         get().initializeBoard()
         get().resetScores()
@@ -103,6 +107,58 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
+      // Apply a server-provided match state to local store (used in serverAuthoritative mode)
+      applyServerMatchState: (match: any) => {
+        try {
+          if (!match) return
+
+          // Board
+          if (match.board) {
+            // Assume server sends a 2D array board of 'X' | 'O' | null
+            set({ board: match.board })
+          }
+
+          // Scores
+          if (match.scores) {
+            set({ scores: match.scores })
+          }
+
+          // usedPositions (array of "r,c")
+          if (match.usedPositions) {
+            const newUsed = new Set<string>(match.usedPositions)
+            set({ usedPositions: newUsed })
+          }
+
+          // usedSequences (array of arrays of "r,c") -> convert to Position arrays
+          if (match.usedSequences) {
+            const parsed: Array<Array<[number, number]>> = match.usedSequences.map((seq: string[]) =>
+              seq.map((s: string) => {
+                const [r, c] = s.split(",")
+                return [Number(r), Number(c)] as [number, number]
+              }),
+            )
+            set({ usedSequences: parsed })
+          }
+
+          // Move history
+          if (match.moveHistory) {
+            set({ moveHistory: match.moveHistory })
+          }
+
+          // Current player
+          if (match.currentPlayer) {
+            set({ currentPlayer: match.currentPlayer })
+          }
+
+          // Game status
+          if (match.status) {
+            set({ gameStatus: match.status })
+          }
+        } catch (error) {
+          console.error("Failed to apply server match state:", error)
+        }
+      },
+
       endGame: () => {
   get().setGameStatus("completed")
       },
@@ -130,6 +186,17 @@ export const useGameStore = create<GameStore>()(
           gameDuration,
           completedAt: Date.now(),
         };
+      },
+
+      // Serialization helpers for API compatibility
+      getSerializedUsedPositions: () => {
+        const state = get()
+        return serializeUsedPositions(state.usedPositions)
+      },
+
+      getSerializedUsedSequences: () => {
+        const state = get()
+        return serializeUsedSequences(state.usedSequences)
       },
     }),
     {

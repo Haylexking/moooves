@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Menu, Settings, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
@@ -8,11 +8,14 @@ import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameScore } from "./game-score"
 import { GameResultModal } from "./game-result-modal"
 import { useGameStore } from "@/lib/stores/game-store"
+import { Cell } from "./cell"
 import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { getUserDisplayName } from "@/lib/utils/display-name"
+import { useMatchRoom } from "@/lib/hooks/use-match-room"
+import { toast } from "@/hooks/use-toast"
 
 interface BattleGroundProps {
   player1?: string
@@ -42,11 +45,50 @@ export function BattleGround({
   const switchPlayer = useGameStore((state) => state.switchPlayer)
   const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(10 * 60) // 10 minutes
   const { user } = useAuthStore()
+  const matchRoom = useMatchRoom()
+  const serverAuthoritative = useGameStore((s) => s.serverAuthoritative)
+  const [pendingMove, setPendingMove] = useState(false)
+  const overlayRef = useRef<HTMLDivElement | null>(null)
+  const previousActiveElementRef = useRef<HTMLElement | null>(null)
+
+  // Retry sync handler: fetch authoritative match state and apply to store
+  const handleRetrySync = async () => {
+    try {
+      if (!matchRoom.roomId) {
+        toast({ title: "Sync failed", description: "No active room to sync.", variant: "destructive" })
+        return
+      }
+      const data = await matchRoom.getRoomDetails(matchRoom.roomId)
+      if (data) {
+        const gs = useGameStore.getState?.()
+        if (gs && gs.applyServerMatchState) {
+          gs.applyServerMatchState(data)
+        }
+        toast({ title: "Synced", description: "Match state updated.", variant: "default" })
+      }
+    } catch (err) {
+      toast({ title: "Sync failed", description: String(err), variant: "destructive" })
+    }
+  }
 
   useEffect(() => {
     // Initialize game when component mounts
     initializeGame("timed")
   }, [initializeGame])
+
+  // Manage focus when overlay appears/disappears
+  useEffect(() => {
+    if (pendingMove && serverAuthoritative) {
+      previousActiveElementRef.current = document.activeElement as HTMLElement | null
+      // focus the overlay panel
+      const panel = overlayRef.current?.querySelector('[tabindex="-1"]') as HTMLElement | null
+      if (panel) panel.focus()
+    } else {
+      // restore previous focus
+      previousActiveElementRef.current?.focus()
+      previousActiveElementRef.current = null
+    }
+  }, [pendingMove, serverAuthoritative])
 
   // Show result modal on game end
   useEffect(() => {
@@ -96,7 +138,7 @@ export function BattleGround({
     }
   }, [currentPlayer, gameStatus, gameMode, board, makeMove, usedSequences, scores])
 
-  const handleCellClick = (index: number) => {
+  const handleCellClick = async (index: number) => {
     if (gameStatus !== "playing") return
 
     const row = Math.floor(index / 30)
@@ -111,9 +153,46 @@ export function BattleGround({
 
     // Capture who is making the move before state switches
     const moveBy: Player = currentPlayer
-    makeMove(row, col)
-    if (onMoveMade) {
-      onMoveMade(row, col, moveBy)
+    if (serverAuthoritative) {
+      // Prevent duplicate submissions while waiting for server
+      if (pendingMove) return
+      setPendingMove(true)
+      try {
+        const move = {
+          player: currentPlayer,
+          position: [row, col] as [number, number],
+          row,
+          col,
+          timestamp: Date.now(),
+          sequencesScored: 0,
+        }
+        await matchRoom.makeMove(move)
+        // Server will send authoritative match state which gets applied in useMatchRoom
+      } catch (err) {
+        console.error("Server move failed:", err)
+        // Show toast to user with error reason if available
+        const message = err && typeof err === "object" && "message" in err ? (err as any).message : String(err)
+        toast({
+          title: "Move failed",
+          description: message || "Server rejected the move. Please try again.",
+          variant: "destructive",
+          action: (
+            <button
+              onClick={() => handleRetrySync()}
+              className="ml-2 inline-flex items-center rounded-md bg-white/5 px-3 py-1 text-sm font-semibold text-white"
+            >
+              Retry
+            </button>
+          ),
+        })
+      } finally {
+        setPendingMove(false)
+      }
+    } else {
+      makeMove(row, col)
+      if (onMoveMade) {
+        onMoveMade(row, col, moveBy)
+      }
     }
   }
 
@@ -161,6 +240,26 @@ export function BattleGround({
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
+      {/* Pending move overlay */}
+      {pendingMove && serverAuthoritative && (
+        <div
+          ref={overlayRef}
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="status"
+          aria-live="assertive"
+        >
+          <div
+            className="p-4 rounded-lg bg-white/90 shadow-lg"
+            tabIndex={-1}
+            ref={(el) => {
+              if (el) el.focus()
+            }}
+          >
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-800" />
+            <div className="text-center text-sm mt-2">Waiting for server...</div>
+          </div>
+        </div>
+      )}
       <GlobalSidebar />
       <TopNavigation username={displayUsername} balance={0} />
       {/* Match Result Modal */}
@@ -210,7 +309,7 @@ export function BattleGround({
             className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
                 ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
                 : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
-              }`}
+              } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""}`}
           >
             {/* Actual 30x30 Grid */}
             <div
@@ -221,35 +320,28 @@ export function BattleGround({
               }}
             >
               {Array.from({ length: 900 }, (_, index) => {
-                const cellContent = getCellContent(index)
-                const isUsed = isCellUsed(index)
+                  const cellContent = getCellContent(index)
+                  const isUsed = isCellUsed(index)
+                  const row = Math.floor(index / 30)
+                  const col = index % 30
 
-                return (
-                  <div
-                    key={index}
-                    className={`
-                      border border-green-700/30 bg-green-100/50 hover:bg-green-200/70 
-                      cursor-pointer transition-colors flex items-center justify-center 
-                      text-xs font-bold aspect-square min-h-0 min-w-0
-                      ${isUsed ? "bg-green-300/70" : ""}
-                      ${gameMode === "player-vs-computer" && currentPlayer === "O" ? "cursor-not-allowed opacity-50" : ""}
-                    `}
-                    onClick={() => handleCellClick(index)}
-                    style={{
-                      fontSize: expanded ? "10px" : "8px",
-                    }}
-                  >
-                    {cellContent && (
-                      <span
-                        className={`${cellContent === "X" ? "text-blue-600" : "text-red-600"
-                          } ${isUsed ? "line-through" : ""}`}
-                      >
-                        {cellContent}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
+                  return (
+                    <div key={index} style={{ fontSize: expanded ? "10px" : "8px" }}>
+                      <Cell
+                        value={cellContent}
+                        onClick={() => {
+                          if (serverAuthoritative && pendingMove) return
+                          handleCellClick(index)
+                        }}
+                        disabled={gameMode === "player-vs-computer" && currentPlayer === "O"}
+                        row={row}
+                        col={col}
+                        isHighlighted={false}
+                        isUsed={isUsed}
+                      />
+                    </div>
+                  )
+                })}
             </div>
           </div>
         </div>
@@ -259,10 +351,20 @@ export function BattleGround({
       <div className="w-full flex justify-center mt-4">
         <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-white font-bold w-full max-w-[95vw] sm:max-w-fit">
           {/* Scoreboard (Player vs Player/Computer Display) */}
-          <div className="flex items-center gap-2 mb-2 sm:mb-0">
-            <span className="text-blue-400">{displayUsername} (X)</span>
-            <span>VS</span>
-            <span className="text-red-400">{player2} (O)</span>
+          <div className="flex items-center gap-4 mb-2 sm:mb-0 text-white font-bold">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-300">{displayUsername}</span>
+              <span className="text-xs text-blue-200">(X)</span>
+              <span className="ml-2 text-2xl">{scores.X}</span>
+            </div>
+
+            <div className="text-2xl">:</div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{scores.O}</span>
+              <span className="text-xs text-red-200">(O)</span>
+              <span className="text-red-300 ml-2">{player2}</span>
+            </div>
           </div>
 
           {/* Buttons and Timer - stack on mobile */}

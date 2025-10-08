@@ -1,16 +1,21 @@
 "use client";
+export const dynamic = "force-dynamic"
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export default function AuthCallback() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { setToken, setUser, setIsAuthenticated } = useAuthStore.getState();
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    const type = searchParams.get("type"); // "user" or "host"
+    let code: string | null = null
+    let type: string | null = null
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      code = sp.get("code")
+      type = sp.get("type")
+    }
 
     if (!code || !type) {
       router.replace("/onboarding");
@@ -39,7 +44,7 @@ export default function AuthCallback() {
         }
       })
       .catch(() => router.replace(type === "host" ? "/host" : "/onboarding"));
-  }, [router, searchParams, setToken, setUser, setIsAuthenticated]);
+  }, [router, setToken, setUser, setIsAuthenticated]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react"
 import { apiClient } from "@/lib/api/client"
 import type { Move } from "@/lib/types"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useGameStore } from "@/lib/stores/game-store"
 
 interface MatchRoomState {
   roomId: string | null
@@ -47,6 +48,9 @@ export function useMatchRoom() {
         const roomId = response.data.id || response.data.roomId
 
         bluetoothTokenRef.current = bluetoothToken
+
+          // Enable server-authoritative mode for online match
+          useGameStore.setState({ serverAuthoritative: true })
 
         setState((prev) => ({
           ...prev,
@@ -92,6 +96,9 @@ export function useMatchRoom() {
           isConnected: true,
         }))
 
+        // Enable server-authoritative mode for online match
+        useGameStore.setState({ serverAuthoritative: true })
+
         return roomId
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to join room"
@@ -135,7 +142,22 @@ export function useMatchRoom() {
         const row = move.row ?? move.position[0]
         const col = move.col ?? move.position[1]
 
-        await apiClient.makeGameMove(user.id, row, col, state.roomId)
+        // Send move to server and wait for authoritative response
+        const response = await apiClient.makeGameMove(user.id, row, col, state.roomId)
+
+        if (!response.success) {
+          throw new Error(response.error || "Server rejected move")
+        }
+
+        // Apply server authoritative match state if provided
+        const matchState = response.data && (response.data.match || response.data)
+        if (matchState) {
+          // Apply server state into local game store
+          const gs = useGameStore.getState()
+          if (gs.applyServerMatchState) {
+            gs.applyServerMatchState(matchState)
+          }
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to make move"
         setState((prev) => ({ ...prev, error: errorMessage }))
@@ -151,6 +173,9 @@ export function useMatchRoom() {
 
     try {
       await apiClient.deleteMatchRoom(state.roomId)
+
+      // Disable server-authoritative when leaving room
+      useGameStore.setState({ serverAuthoritative: false })
 
       setState({
         roomId: null,

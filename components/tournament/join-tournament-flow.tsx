@@ -1,20 +1,88 @@
 "use client"
 
+
 import type { Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Users, DollarSign, Clock, Trophy } from "lucide-react"
+import { useState } from "react"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 interface JoinTournamentFlowProps {
-  tournament: Tournament
-  inviteCode: string
+  tournament: Tournament;
+  inviteCode: string;
 }
 
 export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlowProps) {
-  const handleJoin = () => {
-    // TODO: Implement join tournament logic
-    console.log("Joining tournament:", tournament.id, "with code:", inviteCode)
-  }
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuthStore();
+
+  const handleJoin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1. Initiate payment for tournament entry fee
+      const paymentRes = await fetch(`/api/v1/initial`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          tournamentId: tournament.id,
+          amount: tournament.entryFee,
+          method: "card", // or "bank_transfer" if supported
+          redirectUrl: window.location.href,
+        }),
+      });
+      const paymentData = await paymentRes.json();
+      if (!paymentRes.ok || !paymentData.success) {
+        throw new Error(paymentData.error || "Payment initiation failed");
+      }
+
+      // 2. (Optional) Redirect to payment gateway if required
+      // If paymentData contains a paymentUrl, redirect user
+      if (paymentData.data?.paymentUrl) {
+        window.location.href = paymentData.data.paymentUrl;
+        return;
+      }
+
+      // 3. Verify payment (simulate immediate success for demo)
+      // In production, use webhook/callback for verification
+      const verifyRes = await fetch(`/api/v1/verify?transaction_id=${paymentData.data?.transactionId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok || !verifyData.success) {
+        throw new Error(verifyData.error || "Payment verification failed");
+      }
+
+      // 4. Join tournament after successful payment
+      const joinRes = await fetch(`/api/v1/tournaments/join/${inviteCode}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({ paymentMethod: "card" }),
+      });
+      const joinData = await joinRes.json();
+      if (!joinRes.ok || !joinData.success) {
+        throw new Error(joinData.error || "Failed to join tournament");
+      }
+
+      alert("Successfully joined tournament!");
+      // Optionally, redirect or update UI
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -84,9 +152,11 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
             </div>
           </div>
 
-          <Button onClick={handleJoin} className="w-full" size="lg">
-            Join Tournament - ₦{tournament.entryFee.toLocaleString()}
+
+          <Button onClick={handleJoin} className="w-full" size="lg" disabled={loading}>
+            {loading ? "Processing..." : `Join Tournament - ₦${tournament.entryFee.toLocaleString()}`}
           </Button>
+          {error && <div className="text-red-500 text-sm text-center mt-2">{error}</div>}
 
           <p className="text-xs text-gray-500 text-center">
             By joining, you agree to pay the entry fee and tournament rules.

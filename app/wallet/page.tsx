@@ -1,6 +1,7 @@
 "use client"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
+import { BankLinkForm } from "@/components/ui/bank-link-form"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 
@@ -56,23 +57,39 @@ export default function WalletPage() {
     }
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      // Simulate success/failure (80% success rate)
-      const isSuccess = Math.random() > 0.2
-      if (isSuccess) {
-        setBalance((prev) => prev + Number.parseFloat(amount))
-        setActiveModal("success")
-        setAmount("")
-      } else {
-        setActiveModal("failed")
+      // Call wallet top-up API (payment initialization)
+      const res = await fetch(`/api/v1/initial`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          amount: Number.parseFloat(amount),
+          method: "bank_transfer",
+          redirectUrl: window.location.href,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setActiveModal("failed");
+        throw new Error(data.error || "Wallet top-up failed");
       }
+      // Optionally, redirect to payment gateway if required
+      if (data.data?.paymentUrl) {
+        window.location.href = data.data.paymentUrl;
+        return;
+      }
+      // Simulate success for demo
+      setBalance((prev) => prev + Number.parseFloat(amount));
+      setActiveModal("success");
+      setAmount("");
     } catch (error) {
-      setActiveModal("failed")
+      setActiveModal("failed");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleRequestFunds = async () => {
     if (!amount || Number.parseFloat(amount) < 5000) {
@@ -93,10 +110,45 @@ export default function WalletPage() {
   }
 
   const handlePayWithCard = async () => {
-    // Integrate with payment gateway (Paystack/Flutterwave)
-    console.log("Initiating card payment...")
-    handleFundWallet()
-  }
+    if (!amount || Number.parseFloat(amount) < 5000) {
+      alert("Minimum amount is ₦5,000")
+      return
+    }
+    setIsLoading(true)
+    try {
+      // Call wallet top-up API (card payment)
+      const res = await fetch(`/api/v1/initial`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          amount: Number.parseFloat(amount),
+          method: "card",
+          redirectUrl: window.location.href,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setActiveModal("failed");
+        throw new Error(data.error || "Card payment failed");
+      }
+      // Optionally, redirect to payment gateway if required
+      if (data.data?.paymentUrl) {
+        window.location.href = data.data.paymentUrl;
+        return;
+      }
+      // Simulate success for demo
+      setBalance((prev) => prev + Number.parseFloat(amount));
+      setActiveModal("success");
+      setAmount("");
+    } catch (error) {
+      setActiveModal("failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const closeModal = () => {
     setActiveModal(null)
@@ -127,6 +179,10 @@ export default function WalletPage() {
                   <p className="text-green-200 text-sm mb-2">Balance</p>
                   <p className="text-4xl font-bold">{balance.toFixed(3)}</p>
                 </div>
+              </div>
+              {/* Bank Account Linking */}
+              <div className="mb-6">
+                <BankLinkForm />
               </div>
               {/* Tab Navigation */}
               <div className="flex mb-6">

@@ -1,13 +1,26 @@
+"use client";
+
 import React from "react";
 import { useRouter } from "next/navigation";
 import { GameButton } from "../../components/ui/game-button";
 import { GlobalSidebar } from "../../components/ui/global-sidebar";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { useTournamentStore } from "@/lib/stores/tournament-store";
+
 
 export default function StartGameOptions() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+  const { userTournaments } = useTournamentStore();
 
-  // Placeholder: Add logic for checking tournament creation eligibility if needed
-  const canCreateTournament = true; // TODO: Replace with real logic
+  // User must be authenticated, have canHost=true, and have participated in at least 3 tournaments
+  const participatedTournaments = userTournaments?.filter(
+    (t) => t.participants?.some((p) => p.userId === user?.id)
+  ) ?? [];
+  const canCreateTournament =
+    isAuthenticated &&
+    user?.canHost === true &&
+    participatedTournaments.length >= 3;
 
   return (
     <div className="flex min-h-screen">
@@ -28,7 +41,7 @@ export default function StartGameOptions() {
           </GameButton>
           {!canCreateTournament && (
             <div className="text-sm text-red-500 text-center">
-              You cannot create a new tournament at this time.
+              You cannot create a new tournament at this time. You must have participated in at least 3 tournaments and be eligible to host.
             </div>
           )}
         </div>

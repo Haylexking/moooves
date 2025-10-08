@@ -114,3 +114,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Styles for the game grid cells */
+  .game-cell {
+    @apply w-full h-full flex items-center justify-center bg-white border border-gray-200 text-gray-800 font-bold select-none p-0 m-0;
+    min-width: 0; /* ensure flex/grid sizing behaves */
+    min-height: 0;
+  }
+
+  .game-cell--used {
+    @apply opacity-60;
+  }
+
+  .game-cell--x {
+    @apply text-blue-600;
+  }
+
+  .game-cell--o {
+    @apply text-red-600;
+  }
+
+  .animate-bounce-in {
+    animation: bounce-in 140ms ease;
+  }
+
+  @keyframes bounce-in {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.05);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+}

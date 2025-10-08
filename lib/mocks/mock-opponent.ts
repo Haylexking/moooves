@@ -9,12 +9,17 @@ export function mockOpponentMove(
 ): Position | null {
   const availableMoves = getAvailableMoves(board)
 
+  // Candidate pruning: only consider moves within a small radius of existing pieces
+  const candidateMoves = getNearbyCandidates(board, 3)
+  const movesToConsider = candidateMoves.length > 0 ? candidateMoves : availableMoves
+
   if (availableMoves.length === 0) {
     return null
   }
 
   // 1. First priority: Check if computer can win in one move (but only NEW sequences)
-  const winningMove = findWinningMove(board, currentPlayer, availableMoves, usedSequences, currentScores)
+  // Prefer evaluating the pruned candidate set first
+  const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
   if (winningMove) {
     console.log("🤖 Computer found winning move:", winningMove)
     return winningMove
@@ -22,28 +27,29 @@ export function mockOpponentMove(
 
   // 2. Second priority: Block player from winning (prevent NEW sequences)
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
-  const blockingMove = findWinningMove(board, opponentPlayer, availableMoves, usedSequences, currentScores)
+  const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
   if (blockingMove) {
     console.log("🤖 Computer blocking player move:", blockingMove)
     return blockingMove
   }
 
   // 3. Third priority: Aggressively block emerging threats (length 2–4 with openness)
-  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, availableMoves)
+  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, movesToConsider)
   if (threatBlockingMove) {
     console.log("🤖 Computer blocking emerging threat:", threatBlockingMove)
     return threatBlockingMove
   }
 
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
-  const strategicMove = findStrategicMove(board, currentPlayer, availableMoves, usedSequences)
+  const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
   if (strategicMove) {
     console.log("🤖 Computer making strategic move:", strategicMove)
     return strategicMove
   }
 
   // 5. Fifth priority: Move near existing pieces
-  const nearbyMove = findNearbyMove(board, availableMoves)
+  // If pruning was used, try to pick from candidateMoves; as a fallback use the existing nearby heuristic
+  const nearbyMove = findNearbyMove(board, movesToConsider)
   if (nearbyMove) {
     console.log("🤖 Computer moving near existing pieces:", nearbyMove)
     return nearbyMove
@@ -65,6 +71,33 @@ function getAvailableMoves(board: GameBoard): Position[] {
     }
   }
   return moves
+}
+
+// Return empty array if no existing pieces found (so caller can fallback to full list)
+function getNearbyCandidates(board: GameBoard, radius = 3): Position[] {
+  const existing: Position[] = []
+  for (let r = 0; r < 30; r++) {
+    for (let c = 0; c < 30; c++) {
+      if (board[r][c] !== null) existing.push([r, c])
+    }
+  }
+
+  if (existing.length === 0) return []
+
+  const candidateSet = new Set<string>()
+  for (const [er, ec] of existing) {
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        const nr = er + dr
+        const nc = ec + dc
+        if (nr >= 0 && nr < 30 && nc >= 0 && nc < 30 && board[nr][nc] === null) {
+          candidateSet.add(`${nr},${nc}`)
+        }
+      }
+    }
+  }
+
+  return Array.from(candidateSet).map((s) => s.split(",").map((n) => parseInt(n, 10)) as Position)
 }
 
 function findWinningMove(

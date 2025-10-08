@@ -70,12 +70,16 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         })
       } else {
         set({
+          user: null,
+          isAuthenticated: false,
           error: parseApiError(response.error || "Login failed"),
           isLoading: false,
         })
       }
     } catch (error) {
       set({
+        user: null,
+        isAuthenticated: false,
         error: "Network error occurred",
         isLoading: false,
       })
