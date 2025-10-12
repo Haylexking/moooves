@@ -1,0 +1,1 @@
+{ "accessToken": "mock-google-access", "refreshToken": "mock-google-refresh", "user": { "id": "user-google-1", "email": "g@example.com" } }

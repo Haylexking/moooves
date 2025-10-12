@@ -1,0 +1,6 @@
+{
+  "id": "tourn-123",
+  "name": "Mock Tournament",
+  "startsAt": 1700000000000,
+  "rules": { "maxPlayers": 16 }
+}

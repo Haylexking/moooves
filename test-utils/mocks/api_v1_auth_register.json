@@ -1,0 +1,4 @@
+{
+  "message": "registered",
+  "user": { "id": "mock-user-1", "email": "player@example.com", "username": "PlayerOne", "role": "player" }
+}

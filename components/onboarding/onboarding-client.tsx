@@ -6,12 +6,13 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { GameButton } from "@/components/ui/game-button"
+import PasswordInput from "@/components/ui/password-input"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { Alert } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 
-export default function OnboardingClient() {
+export default function OnboardingClient({ mode = "player" }: { mode?: "player" | "host" }) {
   const [tab, setTab] = useState<"register" | "login">("register")
   const [formData, setFormData] = useState({
     username: "",
@@ -97,14 +98,18 @@ export default function OnboardingClient() {
     return Object.keys(newErrors).length === 0
   }
 
-  const { login, register, isLoading, error, clearError } = useAuthStore()
+  const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
     setLoading(true)
     try {
-      await register(formData.username.trim(), formData.email.trim(), formData.password)
+      if (mode === "host") {
+        await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
+      } else {
+        await register(formData.username.trim(), formData.email.trim(), formData.password)
+      }
       router.push("/dashboard")
     } catch (err) {
       // Error is handled by the store
@@ -118,7 +123,11 @@ export default function OnboardingClient() {
     setLoginError("")
     setLoading(true)
     try {
-      await login(loginData.email.trim(), loginData.password)
+      if (mode === "host") {
+        await hostLogin(loginData.email.trim(), loginData.password)
+      } else {
+        await login(loginData.email.trim(), loginData.password)
+      }
       router.push("/dashboard")
     } catch (err: any) {
       if (err.message && err.message.toLowerCase().includes("not found")) {
@@ -243,14 +252,12 @@ export default function OnboardingClient() {
                   <path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </span>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
-                className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${
-                  errors.password ? "border-red-500" : "border-[#BFC4BF]"
-                }`}
+                showStrength
+                className={`${errors.password ? "border-red-500" : "border-[#BFC4BF]"} pl-10`}
               />
             </div>
             {errors.password && <p className="text-red-500 text-sm -mt-2">{errors.password}</p>}
@@ -266,14 +273,11 @@ export default function OnboardingClient() {
                   <path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </span>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${
-                  errors.confirmPassword ? "border-red-500" : "border-[#BFC4BF]"
-                }`}
+                className={`${errors.confirmPassword ? "border-red-500" : "border-[#BFC4BF]"} pl-10`}
               />
             </div>
             {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
@@ -291,7 +295,7 @@ export default function OnboardingClient() {
               Continue with Google
             </button>
 
-            <GameButton type="submit" className="mt-2" disabled={loading}>
+            <GameButton data-testid="onboarding-register-submit" type="submit" className="mt-2" disabled={loading}>
               {loading
                 ? "Loading..."
                 : ctaText || "Register as Player"}
@@ -331,12 +335,11 @@ export default function OnboardingClient() {
                   <path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </span>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="Enter your password"
                 value={loginData.password}
                 onChange={e => handleLoginInputChange("password", e.target.value)}
-                className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]"
+                className="pl-10"
               />
             </div>
             {loginError && (
@@ -344,7 +347,7 @@ export default function OnboardingClient() {
                 {loginError} <button type="button" className="underline ml-2" onClick={() => setTab("register")}>Register</button>
               </div>
             )}
-            <GameButton type="submit" className="mt-2" disabled={loading}>
+            <GameButton data-testid="onboarding-login-submit" type="submit" className="mt-2" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </GameButton>
           </form>

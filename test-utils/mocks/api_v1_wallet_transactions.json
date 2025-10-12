@@ -1,0 +1,4 @@
+[
+  { "transactionId": "tx-1", "amount": 1000, "type": "deposit", "status": "completed" },
+  { "transactionId": "tx-2", "amount": 500, "type": "withdraw", "status": "completed" }
+]

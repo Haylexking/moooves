@@ -135,6 +135,21 @@ class ApiClient {
     })
   }
 
+    // Forgot Password (email-only) flow
+  async forgotPassword(email: string): Promise<ApiResponse<any>> {
+    return this.request("/auth/forgot", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async resetPassword(email: string, password: string): Promise<ApiResponse<any>> {
+    return this.request("/auth/forgot/reset", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    })
+  }
+
   // Google OAuth methods
   getGoogleAuthUrl(): string {
     return `${API_CONFIG.BASE_URL}/auth/google/login`

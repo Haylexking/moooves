@@ -1,0 +1,5 @@
+{
+  "message": "logged in",
+  "token": "mock-jwt-token-player",
+  "user": { "id": "mock-user-1", "email": "player@example.com", "username": "PlayerOne", "role": "player" }
+}

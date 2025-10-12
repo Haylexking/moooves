@@ -17,116 +17,146 @@ export function HostDashboard() {
   const totalEarnings = 0 // TODO: Calculate from completed tournaments
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Host Dashboard</h1>
-          <p className="text-gray-600">Manage your tournaments and earnings</p>
+    <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div className="flex-1">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight mb-1">Host Dashboard</h1>
+          <p className="text-sm md:text-base text-slate-600">Manage your tournaments, view stats, and take quick actions</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Create Tournament
-        </Button>
+        <div className="flex-shrink-0">
+          <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2">
+            <Plus className="w-4 h-4" />
+            Create Tournament
+          </Button>
+        </div>
       </div>
 
       {/* Host Stats */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Calendar className="w-8 h-8 text-blue-600" />
-              <div>
-                <p className="text-sm text-gray-600">Tournaments Hosted</p>
-                <p className="text-2xl font-bold">{hostedTournaments.length}</p>
-              </div>
+          <CardHeader className="pb-0">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-6 h-6 text-sky-600" />
+              <CardTitle className="text-sm font-medium text-slate-700">Tournaments Hosted</CardTitle>
             </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <p className="text-2xl md:text-3xl font-semibold text-slate-900">{hostedTournaments.length}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Users className="w-8 h-8 text-green-600" />
-              <div>
-                <p className="text-sm text-gray-600">Total Players</p>
-                <p className="text-2xl font-bold">{hostedTournaments.reduce((sum, t) => sum + t.currentPlayers, 0)}</p>
-              </div>
+          <CardHeader className="pb-0">
+            <div className="flex items-center gap-3">
+              <Users className="w-6 h-6 text-emerald-600" />
+              <CardTitle className="text-sm font-medium text-slate-700">Total Players</CardTitle>
             </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <p className="text-2xl md:text-3xl font-semibold text-slate-900">{hostedTournaments.reduce((sum, t) => sum + t.currentPlayers, 0)}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <DollarSign className="w-8 h-8 text-yellow-600" />
-              <div>
-                <p className="text-sm text-gray-600">Total Earnings</p>
-                <p className="text-2xl font-bold">₦{totalEarnings.toLocaleString()}</p>
-              </div>
+          <CardHeader className="pb-0">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-6 h-6 text-amber-600" />
+              <CardTitle className="text-sm font-medium text-slate-700">Total Earnings</CardTitle>
             </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <p className="text-2xl md:text-3xl font-semibold text-slate-900">₦{totalEarnings.toLocaleString()}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Trophy className="w-8 h-8 text-purple-600" />
-              <div>
-                <p className="text-sm text-gray-600">Active Tournaments</p>
-                <p className="text-2xl font-bold">{hostedTournaments.filter((t) => t.status === "active").length}</p>
-              </div>
+          <CardHeader className="pb-0">
+            <div className="flex items-center gap-3">
+              <Trophy className="w-6 h-6 text-violet-600" />
+              <CardTitle className="text-sm font-medium text-slate-700">Active Tournaments</CardTitle>
             </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <p className="text-2xl md:text-3xl font-semibold text-slate-900">{hostedTournaments.filter((t) => t.status === "active").length}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tournaments List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Tournaments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hostedTournaments.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No tournaments created yet</p>
-              <p className="text-sm text-gray-500 mb-4">Create your first tournament to start earning!</p>
-              <Button onClick={() => setShowCreateModal(true)}>Create Tournament</Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {hostedTournaments.map((tournament) => (
-                <div key={tournament.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">{tournament.name}</h3>
-                    <p className="text-sm text-gray-600">
-                      {tournament.currentPlayers}/{tournament.maxPlayers} players • ₦
-                      {tournament.totalPool.toLocaleString()} pool
-                    </p>
-                    <p className="text-xs text-gray-500">Invite Code: {tournament.inviteCode}</p>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      className={`px-2 py-1 rounded text-xs mb-2 block ${
-                        tournament.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : tournament.status === "waiting"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {tournament.status}
-                    </span>
-                    <Button size="sm" variant="outline">
-                      Manage
-                    </Button>
-                  </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main list */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Tournaments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {hostedTournaments.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No tournaments created yet</p>
+                  <p className="text-sm text-gray-500 mb-4">Create your first tournament to start earning!</p>
+                  <Button onClick={() => setShowCreateModal(true)}>Create Tournament</Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <div className="space-y-4">
+                  {hostedTournaments.map((tournament) => (
+                    <Card key={tournament.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-slate-900">{tournament.name}</h3>
+                          <p className="text-sm text-slate-600 mt-1">
+                            {tournament.currentPlayers}/{tournament.maxPlayers} players • ₦{tournament.totalPool.toLocaleString()} pool
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">Invite Code: {tournament.inviteCode}</p>
+                        </div>
+
+                        <div className="flex-shrink-0 text-right flex flex-col items-end gap-2">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                              tournament.status === "active"
+                                ? "bg-green-100 text-green-800"
+                                : tournament.status === "waiting"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {tournament.status}
+                          </span>
+                          <Button size="sm" variant="outline">
+                            Manage
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick actions / summary */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-col gap-2">
+                <Button variant="ghost" onClick={() => setShowCreateModal(true)} className="justify-start">
+                  <Plus className="w-4 h-4 mr-2" /> Create tournament
+                </Button>
+                <Button variant="ghost" onClick={() => {}} className="justify-start">
+                  <Users className="w-4 h-4 mr-2" /> View players
+                </Button>
+                <Button variant="ghost" onClick={() => {}} className="justify-start">
+                  <Trophy className="w-4 h-4 mr-2" /> Manage active
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <CreateTournamentModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>

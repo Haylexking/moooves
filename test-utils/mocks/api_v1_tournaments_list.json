@@ -1,0 +1,4 @@
+[
+  { "id": "tourn-123", "name": "Mock Tournament", "players": 8 },
+  { "id": "tourn-456", "name": "Other Tournament", "players": 4 }
+]

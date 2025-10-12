@@ -10,6 +10,6 @@ export default function HostOnboardingPage() {
 		setCtaText("Host Onboarding");
 		return () => setCtaText("");
 	}, [setCtaText]);
-	return <OnboardingClient />;
+	return <OnboardingClient mode="host" />;
 }
 
