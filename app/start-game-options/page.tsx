@@ -10,7 +10,7 @@ import { useTournamentStore } from "@/lib/stores/tournament-store";
 
 export default function StartGameOptions() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, rehydrated } = useAuthStore();
   const { userTournaments } = useTournamentStore();
 
   // User must be authenticated, have canHost=true, and have participated in at least 3 tournaments
@@ -23,7 +23,11 @@ export default function StartGameOptions() {
     participatedTournaments.length >= 3;
 
   return (
-    <div className="flex min-h-screen">
+    // Show loading while auth store rehydrates to avoid blank screen
+    !rehydrated ? (
+      <div className="min-h-screen flex items-center justify-center text-white">Loading session...</div>
+    ) : (
+      <div className="flex min-h-screen">
       <GlobalSidebar />
       <main className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-6 w-full max-w-xs">
@@ -46,6 +50,7 @@ export default function StartGameOptions() {
           )}
         </div>
       </main>
-    </div>
+      </div>
+    )
   );
 }

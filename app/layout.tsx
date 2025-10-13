@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 // Import global styles for Next.js (side-effect import)
 import "./globals.css"
 import Image from "next/image"
+import GameRulesProvider from "@/components/game/GameRulesProvider"
 
 const armstrong = Inter({
   subsets: ["latin"],
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={armstrong.variable}>
       <body className="font-sans">
-        <BackgroundWrapper>{children}</BackgroundWrapper>
+        <GameRulesProvider>
+          <BackgroundWrapper>{children}</BackgroundWrapper>
+        </GameRulesProvider>
       </body>
     </html>
   )

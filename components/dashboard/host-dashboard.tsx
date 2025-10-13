@@ -10,8 +10,12 @@ import { CreateTournamentModal } from "@/components/tournament/create-tournament
 
 export function HostDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const { user } = useAuthStore()
+  const { user, rehydrated } = useAuthStore()
   const { userTournaments } = useTournamentStore()
+
+  if (!rehydrated) {
+    return <div className="min-h-screen flex items-center justify-center text-white">Loading session...</div>
+  }
 
   const hostedTournaments = userTournaments.filter((t) => t.hostId === user?.id)
   const totalEarnings = 0 // TODO: Calculate from completed tournaments

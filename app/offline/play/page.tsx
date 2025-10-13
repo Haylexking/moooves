@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { logDebug } from '@/lib/logger'
 import { BattleGround } from "@/components/game/battle-ground"
 import { useBluetoothConnection } from "@/lib/hooks/use-bluetooth-connection"
 import { useWiFiConnection } from "@/lib/hooks/use-wifi-connection"
@@ -48,7 +49,7 @@ export default function OfflinePlayPage() {
                 })
             }
         } catch (error) {
-            console.error("Failed to record move in match room:", error)
+            logDebug('OfflinePlay', { event: 'record-move-failed', error: String(error) })
         }
 
         if (wifi.isConnected) {

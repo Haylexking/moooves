@@ -100,6 +100,42 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
 
   const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
 
+  // Helper: wait for auth store to reflect authenticated user before redirecting
+  const waitForAuthInit = async (timeout = 5000) => {
+    const start = Date.now()
+    // guard: if the store is mocked in tests it may not expose getState/subscribe
+    const storeApi: any = useAuthStore as any
+    if (!storeApi || typeof storeApi.getState !== 'function' || typeof storeApi.subscribe !== 'function') {
+      // nothing to wait for in this environment (tests/mock); return immediately
+      return Promise.resolve(storeApi && typeof storeApi.getState === 'function' ? storeApi.getState() : {})
+    }
+
+    // If already authenticated, return immediately
+    const current = storeApi.getState() || {}
+    if (current.isAuthenticated || current.user) return Promise.resolve(current)
+
+    return new Promise((resolve) => {
+      const unsub = storeApi.subscribe((state: any) => {
+        if (state.isAuthenticated || state.user) {
+          try {
+            // optional debug logging
+            // eslint-disable-next-line global-require
+            const { logDebug } = require('@/lib/hooks/use-debug-logger')
+            logDebug('Onboarding', { event: 'auth-initialized', state })
+          } catch (e) {
+            // noop
+          }
+          unsub()
+          resolve(state)
+        }
+        if (Date.now() - start > timeout) {
+          unsub()
+          resolve(storeApi.getState())
+        }
+      })
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
@@ -110,6 +146,19 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       } else {
         await register(formData.username.trim(), formData.email.trim(), formData.password)
       }
+        // Emit lightweight diagnostic logs (quiet when QUIET_LOGS=true)
+        try {
+          // eslint-disable-next-line global-require
+          const { logDebug } = require('@/lib/hooks/use-debug-logger')
+          // Read token from api client if available
+          const token = apiClient?.getToken?.() || null
+          logDebug('Onboarding', { event: 'register-complete', tokenPresent: !!token })
+        } catch (e) {
+          // noop
+        }
+      // Wait for auth store to initialize (token persisted and user set) before redirecting
+      // Show a short loading/fallback to avoid blank screen
+      await waitForAuthInit(7000)
       router.push("/dashboard")
     } catch (err) {
       // Error is handled by the store
@@ -128,6 +177,16 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       } else {
         await login(loginData.email.trim(), loginData.password)
       }
+      try {
+        // eslint-disable-next-line global-require
+        const { logDebug } = require('@/lib/hooks/use-debug-logger')
+        const token = apiClient?.getToken?.() || null
+        logDebug('Onboarding', { event: 'login-complete', tokenPresent: !!token })
+      } catch (e) {
+        // noop
+      }
+      // Wait for auth store to be set before redirecting
+      await waitForAuthInit(7000)
       router.push("/dashboard")
     } catch (err: any) {
       if (err.message && err.message.toLowerCase().includes("not found")) {

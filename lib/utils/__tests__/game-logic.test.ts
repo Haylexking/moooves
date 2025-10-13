@@ -152,7 +152,7 @@ describe("Game Logic", () => {
       expect(result.updatedScores.X).toBe(2) // Score should increase by 2
     })
 
-    it("should handle sequences longer than 5 and count all 5-length subsequences", () => {
+    it("should not count subsequences inside longer runs (only exact 5 counts)", () => {
       const board = createTestBoard()
 
       // Place 6 X's horizontally
@@ -162,8 +162,9 @@ describe("Game Logic", () => {
 
       const result = checkWinConditions(board, "X", 10, 15, [], { X: 0, O: 0 })
 
-      expect(result.newSequences).toHaveLength(2) // Two 5-in-a-row sequences: (10,10)-(10,14) and (10,11)-(10,15)
-      expect(result.updatedScores.X).toBe(2)
+      // Under the new rule only exact-5 sequences are counted; a contiguous run of 6 should not award any exact-5
+      expect(result.newSequences).toHaveLength(0)
+      expect(result.updatedScores.X).toBe(0)
     })
   })
 

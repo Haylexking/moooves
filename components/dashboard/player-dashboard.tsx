@@ -1,18 +1,22 @@
 
+"use client"
+
 import React from "react";
 import { useRouter } from "next/navigation";
 import { GameButton } from "../ui/game-button";
 import { GlobalSidebar } from "../ui/global-sidebar";
+import { useGameRules } from "../game/GameRulesProvider";
 
 export function PlayerDashboard() {
   const router = useRouter();
+  const { openRules } = useGameRules();
 
   const handleStartGame = () => {
     router.push("/start-game-options");
   };
 
   const handleGameRules = () => {
-    router.push("/help");
+    openRules();
   };
 
   return (

@@ -27,9 +27,21 @@ export function checkWinConditions(
     const sequence = findSequenceInDirection(board, player, row, col, dr, dc)
 
     if (sequence.length >= 5) {
-      // Check all possible 5-in-a-row subsequences within this longer sequence
+      // Only award sequences that are exactly 5 long or are "isolated" 5-length windows
+      // We should avoid counting overlapping subsequences that are part of a longer run unless
+      // that exact window is bounded by empty cells or board edges (i.e., not extendable on either side).
       for (let i = 0; i <= sequence.length - 5; i++) {
         const fiveSequence = sequence.slice(i, i + 5)
+
+        // Determine if this 5-window is extendable on either side (part of a longer run)
+        const before = sequence[i - 1]
+        const after = sequence[i + 5]
+
+        const isExtendableBefore = !!before && board[before[0]][before[1]] === player
+        const isExtendableAfter = !!after && board[after[0]][after[1]] === player
+
+        // If either side extends the 5-window, skip it (we only count exact 5 that are not part of a longer contiguous run)
+        if (isExtendableBefore || isExtendableAfter) continue
 
         // Sort the sequence to ensure consistent comparison regardless of discovery order
         const sortedFiveSequence = fiveSequence.sort((a, b) => a[0] - b[0] || a[1] - b[1])

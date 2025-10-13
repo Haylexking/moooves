@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
+import { logDebug } from '@/lib/logger'
 import { apiClient } from "@/lib/api/client"
 import type { Move } from "@/lib/types"
 import { useAuthStore } from "@/lib/stores/auth-store"
@@ -8,6 +9,7 @@ import { useGameStore } from "@/lib/stores/game-store"
 
 interface MatchRoomState {
   roomId: string | null
+  roomCode?: string | null
   isHost: boolean
   isConnected: boolean
   error: string | null
@@ -45,21 +47,24 @@ export function useMatchRoom() {
           throw new Error(response.error || "Failed to create room")
         }
 
-        const roomId = response.data.id || response.data.roomId
+        // API shape varies between backends/mocks. Normalize common fields.
+        const roomId = response.data?.id || response.data?.roomId || response.data?.matchId || response.data?.match?.id || null
+        const roomCode = response.data?.roomCode || response.data?.code || response.data?.match?.roomCode || null
 
         bluetoothTokenRef.current = bluetoothToken
 
-          // Enable server-authoritative mode for online match
-          useGameStore.setState({ serverAuthoritative: true })
+        // Enable server-authoritative mode for online match
+        useGameStore.setState({ serverAuthoritative: true })
 
         setState((prev) => ({
           ...prev,
           roomId,
+          roomCode,
           isHost: true,
           isConnected: true,
         }))
 
-        return roomId
+        return roomId || roomCode || null
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to create room"
         setState((prev) => ({ ...prev, error: errorMessage }))
@@ -89,9 +94,14 @@ export function useMatchRoom() {
 
         handshakeTokenRef.current = handshakeToken
 
+        // Normalize fields returned from join
+        const joinedRoomId = response.data?.id || response.data?.roomId || response.data?.matchId || roomId
+        const joinedRoomCode = response.data?.roomCode || response.data?.code || response.data?.match?.roomCode || null
+
         setState((prev) => ({
           ...prev,
-          roomId,
+          roomId: joinedRoomId,
+          roomCode: joinedRoomCode,
           isHost: false,
           isConnected: true,
         }))
@@ -99,7 +109,7 @@ export function useMatchRoom() {
         // Enable server-authoritative mode for online match
         useGameStore.setState({ serverAuthoritative: true })
 
-        return roomId
+        return joinedRoomId || joinedRoomCode || null
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to join room"
         setState((prev) => ({ ...prev, error: errorMessage }))
@@ -188,7 +198,7 @@ export function useMatchRoom() {
       bluetoothTokenRef.current = null
       handshakeTokenRef.current = null
     } catch (error) {
-      console.error("Failed to leave room:", error)
+      logDebug('MatchRoom', { event: 'leave-room-failed', error: String(error) })
       // Still reset state even if API call fails
       setState({
         roomId: null,

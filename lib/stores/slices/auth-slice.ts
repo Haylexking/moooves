@@ -6,6 +6,7 @@ export interface AuthSlice {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  rehydrated?: boolean
   error: string | null
 
   // Actions
@@ -19,6 +20,7 @@ export interface AuthSlice {
   setToken: (token: string) => void
   setUser: (user: User) => void
   setIsAuthenticated: (isAuthenticated: boolean) => void
+  setRehydrated?: (v: boolean) => void
 }
 
 const parseApiError = (error: string): string => {
@@ -42,6 +44,7 @@ const parseApiError = (error: string): string => {
 export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   user: null,
   isAuthenticated: false,
+  rehydrated: false,
   isLoading: false,
   error: null,
 
@@ -243,6 +246,10 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
 
   setUser(user) {
     set({ user })
+  },
+
+  setRehydrated(v: boolean) {
+    set({ rehydrated: v })
   },
 
   setIsAuthenticated: (isAuthenticated: boolean) => {

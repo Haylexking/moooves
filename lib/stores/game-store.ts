@@ -155,7 +155,10 @@ export const useGameStore = create<GameStore>()(
             set({ gameStatus: match.status })
           }
         } catch (error) {
-          console.error("Failed to apply server match state:", error)
+          // Use structured debug logger
+          // eslint-disable-next-line global-require
+          const { logDebug } = require('@/lib/logger')
+          logDebug('GameStore', { event: 'applyServerStateFailed', error: String(error) })
         }
       },
 

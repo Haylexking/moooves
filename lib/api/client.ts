@@ -359,6 +359,22 @@ class ApiClient {
     return this.request(`/tournaments/${tournamentId}/winners`)
   }
 
+  // Payment / Payout methods
+  async verifyTournamentPayouts(tournamentId: string): Promise<ApiResponse<any>> {
+    // The backend exposes /distribute/{tournamentId} which returns payouts summary and status
+    return this.request(`/distribute/${tournamentId}`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    })
+  }
+
+  async sendManualPayout(accountBank: string, accountNumber: string, amount: number, narration?: string): Promise<ApiResponse<any>> {
+    return this.request(`/send`, {
+      method: "POST",
+      body: JSON.stringify({ accountBank, accountNumber, amount, narration }),
+    })
+  }
+
   // Match/Game methods
   async getAllMatches(): Promise<ApiResponse<any[]>> {
     return this.request<any[]>("/matches")

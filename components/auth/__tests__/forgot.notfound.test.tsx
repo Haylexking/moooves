@@ -2,23 +2,20 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ForgotClient from '../forgot-client'
 
-// mock the callApi used by ForgotClient
-jest.mock('../../../lib/test-utils/apiTestClient', () => ({
-  callApi: jest.fn(),
+// Mock the runtime apiClient used by ForgotClient to simulate not-found
+jest.mock('@/lib/api/client', () => ({
+  apiClient: {
+    forgotPassword: jest.fn(async (email: string) => ({ success: true, data: { found: false, message: 'Email not found' } })),
+    resetPassword: jest.fn(),
+  }
 }))
 
-import { callApi } from '../../../lib/test-utils/apiTestClient'
+import { apiClient } from '@/lib/api/client'
 import { act } from 'react'
 
 test('email not found shows error and does not advance', async () => {
   const user = userEvent.setup()
-  // mock the callApi to return found: false for the forgot endpoint
-  ;(callApi as jest.Mock).mockImplementation(({ path }) => {
-    if (path === '/api/v1/auth/forgot') {
-      return Promise.resolve({ json: async () => ({ found: false, message: 'Email not found' }) })
-    }
-    return Promise.resolve({ json: async () => ({}) })
-  })
+  // apiClient mocked above will return found=false
 
   render(<ForgotClient mode="enter" />)
   const input = screen.getByPlaceholderText(/Email/i)

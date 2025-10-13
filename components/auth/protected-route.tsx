@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, redirectTo = "/onboarding" }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const { isAuthenticated, isLoading, rehydrated } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
@@ -22,7 +22,8 @@ export function ProtectedRoute({ children, redirectTo = "/onboarding" }: Protect
     }
   }, [isAuthenticated, isLoading, router, redirectTo])
 
-  if (isLoading) {
+  // If the persisted store hasn't rehydrated, show a splash to avoid blank screens
+  if (!rehydrated || isLoading) {
     return <SplashScreen progress={0.5} />
   }
 

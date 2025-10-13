@@ -63,7 +63,10 @@ export const API_CONFIG = {
     },
 
     // Payments endpoints (if used)
-    PAYMENTS: {},
+    PAYMENTS: {
+      DISTRIBUTE: "/distribute/:tournamentId", // POST /api/v1/distribute/{tournamentId}
+      SEND: "/send", // POST /api/v1/send
+    },
 
     ADMIN: {},
   },

@@ -22,7 +22,8 @@ export async function callApi({ method = 'get', path: p, body, headers = {} }: A
   if (TEST_MODE === 'mock') {
     const normalized = p.replace(/^\/+/, '')
     const safeName = normalized.replace(/[^a-z0-9_]/gi, '_')
-    const mockPath = pathJoin('lib/test-utils/mocks', `${safeName}.json`)
+  // mock files are located in test-utils/mocks at the repo root
+  const mockPath = pathJoin('test-utils/mocks', `${safeName}.json`)
     try {
       const raw = fs.readFileSync(mockPath, 'utf-8')
       const parsed = JSON.parse(raw)

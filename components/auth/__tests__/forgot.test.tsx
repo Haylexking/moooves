@@ -3,6 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { act } from 'react'
 import ForgotClient from '../forgot-client'
 
+// Mock the apiClient used by ForgotClient to avoid relying on global.fetch
+jest.mock('@/lib/api/client', () => ({
+  apiClient: {
+    forgotPassword: jest.fn(async (email: string) => ({ success: true, data: { found: true, message: 'ok' } })),
+    resetPassword: jest.fn(async (email: string, password: string) => ({ success: true, data: { success: true, message: 'Password reset' } })),
+  }
+}))
+
 test('full forgot -> reset flow', async () => {
   const user = userEvent.setup()
   const onComplete = jest.fn()

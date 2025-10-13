@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
+import { logDebug } from '@/lib/hooks/use-debug-logger'
+import { logDebug as log } from '@/lib/logger'
 import type { Move } from "@/lib/types"
 
 // App-specific device type to avoid conflict with Web Bluetooth API
@@ -73,8 +75,9 @@ export function useBluetoothConnection() {
       if (handler) {
         handler(messageData.data)
       }
+      logDebug('Bluetooth', { event: 'message', type: messageData.type })
     } catch (error) {
-      console.error("Failed to parse incoming Bluetooth message:", error)
+      logDebug('Bluetooth', { event: 'parse-error', error: String(error) })
       setState((prev) => ({
         ...prev,
         error: "Failed to parse message from opponent",
@@ -181,6 +184,7 @@ export function useBluetoothConnection() {
           isConnected: true,
           connectedDevice: { ...bluetoothDevice, connected: true },
         }));
+        logDebug('Bluetooth', { event: 'connected', device: bluetoothDevice.name })
         deviceRef.current = { ...bluetoothDevice, connected: true };
 
         // Send connection confirmation
@@ -281,7 +285,7 @@ export function useBluetoothConnection() {
         }))
       }
     } catch (error) {
-      console.error("Error disconnecting Bluetooth:", error)
+      log('Bluetooth', { event: 'disconnect-error', error: String(error) })
     }
   }, [state.connectedDevice, handleIncomingMessage])
 

@@ -1,5 +1,6 @@
 import type { GameBoard, Position, Player, Sequence } from "@/lib/types"
 import { checkWinConditions } from "@/lib/utils/game-logic"
+import { logDebug } from '@/lib/hooks/use-debug-logger'
 
 export function mockOpponentMove(
   board: GameBoard,
@@ -21,7 +22,28 @@ export function mockOpponentMove(
   // Prefer evaluating the pruned candidate set first
   const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
   if (winningMove) {
-    console.log("🤖 Computer found winning move:", winningMove)
+    // Even if we can win now, check if the opponent has an immediate winning response next turn
+    // If opponent can also win next turn (e.g., via another move), prefer a blocking move to secure the game
+    const opponent: Player = currentPlayer === 'X' ? 'O' : 'X'
+    const opponentWinningAfterOurWin = (() => {
+      // Simulate placing our winning move, then check if opponent has any immediate winning move
+      const testBoard = board.map((r) => [...r])
+      testBoard[winningMove[0]][winningMove[1]] = currentPlayer
+
+      const opponentCanWin = !!findWinningMove(testBoard, opponent, getNearbyCandidates(testBoard, 3).length ? getNearbyCandidates(testBoard, 3) : getAvailableMoves(testBoard), usedSequences, currentScores)
+      return opponentCanWin
+    })()
+
+    if (opponentWinningAfterOurWin) {
+      // If opponent could win after our move, try to block opponent instead
+      const blockingMove = findWinningMove(board, opponent, movesToConsider, usedSequences, currentScores)
+      if (blockingMove) {
+        logDebug('AI', { action: 'preferBlockingOverWinning', winningMove, blockingMove })
+        return blockingMove
+      }
+    }
+
+    logDebug('AI', { action: 'winningMove', move: winningMove })
     return winningMove
   }
 
@@ -29,21 +51,21 @@ export function mockOpponentMove(
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
   const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
   if (blockingMove) {
-    console.log("🤖 Computer blocking player move:", blockingMove)
+    logDebug('AI', { action: 'blockingMove', move: blockingMove })
     return blockingMove
   }
 
   // 3. Third priority: Aggressively block emerging threats (length 2–4 with openness)
   const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, movesToConsider)
   if (threatBlockingMove) {
-    console.log("🤖 Computer blocking emerging threat:", threatBlockingMove)
+    logDebug('AI', { action: 'threatBlockingMove', move: threatBlockingMove })
     return threatBlockingMove
   }
 
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
   const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
   if (strategicMove) {
-    console.log("🤖 Computer making strategic move:", strategicMove)
+    logDebug('AI', { action: 'strategicMove', move: strategicMove })
     return strategicMove
   }
 
@@ -51,13 +73,13 @@ export function mockOpponentMove(
   // If pruning was used, try to pick from candidateMoves; as a fallback use the existing nearby heuristic
   const nearbyMove = findNearbyMove(board, movesToConsider)
   if (nearbyMove) {
-    console.log("🤖 Computer moving near existing pieces:", nearbyMove)
+    logDebug('AI', { action: 'nearbyMove', move: nearbyMove })
     return nearbyMove
   }
 
   // 6. Fallback: Random move (prefer center area)
   const randomMove = getRandomMove(availableMoves)
-  console.log("🤖 Computer making random move:", randomMove)
+  logDebug('AI', { action: 'randomMove', move: randomMove })
   return randomMove
 }
 
@@ -117,7 +139,7 @@ function findWinningMove(
     const { newSequences } = checkWinConditions(testBoard, player, row, col, usedSequences, currentScores)
 
     if (newSequences.length > 0) {
-      console.log(`🤖 Found ${newSequences.length} new sequences for move [${row}, ${col}]`)
+      logDebug('AI', { action: 'foundNewSequences', count: newSequences.length, move: [row, col] })
       return [row, col]
     }
   }

@@ -5,12 +5,14 @@ import { GameButton } from "../ui/game-button"
 interface GameResultModalProps {
   open: boolean
   onClose: () => void
+  onPlayAgain?: () => void
+  onBackToMenu?: () => void
   result: "win" | "lose" | "draw"
   scoreX?: number
   scoreO?: number
 }
 
-export function GameResultModal({ open, onClose, result, scoreX, scoreO }: GameResultModalProps) {
+export function GameResultModal({ open, onClose, onPlayAgain, onBackToMenu, result, scoreX, scoreO }: GameResultModalProps) {
   if (!open) return null
 
   let emoji = ""
@@ -44,8 +46,8 @@ export function GameResultModal({ open, onClose, result, scoreX, scoreO }: GameR
         <p className="text-green-800 text-center mb-2">{message}</p>
         <div className="text-lg font-semibold text-green-900 mb-6">Score: <span className="text-blue-700">{scoreX ?? 0}</span> - <span className="text-red-700">{scoreO ?? 0}</span></div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center mt-2">
-          <GameButton onClick={() => window.location.reload()} className="w-full sm:w-56 text-base py-3">Play Again</GameButton>
-          <GameButton onClick={onClose} className="w-full sm:w-56 text-base py-3">Back to Menu</GameButton>
+            <GameButton onClick={() => onPlayAgain ? onPlayAgain() : onClose()} className="w-full sm:w-56 text-base py-3">Play Again</GameButton>
+            <GameButton onClick={() => onBackToMenu ? onBackToMenu() : onClose()} className="w-full sm:w-56 text-base py-3">Back to Menu</GameButton>
         </div>
       </div>
     </div>

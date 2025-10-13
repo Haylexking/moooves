@@ -5,10 +5,13 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
 import type { Tournament } from "@/lib/types"
 import Image from "next/image"
-import { Check, ChevronRight, User } from "lucide-react"
+import { Check, ChevronRight, User, X } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import { logDebug } from "@/lib/hooks/use-debug-logger"
 import { GameButton } from "@/components/ui/game-button"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
+import AlertDialogConfirm from '@/components/ui/alert-dialog-confirm'
 
 type TabType = "leaderboard" | "matches" | "rules"
 type TournamentStage = "knockout" | "quarterfinal" | "semifinal" | "final"
@@ -101,25 +104,39 @@ export default function TournamentDashboard() {
                     : undefined,
           }))
         );
-        // Automatically trigger payout if tournament is completed and winners exist
-        if (selectedTournament.status === "completed" && res.data.length >= 3) {
+        // After tournament completed, verify payouts and surface any failures in UI
+        if (selectedTournament.status === "completed") {
           try {
-            const payoutRes = await fetch(`/api/v1/payouts/distribute/${selectedTournament.id}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-              },
-              body: JSON.stringify({ winners: res.data }),
-            });
-            const payoutData = await payoutRes.json();
-            if (!payoutRes.ok || !payoutData.success) {
-              console.error("Payout distribution failed:", payoutData.error);
+            const verifyRes = await apiClient.verifyTournamentPayouts(selectedTournament.id)
+            if (verifyRes.success && verifyRes.data) {
+              // Expect verifyRes.data to include payout statuses per recipient
+              // Normalize to an array of payout entries for UI
+              const payouts: any[] = []
+              if (verifyRes.data.payouts) {
+                // Example shape from swagger: payouts: { host: number, first: number, ... }
+                const p = verifyRes.data.payouts
+                if (p.host) payouts.push({ recipientType: 'host', amount: p.host, status: 'confirmed' })
+                if (p.first) payouts.push({ recipientType: 'first', amount: p.first, status: 'confirmed' })
+                if (p.second) payouts.push({ recipientType: 'second', amount: p.second, status: 'confirmed' })
+                if (p.third) payouts.push({ recipientType: 'third', amount: p.third, status: 'confirmed' })
+                if (p.platform) payouts.push({ recipientType: 'platform', amount: p.platform, status: 'confirmed' })
+              }
+              // If backend returns detailed per-user payout entries use that
+              if (Array.isArray(verifyRes.data.details)) {
+                // assume entries like { userId, amount, status }
+                verifyRes.data.details.forEach((d: any) => payouts.push(d))
+              }
+              // Attach to component state for UI
+              setLeaderboard((lb) => lb) // keep leaderboard as-is
+              setPayouts(payouts)
+              toast({ title: 'Payout verification', description: 'Payout statuses refreshed', variant: 'default' })
             } else {
-              console.log("Payout distribution successful.");
+              logDebug('Tournament', { event: 'payout-verify-failed', error: verifyRes.error || verifyRes.message })
+              toast({ title: 'Payout verification failed', description: verifyRes.error || verifyRes.message || 'Unable to verify payouts', variant: 'destructive' })
             }
           } catch (err) {
-            console.error("Error distributing payout:", err);
+            console.error('Error verifying payouts:', err)
+            toast({ title: 'Payout verification error', description: String(err), variant: 'destructive' })
           }
         }
       } else {
@@ -128,14 +145,47 @@ export default function TournamentDashboard() {
     });
   }, [selectedTournament]);
 
+  // Payout UI state
+  const [payouts, setPayouts] = useState<any[]>([])
+  const [manualBankCode, setManualBankCode] = useState('')
+  const [manualAccountNumber, setManualAccountNumber] = useState('')
+  const [manualAmount, setManualAmount] = useState<number | ''>('')
+  const [sendingPayout, setSendingPayout] = useState(false)
+  const [manualAudit, setManualAudit] = useState<any[]>([])
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmEntry, setConfirmEntry] = useState<any | null>(null)
+
+  const refreshPayouts = async () => {
+    if (!selectedTournament) return
+    try {
+      const verifyRes = await apiClient.verifyTournamentPayouts(selectedTournament.id)
+      if (verifyRes.success && verifyRes.data) {
+        const payouts: any[] = []
+        if (Array.isArray(verifyRes.data.details)) {
+          verifyRes.data.details.forEach((d: any) => payouts.push(d))
+        } else if (verifyRes.data.payouts) {
+          const p = verifyRes.data.payouts
+          if (p.host) payouts.push({ recipientType: 'host', amount: p.host, status: 'confirmed' })
+          if (p.first) payouts.push({ recipientType: 'first', amount: p.first, status: 'confirmed' })
+          if (p.second) payouts.push({ recipientType: 'second', amount: p.second, status: 'confirmed' })
+          if (p.third) payouts.push({ recipientType: 'third', amount: p.third, status: 'confirmed' })
+          if (p.platform) payouts.push({ recipientType: 'platform', amount: p.platform, status: 'confirmed' })
+        }
+        setPayouts(payouts)
+      }
+    } catch (err) {
+      logDebug('Tournament', { event: 'refresh-payouts-failed', error: String(err) })
+    }
+  }
+
   const handleStartTournament = () => {
     window.location.href = "/dashboard"
   }
 
   const handleEnterTournament = () => {
-    setUserStatus("registered_active")
-    // TODO: Call API to join tournament
-    console.log("Entering tournament...")
+  setUserStatus("registered_active")
+  // TODO: Call API to join tournament
+  logDebug('Tournament', { event: 'entering' })
   }
 
   const handleJoinByCode = async () => {
@@ -194,14 +244,49 @@ export default function TournamentDashboard() {
       case "not_registered":
         return { text: "Register for tournament", action: handleJoinByCode }
       case "registered_active":
-        return { text: "Continue tournament", action: () => console.log("Continue tournament") }
+        return { text: "Continue tournament", action: () => logDebug('Tournament', { event: 'continue' }) }
       case "eliminated":
-        return { text: "View results", action: () => console.log("View results") }
+        return { text: "View results", action: () => logDebug('Tournament', { event: 'view-results' }) }
       case "completed":
-        return { text: "Tournament completed", action: () => console.log("Tournament completed") }
+        return { text: "Tournament completed", action: () => logDebug('Tournament', { event: 'completed' }) }
       default:
         return { text: "Register for tournament", action: handleJoinByCode }
     }
+  }
+
+  const handleSendManualPayout = async (entry: any) => {
+    if (!entry) return
+    setSendingPayout(true)
+    try {
+      // Admin must provide bank code and account via the small UI (or implement account lookup in future)
+      const accountBank = manualBankCode || '044'
+      const accountNumber = manualAccountNumber || (entry.accountNumber as string) || ''
+      const amount = manualAmount || entry.amount || 0
+      const res = await apiClient.sendManualPayout(accountBank, accountNumber, Number(amount), `Tournament payout ${selectedTournament?.id}`)
+      if (res.success) {
+        toast({ title: 'Payout sent', description: `Manual payout queued: ${res.data?.message ?? 'OK'}`, variant: 'default' })
+        // record audit
+        setManualAudit((a) => [...a, { timestamp: Date.now(), entry, result: res.data }])
+        // Refresh payouts to show updated status
+        await refreshPayouts()
+      } else {
+        toast({ title: 'Payout failed', description: res.error || res.message || 'Manual payout failed', variant: 'destructive' })
+      }
+    } catch (err) {
+      toast({ title: 'Payout error', description: String(err), variant: 'destructive' })
+    } finally {
+      setSendingPayout(false)
+    }
+  }
+
+  const openConfirmFor = (entry: any) => {
+    setConfirmEntry(entry)
+    setConfirmOpen(true)
+  }
+
+  const onConfirmSend = async () => {
+    if (!confirmEntry) return
+    await handleSendManualPayout(confirmEntry)
   }
 
   const renderMatch = (match: Match) => {
@@ -338,6 +423,48 @@ export default function TournamentDashboard() {
                 ))}
               </div>
             )}
+            {/* Payout Management - visible when a tournament is selected and completed */}
+            {selectedTournament && selectedTournament.status === 'completed' && (user?.role === 'host' || user?.role === 'admin') && (
+              <div className="mt-6 bg-white/80 p-4 rounded-lg border">
+                <h3 className="font-bold text-green-800 mb-2">Payout Management</h3>
+                {payouts.length === 0 ? (
+                  <div className="text-sm text-gray-600">No payout records available. Use verify to refresh.</div>
+                ) : (
+                  <div className="max-h-64 overflow-auto space-y-2">
+                    {payouts.map((p, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-4 p-2 border rounded">
+                        <div>
+                          <div className="text-sm font-semibold">{p.username ?? p.recipientType ?? p.userId}</div>
+                          <div className="text-xs text-gray-500">Amount: ₦{p.amount}</div>
+                          <div className="text-xs flex items-center gap-2">Status:
+                            {p.status === 'confirmed' && <span className="flex items-center text-green-600 font-semibold"><Check className="w-4 h-4 mr-1"/>Confirmed</span>}
+                            {p.status === 'processing' && <span className="flex items-center text-yellow-600 font-semibold">Processing</span>}
+                            {p.status === 'failed' && <span className="flex items-center text-red-600 font-semibold"><X className="w-4 h-4 mr-1"/>Failed</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {p.status === 'failed' && (
+                            <GameButton onClick={() => openConfirmFor(p)} disabled={sendingPayout}>Send Manually</GameButton>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 border-t pt-3">
+                  <div className="text-sm text-gray-600 mb-2">Manual Payout (admin)</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input value={manualBankCode} onChange={(e) => setManualBankCode(e.target.value)} placeholder="Bank code (e.g. 044)" className="border p-2 rounded" />
+                    <input value={manualAccountNumber} onChange={(e) => setManualAccountNumber(e.target.value)} placeholder="Account number" className="border p-2 rounded" />
+                    <input value={manualAmount as any} onChange={(e) => setManualAmount(Number(e.target.value) || '')} placeholder="Amount" type="number" className="border p-2 rounded" />
+                  </div>
+                  <div className="mt-2">
+                    <GameButton onClick={() => handleSendManualPayout({ amount: manualAmount || 0, accountNumber: manualAccountNumber, recipientType: 'manual' })} disabled={sendingPayout || !manualAccountNumber || !manualAmount}>Send Manual Payout</GameButton>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Join by code UI - Moved below the modal */}
@@ -447,6 +574,16 @@ export default function TournamentDashboard() {
           </div>
         </div>
       )}
+      {/* Confirm dialog for manual payout */}
+      <AlertDialogConfirm
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Confirm Manual Payout?"
+        description={confirmEntry ? `Send ₦${confirmEntry.amount} to ${confirmEntry.username ?? confirmEntry.userId ?? confirmEntry.recipientType} (account: ${confirmEntry.accountNumber ?? manualAccountNumber || 'N/A'})` : undefined}
+        confirmLabel="Send Payout"
+        cancelLabel="Cancel"
+        onConfirm={onConfirmSend}
+      />
     </div>
   )
 }

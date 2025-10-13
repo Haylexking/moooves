@@ -4,15 +4,20 @@ import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Menu, Settings, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
+import { useGameRules } from './GameRulesProvider'
 import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameScore } from "./game-score"
+import StartGameModal from "@/components/ui/start-game-modal"
 import { GameResultModal } from "./game-result-modal"
 import { useGameStore } from "@/lib/stores/game-store"
 import { Cell } from "./cell"
 import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
+import { logDebug } from '@/lib/hooks/use-debug-logger'
+import { logDebug as log } from '@/lib/logger'
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useRouter } from 'next/navigation'
 import { getUserDisplayName } from "@/lib/utils/display-name"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { toast } from "@/hooks/use-toast"
@@ -21,6 +26,8 @@ interface BattleGroundProps {
   player1?: string
   player2?: string
   gameMode?: "player-vs-player" | "player-vs-computer"
+  /** localMode: 'ai' = vs computer, 'p2p' = nearby multiplayer, 'tournament' = online tournament */
+  localMode?: 'ai' | 'p2p' | 'tournament'
   onMoveMade?: (row: number, col: number, byPlayer: Player) => void
 }
 
@@ -28,11 +35,14 @@ export function BattleGround({
   player1 = "User",
   player2 = "COMPUTER",
   gameMode = "player-vs-computer",
+  localMode,
   onMoveMade,
 }: BattleGroundProps) {
   const [resultModalOpen, setResultModalOpen] = useState(false)
   const [resultType, setResultType] = useState<"win" | "lose" | "draw">("lose")
   const [expanded, setExpanded] = useState(false)
+  const [showStartModal, setShowStartModal] = useState(false)
+  const { openRules } = useGameRules()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const board = useGameStore((state) => state.board)
   const currentPlayer = useGameStore((state) => state.currentPlayer)
@@ -115,6 +125,22 @@ export function BattleGround({
     }
   }, [gameStatus, startTimer, stopTimer])
 
+  // Map localMode to internal behavior: ai => player-vs-computer, p2p => player-vs-player (local non-authoritative)
+  useEffect(() => {
+    if (localMode === 'ai') {
+      // ensure AI mode
+      setCurrentPlayer('X')
+      useGameStore.setState({ serverAuthoritative: false })
+    } else if (localMode === 'p2p') {
+      useGameStore.setState({ serverAuthoritative: false })
+      // ensure player-vs-player
+      // no-op: consuming code can pass gameMode prop if needed
+    } else if (localMode === 'tournament') {
+      // tournament uses server-authoritative when available
+      useGameStore.setState({ serverAuthoritative: true })
+    }
+  }, [localMode, setCurrentPlayer])
+
   // Auto-end game when timer reaches 0
   useEffect(() => {
     if (timeLeft === 0 && gameStatus === "playing") {
@@ -129,7 +155,10 @@ export function BattleGround({
         // Pass used sequences and current scores to prevent reusing sequences
         const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
         if (computerMove) {
-          console.log("🤖 Computer making move:", computerMove, "Used sequences:", usedSequences.length)
+          // Use structured debug logger
+          // eslint-disable-next-line no-console
+          // Import at top of file
+          // ...existing code...
           makeMove(computerMove[0], computerMove[1])
         }
       }, 1000) // 1 second delay for better UX
@@ -169,7 +198,7 @@ export function BattleGround({
         await matchRoom.makeMove(move)
         // Server will send authoritative match state which gets applied in useMatchRoom
       } catch (err) {
-        console.error("Server move failed:", err)
+        log('BattleGround', { event: 'server-move-failed', error: String(err) })
         // Show toast to user with error reason if available
         const message = err && typeof err === "object" && "message" in err ? (err as any).message : String(err)
         toast({
@@ -198,10 +227,14 @@ export function BattleGround({
 
   const handlePlay = () => {
     if (gameStatus === "waiting") {
-      useGameStore.getState().startGame("timed")
-      // Ensure human player starts first in player vs computer mode
+      // Open modal rather than auto-starting in some flows
       if (gameMode === "player-vs-computer") {
+        useGameStore.getState().startGame("timed")
+        // Ensure human player starts first in player vs computer mode
         setCurrentPlayer("X")
+      } else {
+        // For other modes, show modal to let user pick online/offline
+        setShowStartModal(true)
       }
     }
   }
@@ -225,7 +258,7 @@ export function BattleGround({
   }
 
   const handleGameRules = () => {
-    console.log("Show game rules")
+    openRules()
   }
 
   const menuItems = [
@@ -240,6 +273,7 @@ export function BattleGround({
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
+      <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
       {/* Pending move overlay */}
       {pendingMove && serverAuthoritative && (
         <div
@@ -263,7 +297,24 @@ export function BattleGround({
       <GlobalSidebar />
       <TopNavigation username={displayUsername} balance={0} />
       {/* Match Result Modal */}
-  <GameResultModal open={resultModalOpen} onClose={() => setResultModalOpen(false)} result={resultType} scoreX={scores.X} scoreO={scores.O} />
+  <GameResultModal
+    open={resultModalOpen}
+    onClose={() => setResultModalOpen(false)}
+    onPlayAgain={() => {
+      // Restart the timed game
+      useGameStore.getState().startGame("timed")
+      setResultModalOpen(false)
+    }}
+    onBackToMenu={() => {
+      // Close modal and navigate back to dashboard using Next router
+      setResultModalOpen(false)
+      const router = useRouter()
+      router.push('/dashboard')
+    }}
+    result={resultType}
+    scoreX={scores.X}
+    scoreO={scores.O}
+  />
       {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"

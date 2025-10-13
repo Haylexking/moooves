@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
+import { logDebug } from '@/lib/hooks/use-debug-logger'
 import type { Move } from "@/lib/types"
 
 interface WiFiConnectionState {
@@ -53,7 +54,7 @@ export function useWiFiConnection() {
         handler(message.data)
       }
     } catch (error) {
-      console.error("Failed to parse WiFi message:", error)
+      logDebug('WiFi', { event: 'parse-error', error: String(error) })
       setState((prev) => ({
         ...prev,
         error: "Failed to parse message from opponent",
@@ -89,7 +90,7 @@ export function useWiFiConnection() {
       }))
 
       if (connectionState === "connected") {
-        console.log("WebRTC connection established")
+        logDebug('WiFi', { event: 'connected' })
         // Clear connection timeout
         if (connectionTimeoutRef.current) {
           clearTimeout(connectionTimeoutRef.current)
@@ -115,17 +116,17 @@ export function useWiFiConnection() {
   const setupDataChannel = useCallback(
     (dataChannel: RTCDataChannel) => {
       dataChannel.onopen = () => {
-        console.log("Data channel opened")
+        logDebug('WiFi', { event: 'datachannel-open' })
         setState((prev) => ({ ...prev, isConnected: true, error: null }))
       }
 
       dataChannel.onclose = () => {
-        console.log("Data channel closed")
+        logDebug('WiFi', { event: 'datachannel-closed' })
         setState((prev) => ({ ...prev, isConnected: false }))
       }
 
       dataChannel.onerror = (error) => {
-        console.error("Data channel error:", error)
+        logDebug('WiFi', { event: 'datachannel-error', error: String(error) })
         setState((prev) => ({ ...prev, error: "Connection error occurred" }))
       }
 
@@ -213,7 +214,7 @@ export function useWiFiConnection() {
             processPendingCandidates()
           }
         } catch (error) {
-          console.error("Failed to process answer:", error)
+          logDebug('WiFi', { event: 'process-answer-error', error: String(error) })
         }
       }
     }, 1000)
@@ -301,7 +302,7 @@ export function useWiFiConnection() {
           peerConnectionRef.current?.addIceCandidate(new RTCIceCandidate(item.candidate))
         })
       } catch (error) {
-        console.error("Failed to process ICE candidates:", error)
+        logDebug('WiFi', { event: 'process-ice-error', error: String(error) })
       }
     }
   }, [state.isHosting])
@@ -379,7 +380,7 @@ export function useWiFiConnection() {
         error: null,
       })
     } catch (error) {
-      console.error("Error disconnecting WiFi:", error)
+      logDebug('WiFi', { event: 'disconnect-error', error: String(error) })
     }
   }, [])
 
