@@ -49,6 +49,16 @@ export default function TournamentDashboard() {
   const currentUserId = user?.id || ""
   const currentUserName = user?.fullName || "Player"
 
+  // helper: determine if current user can manage payouts
+  const canManagePayouts = (u: any) => {
+    if (!u) return false
+    // support multiple role shapes: user.role === 'host' | 'admin', user.isAdmin, user.roles array
+    if (u.role === 'host' || u.role === 'admin') return true
+    if (u.isAdmin) return true
+    if (Array.isArray(u.roles) && (u.roles.includes('host') || u.roles.includes('admin'))) return true
+    return false
+  }
+
   // Fetch only tournaments the user is registered for
   useEffect(() => {
     if (!user) return
@@ -424,7 +434,7 @@ export default function TournamentDashboard() {
               </div>
             )}
             {/* Payout Management - visible when a tournament is selected and completed */}
-            {selectedTournament && selectedTournament.status === 'completed' && (user?.role === 'host' || user?.role === 'admin') && (
+            {selectedTournament && selectedTournament.status === 'completed' && canManagePayouts(user) && (
               <div className="mt-6 bg-white/80 p-4 rounded-lg border">
                 <h3 className="font-bold text-green-800 mb-2">Payout Management</h3>
                 {payouts.length === 0 ? (
@@ -444,7 +454,12 @@ export default function TournamentDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           {p.status === 'failed' && (
-                            <GameButton onClick={() => openConfirmFor(p)} disabled={sendingPayout}>Send Manually</GameButton>
+                            // show button only if user can manage payouts, otherwise show disabled hint
+                            canManagePayouts(user) ? (
+                              <GameButton onClick={() => openConfirmFor(p)} disabled={sendingPayout}>Send Manually</GameButton>
+                            ) : (
+                              <button className="px-3 py-1 rounded bg-gray-200 text-gray-600 text-sm" disabled title="Only hosts or admins can send manual payouts">Send Manually</button>
+                            )
                           )}
                         </div>
                       </div>
@@ -460,7 +475,11 @@ export default function TournamentDashboard() {
                     <input value={manualAmount as any} onChange={(e) => setManualAmount(Number(e.target.value) || '')} placeholder="Amount" type="number" className="border p-2 rounded" />
                   </div>
                   <div className="mt-2">
-                    <GameButton onClick={() => handleSendManualPayout({ amount: manualAmount || 0, accountNumber: manualAccountNumber, recipientType: 'manual' })} disabled={sendingPayout || !manualAccountNumber || !manualAmount}>Send Manual Payout</GameButton>
+                    {canManagePayouts(user) ? (
+                      <GameButton onClick={() => handleSendManualPayout({ amount: manualAmount || 0, accountNumber: manualAccountNumber, recipientType: 'manual' })} disabled={sendingPayout || !manualAccountNumber || !manualAmount}>Send Manual Payout</GameButton>
+                    ) : (
+                      <button className="px-4 py-2 rounded bg-gray-200 text-gray-600" disabled title="Only hosts or admins can send manual payouts">Send Manual Payout</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -579,7 +598,11 @@ export default function TournamentDashboard() {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Confirm Manual Payout?"
-        description={confirmEntry ? `Send ₦${confirmEntry.amount} to ${confirmEntry.username ?? confirmEntry.userId ?? confirmEntry.recipientType} (account: ${confirmEntry.accountNumber ?? manualAccountNumber || 'N/A'})` : undefined}
+        description={
+          confirmEntry
+            ? `Send ₦${confirmEntry.amount} to ${confirmEntry.username ?? confirmEntry.userId ?? confirmEntry.recipientType} (account: ${(confirmEntry.accountNumber ?? manualAccountNumber) || 'N/A'})`
+            : undefined
+        }
         confirmLabel="Send Payout"
         cancelLabel="Cancel"
         onConfirm={onConfirmSend}
