@@ -2,41 +2,83 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./dialog"
 import { GameButton } from "./game-button"
-import { Button } from "@/components/ui/button"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { toast } from "@/hooks/use-toast"
 
 export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const router = useRouter()
-  const [nearbyFlow, setNearbyFlow] = useState<"main" | "nearby-submenu" | "host" | "join">("main")
+  const [flow, setFlow] = useState<"main" | "1v1-role" | "host-waiting" | "guest-connecting">("main")
   const [loading, setLoading] = useState(false)
   const [roomCode, setRoomCode] = useState("")
+  const [connectionType, setConnectionType] = useState<"wifi" | "bluetooth" | null>(null)
   const matchRoom = useMatchRoom()
   const { user } = useAuthStore()
 
   const handleClose = (v: boolean) => {
     if (!v) {
-      setNearbyFlow("main")
+      setFlow("main")
       setRoomCode("")
+      setConnectionType(null)
     }
     onOpenChange(v)
   }
 
+  const handleHostGame = async (type: "wifi" | "bluetooth") => {
+    setLoading(true)
+    setConnectionType(type)
+    try {
+      // Mock 2-second connection delay
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const token =
+        type === "wifi" ? `WIFI-${Date.now().toString().slice(-6)}` : `BT-${Date.now().toString().slice(-6)}`
+      await matchRoom.createRoom(token)
+      setRoomCode(token)
+      toast({
+        title: `Connected via ${type === "wifi" ? "Wi-Fi" : "Bluetooth"}`,
+        description: `Room: ${token}`,
+        variant: "default",
+      })
+      setFlow("host-waiting")
+    } catch (err) {
+      toast({ title: "Connection failed", description: String(err), variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleJoinGame = async () => {
+    if (!roomCode) {
+      toast({ title: "Missing code", description: "Enter a room code", variant: "destructive" })
+      return
+    }
+    setLoading(true)
+    try {
+      await matchRoom.joinRoom(roomCode, "")
+      toast({ title: "Joined", description: `Joined ${roomCode}`, variant: "default" })
+      handleClose(false)
+      router.push("/game?mode=p2p&role=guest")
+    } catch (err) {
+      toast({ title: "Join failed", description: String(err), variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600">
         <DialogHeader>
-          <DialogTitle>Start Game</DialogTitle>
-          <DialogDescription>Select how you want to play</DialogDescription>
+          <DialogTitle className="text-2xl font-black text-green-900">Start Game</DialogTitle>
+          <DialogDescription className="text-green-700">Select how you want to play</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-3">
-          {nearbyFlow === "main" && (
+        <div className="space-y-4 py-4">
+          {flow === "main" && (
             <div className="space-y-3">
-              <GameButton onClick={() => setNearbyFlow("nearby-submenu")} className="w-full text-lg font-semibold">
+              <GameButton onClick={() => setFlow("1v1-role")} className="w-full text-lg font-bold py-6">
                 Play 1v1
               </GameButton>
               <GameButton
@@ -44,7 +86,7 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
                   handleClose(false)
                   router.push("/game?mode=ai")
                 }}
-                className="w-full text-lg font-semibold"
+                className="w-full text-lg font-bold py-6"
               >
                 Player vs Computer
               </GameButton>
@@ -53,132 +95,104 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
                   handleClose(false)
                   router.push("/tournaments")
                 }}
-                className="w-full text-lg font-semibold"
+                className="w-full text-lg font-bold py-6"
               >
                 Join Tournament
               </GameButton>
             </div>
           )}
 
-          {nearbyFlow === "nearby-submenu" && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600 mb-2">Choose connection method:</p>
-              <GameButton
-                onClick={async () => {
-                  setLoading(true)
-                  try {
-                    // Mock 2-second connection delay
-                    await new Promise((resolve) => setTimeout(resolve, 2000))
-                    const token = `WIFI-${Date.now().toString().slice(-6)}`
-                    await matchRoom.createRoom(token)
-                    toast({ title: "Connected via Wi-Fi", description: `Room: ${token}`, variant: "default" })
-                    setNearbyFlow("host")
-                  } catch (err) {
-                    toast({ title: "Connection failed", description: String(err), variant: "destructive" })
-                  } finally {
-                    setLoading(false)
-                  }
-                }}
-                disabled={loading}
-                className="w-full"
-              >
-                {loading ? "Connecting..." : "Nearby (Wi-Fi)"}
-              </GameButton>
-              <GameButton
-                onClick={async () => {
-                  setLoading(true)
-                  try {
-                    // Mock 2-second connection delay
-                    await new Promise((resolve) => setTimeout(resolve, 2000))
-                    const token = `BT-${Date.now().toString().slice(-6)}`
-                    await matchRoom.createRoom(token)
-                    toast({ title: "Connected via Bluetooth", description: `Room: ${token}`, variant: "default" })
-                    setNearbyFlow("host")
-                  } catch (err) {
-                    toast({ title: "Connection failed", description: String(err), variant: "destructive" })
-                  } finally {
-                    setLoading(false)
-                  }
-                }}
-                disabled={loading}
-                className="w-full"
-              >
-                {loading ? "Connecting..." : "Nearby (Bluetooth)"}
-              </GameButton>
-              <GameButton variant="pressed" onClick={() => setNearbyFlow("main")} className="w-full">
+          {flow === "1v1-role" && (
+            <div className="space-y-4">
+              <p className="text-sm text-green-800 font-semibold text-center mb-2">Choose your role:</p>
+              <div className="bg-green-200/50 rounded-xl p-4 space-y-3">
+                <div>
+                  <h3 className="font-bold text-green-900 mb-2">Host Game</h3>
+                  <p className="text-xs text-green-700 mb-3">Create a room and share the code with another player</p>
+                  <div className="flex gap-2">
+                    <GameButton
+                      onClick={() => handleHostGame("wifi")}
+                      disabled={loading}
+                      className="flex-1 text-sm py-3"
+                    >
+                      {loading && connectionType === "wifi" ? "Connecting..." : "Wi-Fi"}
+                    </GameButton>
+                    <GameButton
+                      onClick={() => handleHostGame("bluetooth")}
+                      disabled={loading}
+                      className="flex-1 text-sm py-3"
+                    >
+                      {loading && connectionType === "bluetooth" ? "Connecting..." : "Bluetooth"}
+                    </GameButton>
+                  </div>
+                </div>
+                <div className="border-t-2 border-green-300 pt-3">
+                  <h3 className="font-bold text-green-900 mb-2">Join Game</h3>
+                  <p className="text-xs text-green-700 mb-3">Enter the room code from the host</p>
+                  <GameButton onClick={() => setFlow("guest-connecting")} className="w-full text-sm py-3">
+                    Enter Room Code
+                  </GameButton>
+                </div>
+              </div>
+              <GameButton variant="pressed" onClick={() => setFlow("main")} className="w-full">
                 Back
               </GameButton>
             </div>
           )}
 
-          {nearbyFlow === "host" && (
-            <div className="space-y-3">
-              <div className="text-sm text-gray-700">Share this code with nearby player:</div>
-              <div className="p-3 bg-green-100 rounded-lg text-center font-mono text-lg font-bold">
-                {matchRoom.roomCode || "ROOM-CODE"}
+          {flow === "host-waiting" && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-sm text-green-800 font-semibold mb-2">Waiting for another player to connect...</p>
+              </div>
+              <div className="bg-green-200 rounded-xl p-4 text-center">
+                <p className="text-xs text-green-700 mb-2 font-semibold">Share this code:</p>
+                <div className="text-2xl font-black text-green-900 tracking-wider mb-2">{roomCode}</div>
+                <p className="text-xs text-green-600">
+                  Connected via {connectionType === "wifi" ? "Wi-Fi" : "Bluetooth"}
+                </p>
               </div>
               <div className="flex gap-2">
                 <GameButton
                   onClick={() => {
                     handleClose(false)
-                    router.push("/game?mode=p2p")
+                    router.push("/game?mode=p2p&role=host")
                   }}
                   className="flex-1"
                 >
                   Start Game
                 </GameButton>
-                <GameButton variant="pressed" onClick={() => setNearbyFlow("main")} className="flex-1">
+                <GameButton variant="pressed" onClick={() => setFlow("main")} className="flex-1">
                   Cancel
                 </GameButton>
               </div>
             </div>
           )}
 
-          {nearbyFlow === "join" && (
-            <div className="space-y-3">
-              <input
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value)}
-                placeholder="Enter room code"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+          {flow === "guest-connecting" && (
+            <div className="space-y-4">
+              <div className="bg-green-200/50 rounded-xl p-4">
+                <label className="text-sm font-bold text-green-900 mb-2 block">Room Code</label>
+                <input
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  placeholder="Enter 6-digit code"
+                  maxLength={12}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-green-400 bg-white text-green-900 font-bold text-center text-lg tracking-wider focus:outline-none focus:ring-2 focus:ring-green-600"
+                />
+              </div>
               <div className="flex gap-2">
-                <GameButton
-                  onClick={async () => {
-                    if (!roomCode) {
-                      toast({ title: "Missing code", description: "Enter a room code", variant: "destructive" })
-                      return
-                    }
-                    setLoading(true)
-                    try {
-                      await matchRoom.joinRoom(roomCode, "")
-                      toast({ title: "Joined", description: `Joined ${roomCode}`, variant: "default" })
-                      handleClose(false)
-                      router.push("/game?mode=p2p")
-                    } catch (err) {
-                      toast({ title: "Join failed", description: String(err), variant: "destructive" })
-                    } finally {
-                      setLoading(false)
-                    }
-                  }}
-                  disabled={loading}
-                  className="flex-1"
-                >
-                  {loading ? "Joining..." : "Join"}
+                <GameButton onClick={handleJoinGame} disabled={loading || !roomCode} className="flex-1">
+                  {loading ? "Joining..." : "Join Game"}
                 </GameButton>
-                <GameButton variant="pressed" onClick={() => setNearbyFlow("nearby-submenu")} className="flex-1">
+                <GameButton variant="pressed" onClick={() => setFlow("1v1-role")} className="flex-1">
                   Back
                 </GameButton>
               </div>
             </div>
           )}
         </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => handleClose(false)}>
-            Close
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -2,6 +2,7 @@
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 import { BankLinkForm } from "@/components/ui/bank-link-form"
+import { GameButton } from "@/components/ui/game-button"
 import { useState, useEffect } from "react"
 import Image from "next/image"
 
@@ -69,27 +70,27 @@ export default function WalletPage() {
           method: "bank_transfer",
           redirectUrl: window.location.href,
         }),
-      });
-      const data = await res.json();
+      })
+      const data = await res.json()
       if (!res.ok || !data.success) {
-        setActiveModal("failed");
-        throw new Error(data.error || "Wallet top-up failed");
+        setActiveModal("failed")
+        throw new Error(data.error || "Wallet top-up failed")
       }
       // Optionally, redirect to payment gateway if required
       if (data.data?.paymentUrl) {
-        window.location.href = data.data.paymentUrl;
-        return;
+        window.location.href = data.data.paymentUrl
+        return
       }
       // Simulate success for demo
-      setBalance((prev) => prev + Number.parseFloat(amount));
-      setActiveModal("success");
-      setAmount("");
+      setBalance((prev) => prev + Number.parseFloat(amount))
+      setActiveModal("success")
+      setAmount("")
     } catch (error) {
-      setActiveModal("failed");
+      setActiveModal("failed")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleRequestFunds = async () => {
     if (!amount || Number.parseFloat(amount) < 5000) {
@@ -128,27 +129,27 @@ export default function WalletPage() {
           method: "card",
           redirectUrl: window.location.href,
         }),
-      });
-      const data = await res.json();
+      })
+      const data = await res.json()
       if (!res.ok || !data.success) {
-        setActiveModal("failed");
-        throw new Error(data.error || "Card payment failed");
+        setActiveModal("failed")
+        throw new Error(data.error || "Card payment failed")
       }
       // Optionally, redirect to payment gateway if required
       if (data.data?.paymentUrl) {
-        window.location.href = data.data.paymentUrl;
-        return;
+        window.location.href = data.data.paymentUrl
+        return
       }
       // Simulate success for demo
-      setBalance((prev) => prev + Number.parseFloat(amount));
-      setActiveModal("success");
-      setAmount("");
+      setBalance((prev) => prev + Number.parseFloat(amount))
+      setActiveModal("success")
+      setAmount("")
     } catch (error) {
-      setActiveModal("failed");
+      setActiveModal("failed")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const closeModal = () => {
     setActiveModal(null)
@@ -159,7 +160,7 @@ export default function WalletPage() {
       <GlobalSidebar />
       <TopNavigation balance={balance} />
 
-      <div className="relative min-h-screen w-full overflow-hidden pt-20">
+      <div className="relative min-h-screen w-full overflow-hidden pt-16 sm:pt-20">
         {/* Dashboard Background */}
         <Image
           src="/images/dashboard-background.png"
@@ -169,171 +170,178 @@ export default function WalletPage() {
           priority
         />
         {/* Main Content Area */}
-        <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-100px)] p-4">
-          <div className="flex gap-6 w-full max-w-6xl">
+        <div className="relative z-10 flex items-start justify-center min-h-[calc(100vh-100px)] p-2 sm:p-4 md:p-6">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 w-full max-w-7xl">
             {/* Wallet Panel */}
-            <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl flex-1 max-w-2xl">
+            <div className="bg-green-100/90 border-2 sm:border-4 border-green-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl flex-1 w-full lg:max-w-2xl">
               {/* Balance Display */}
-              <div className="bg-green-800 text-white rounded-xl p-6 mb-6">
+              <div className="bg-green-800 text-white rounded-lg sm:rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
                 <div className="text-center">
-                  <p className="text-green-200 text-sm mb-2">Balance</p>
-                  <p className="text-4xl font-bold">{balance.toFixed(3)}</p>
+                  <p className="text-green-200 text-xs sm:text-sm mb-1 sm:mb-2">Balance</p>
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-bold">{balance.toFixed(3)}</p>
                 </div>
               </div>
               {/* Bank Account Linking */}
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <BankLinkForm />
               </div>
               {/* Tab Navigation */}
-              <div className="flex mb-6">
+              <div className="flex mb-4 sm:mb-6 border-b-2 border-green-300">
                 <button
                   onClick={() => setActiveTab("fund")}
-                  className={`flex-1 py-2 px-4 font-semibold transition-colors ${activeTab === "fund"
-                      ? "text-green-800 border-b-2 border-green-800"
-                      : "text-gray-600 hover:text-green-700"
-                    }`}
+                  className={`flex-1 py-3 px-2 sm:px-4 font-semibold text-sm sm:text-base transition-colors ${
+                    activeTab === "fund"
+                      ? "text-green-900 border-b-4 border-green-800 -mb-[2px]"
+                      : "text-green-700 hover:text-green-900"
+                  }`}
                 >
                   Fund wallet
                 </button>
                 <button
                   onClick={() => setActiveTab("request")}
-                  className={`flex-1 py-2 px-4 font-semibold transition-colors ${activeTab === "request"
-                      ? "text-green-800 border-b-2 border-green-800"
-                      : "text-gray-600 hover:text-green-700"
-                    }`}
+                  className={`flex-1 py-3 px-2 sm:px-4 font-semibold text-sm sm:text-base transition-colors ${
+                    activeTab === "request"
+                      ? "text-green-900 border-b-4 border-green-800 -mb-[2px]"
+                      : "text-green-700 hover:text-green-900"
+                  }`}
                 >
                   Request funds
                 </button>
               </div>
               {/* Fund Wallet Tab */}
               {activeTab === "fund" && (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-green-800 font-semibold mb-2">Pay to account</label>
-                    <div className="p-3 bg-green-200/50 rounded-lg text-green-800 font-medium">
+                    <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">
+                      Pay to account
+                    </label>
+                    <div className="p-2 sm:p-3 bg-green-200/50 rounded-lg text-green-900 font-medium text-sm sm:text-base">
                       {accountNumber} [{bankName}]
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-green-800 font-semibold mb-2">Enter amount</label>
+                      <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">
+                        Enter amount
+                      </label>
                       <input
                         type="number"
                         min="5000"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="5,000(minimum)"
-                        className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-green-800 font-semibold mb-2">Reason</label>
+                      <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">Reason</label>
                       <input
                         type="text"
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
-                        className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                   </div>
 
-                  <div className="text-center text-green-800 font-semibold">OR</div>
+                  <div className="text-center text-green-900 font-semibold text-sm sm:text-base">OR</div>
 
-                  <button
-                    onClick={handlePayWithCard}
-                    disabled={isLoading}
-                    className="w-full p-3 bg-white border border-green-300 rounded-lg text-green-800 font-semibold hover:bg-green-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <div className="w-6 h-6 bg-gradient-to-r from-red-500 to-yellow-500 rounded flex items-center justify-center">
+                  <GameButton onClick={handlePayWithCard} disabled={isLoading} className="w-full">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-red-500 to-yellow-500 rounded flex items-center justify-center mr-2">
                       <span className="text-white text-xs font-bold">MC</span>
                     </div>
                     Pay with card
-                  </button>
+                  </GameButton>
 
-                  <button
-                    onClick={handleFundWallet}
-                    disabled={isLoading}
-                    className="w-full p-3 bg-green-800 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-                  >
+                  <GameButton onClick={handleFundWallet} disabled={isLoading} className="w-full">
                     {isLoading ? "Processing..." : "I have completed transfer"}
-                  </button>
+                  </GameButton>
                 </div>
               )}
               {/* Request Funds Tab */}
               {activeTab === "request" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-green-800 font-semibold mb-2">Your account</label>
+                      <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">
+                        Your account
+                      </label>
                       <input
                         type="text"
                         value={accountNumber}
                         onChange={(e) => setAccountNumber(e.target.value)}
-                        className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-green-800 font-semibold mb-2">Bank</label>
+                      <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">Bank</label>
                       <input
                         type="text"
                         value={bankName}
                         onChange={(e) => setBankName(e.target.value)}
-                        className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-green-800 font-semibold mb-2">Enter amount</label>
+                      <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">
+                        Enter amount
+                      </label>
                       <input
                         type="number"
                         min="5000"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="10,000"
-                        className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-green-800 font-semibold mb-2">Reason</label>
+                      <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">Reason</label>
                       <input
                         type="text"
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
-                        className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleRequestFunds}
-                    disabled={isLoading}
-                    className="w-full p-3 bg-green-800 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-                  >
+                  <GameButton onClick={handleRequestFunds} disabled={isLoading} className="w-full">
                     {isLoading ? "Processing..." : "I have completed transfer"}
-                  </button>
+                  </GameButton>
                 </div>
               )}
             </div>
             {/* Transaction History Panel */}
-            <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl flex-1 max-w-md">
-              <h3 className="text-xl font-bold text-green-800 text-center mb-6">Transaction History</h3>
+            <div className="bg-green-100/90 border-2 sm:border-4 border-green-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl flex-1 w-full lg:max-w-md">
+              <h3 className="text-lg sm:text-xl font-bold text-green-900 text-center mb-4 sm:mb-6">
+                Transaction History
+              </h3>
               {transactions.length === 0 ? (
-                <div className="text-center text-green-700 py-12">
-                  <p className="text-lg font-semibold">No Data Available</p>
+                <div className="text-center text-green-800 py-8 sm:py-12">
+                  <p className="text-base sm:text-lg font-semibold">No Data Available</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {transactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center gap-3 p-3 bg-green-200/50 rounded-lg">
-                      <span className="w-4 h-4 text-green-700">&#8250;</span>
-                      <div className="flex-1">
-                        <p className="text-green-800 font-medium">{transaction.description}</p>
-                        <p className="text-green-600 text-sm">{transaction.date}</p>
+                    <div
+                      key={transaction.id}
+                      className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-green-200/50 rounded-lg"
+                    >
+                      <span className="w-3 h-3 sm:w-4 sm:h-4 text-green-700 text-sm sm:text-base">&#8250;</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-green-900 font-medium text-sm sm:text-base truncate">
+                          {transaction.description}
+                        </p>
+                        <p className="text-green-700 text-xs sm:text-sm">{transaction.date}</p>
                       </div>
-                      <p className={`font-bold ${transaction.type === "credit" ? "text-green-600" : "text-red-600"}`}>
+                      <p
+                        className={`font-bold text-sm sm:text-base whitespace-nowrap ${transaction.type === "credit" ? "text-green-600" : "text-red-600"}`}
+                      >
                         {transaction.type === "credit" ? "+" : "-"}₦{transaction.amount.toLocaleString()}
                       </p>
                     </div>

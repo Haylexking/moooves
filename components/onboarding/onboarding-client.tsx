@@ -101,17 +101,13 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
 
   const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
 
-  // Helper: wait for auth store to reflect authenticated user before redirecting
-  const waitForAuthInit = async (timeout = 5000) => {
+  const waitForAuthInit = async (timeout = 7000) => {
     const start = Date.now()
-    // guard: if the store is mocked in tests it may not expose getState/subscribe
     const storeApi: any = useAuthStore as any
     if (!storeApi || typeof storeApi.getState !== "function" || typeof storeApi.subscribe !== "function") {
-      // nothing to wait for in this environment (tests/mock); return immediately
       return Promise.resolve(storeApi && typeof storeApi.getState === "function" ? storeApi.getState() : {})
     }
 
-    // If already authenticated, return immediately
     const current = storeApi.getState() || {}
     if (current.isAuthenticated || current.user) return Promise.resolve(current)
 
@@ -119,8 +115,6 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       const unsub = storeApi.subscribe((state: any) => {
         if (state.isAuthenticated || state.user) {
           try {
-            // optional debug logging
-            // eslint-disable-next-line global-require
             const { logDebug } = require("@/lib/hooks/use-debug-logger")
             logDebug("Onboarding", { event: "auth-initialized", state })
           } catch (e) {
@@ -147,24 +141,19 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       } else {
         await register(formData.username.trim(), formData.email.trim(), formData.password)
       }
-      // Emit lightweight diagnostic logs (quiet when QUIET_LOGS=true)
       try {
-        // eslint-disable-next-line global-require
         const { logDebug } = require("@/lib/hooks/use-debug-logger")
-        // Read token from api client if available
         const token = apiClient?.getToken?.() || null
         logDebug("Onboarding", { event: "register-complete", tokenPresent: !!token })
       } catch (e) {
         // noop
       }
-      // Wait for auth store to initialize (token persisted and user set) before redirecting
-      // Show a short loading/fallback to avoid blank screen
       await waitForAuthInit(7000)
       const authState = useAuthStore.getState()
       if (authState.isAuthenticated && authState.user) {
-        router.push("/dashboard")
+        const targetDashboard = mode === "host" || authState.user.role === "host" ? "/host-dashboard" : "/dashboard"
+        router.push(targetDashboard)
       } else {
-        // Show error if auth didn't complete
         setErrors({ general: "Registration completed but session not initialized. Please try logging in." })
       }
     } catch (err) {
@@ -185,18 +174,17 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
         await login(loginData.email.trim(), loginData.password)
       }
       try {
-        // eslint-disable-next-line global-require
         const { logDebug } = require("@/lib/hooks/use-debug-logger")
         const token = apiClient?.getToken?.() || null
         logDebug("Onboarding", { event: "login-complete", tokenPresent: !!token })
       } catch (e) {
         // noop
       }
-      // Wait for auth store to be set before redirecting
       await waitForAuthInit(7000)
       const authState = useAuthStore.getState()
       if (authState.isAuthenticated && authState.user) {
-        router.push("/dashboard")
+        const targetDashboard = mode === "host" || authState.user.role === "host" ? "/host-dashboard" : "/dashboard"
+        router.push(targetDashboard)
       } else {
         setLoginError("Login completed but session not initialized. Please try again.")
       }
