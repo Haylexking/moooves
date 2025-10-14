@@ -135,7 +135,7 @@ class ApiClient {
     })
   }
 
-    // Forgot Password (email-only) flow
+  // Forgot Password (email-only) flow
   async forgotPassword(email: string): Promise<ApiResponse<any>> {
     return this.request("/auth/forgot", {
       method: "POST",
@@ -368,7 +368,12 @@ class ApiClient {
     })
   }
 
-  async sendManualPayout(accountBank: string, accountNumber: string, amount: number, narration?: string): Promise<ApiResponse<any>> {
+  async sendManualPayout(
+    accountBank: string,
+    accountNumber: string,
+    amount: number,
+    narration?: string,
+  ): Promise<ApiResponse<any>> {
     return this.request(`/send`, {
       method: "POST",
       body: JSON.stringify({ accountBank, accountNumber, amount, narration }),

@@ -20,12 +20,16 @@ export function HostDashboard() {
   const hostedTournaments = userTournaments.filter((t) => t.hostId === user?.id)
   const totalEarnings = 0 // TODO: Calculate from completed tournaments
 
+  const hostName = user?.fullName || user?.email || "Host"
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
         <div className="flex-1">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight mb-1">Host Dashboard</h1>
-          <p className="text-sm md:text-base text-slate-600">Manage your tournaments, view stats, and take quick actions</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-1">Welcome, {hostName}</h1>
+          <p className="text-sm md:text-base text-gray-200">
+            Manage your tournaments, view stats, and take quick actions
+          </p>
         </div>
         <div className="flex-shrink-0">
           <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2">
@@ -57,7 +61,9 @@ export function HostDashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-3">
-            <p className="text-2xl md:text-3xl font-semibold text-slate-900">{hostedTournaments.reduce((sum, t) => sum + t.currentPlayers, 0)}</p>
+            <p className="text-2xl md:text-3xl font-semibold text-slate-900">
+              {hostedTournaments.reduce((sum, t) => sum + t.currentPlayers, 0)}
+            </p>
           </CardContent>
         </Card>
 
@@ -81,7 +87,9 @@ export function HostDashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-3">
-            <p className="text-2xl md:text-3xl font-semibold text-slate-900">{hostedTournaments.filter((t) => t.status === "active").length}</p>
+            <p className="text-2xl md:text-3xl font-semibold text-slate-900">
+              {hostedTournaments.filter((t) => t.status === "active").length}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -109,7 +117,8 @@ export function HostDashboard() {
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-slate-900">{tournament.name}</h3>
                           <p className="text-sm text-slate-600 mt-1">
-                            {tournament.currentPlayers}/{tournament.maxPlayers} players • ₦{tournament.totalPool.toLocaleString()} pool
+                            {tournament.currentPlayers}/{tournament.maxPlayers} players • ₦
+                            {tournament.totalPool.toLocaleString()} pool
                           </p>
                           <p className="text-xs text-slate-500 mt-1">Invite Code: {tournament.inviteCode}</p>
                         </div>

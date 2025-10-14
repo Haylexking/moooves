@@ -6,10 +6,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
-import type { GameMode } from "@/lib/types"
 
 interface CreateTournamentModalProps {
   open: boolean
@@ -18,26 +16,30 @@ interface CreateTournamentModalProps {
 
 export function CreateTournamentModal({ open, onClose }: CreateTournamentModalProps) {
   const [name, setName] = useState("")
-  const [entryFee, setEntryFee] = useState(1000)
+  const [entryFee, setEntryFee] = useState(500)
   const [maxPlayers, setMaxPlayers] = useState(50)
-  const [gameMode, setGameMode] = useState<GameMode>("timed")
   const { createTournament, isLoading } = useTournamentStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (entryFee < 500) {
+      alert("Minimum entry fee is ₦500")
+      return
+    }
+
     try {
       await createTournament({
         name,
         entryFee,
         maxPlayers,
-        gameMode,
+        gameMode: "timed",
       })
       onClose()
       // Reset form
       setName("")
-      setEntryFee(1000)
+      setEntryFee(500)
       setMaxPlayers(50)
-      setGameMode("timed")
     } catch (error) {
       console.error("Failed to create tournament:", error)
     }
@@ -67,7 +69,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             <Input
               id="entryFee"
               type="number"
-              min={1000}
+              min={500}
               value={entryFee}
               onChange={(e) => setEntryFee(Number(e.target.value))}
               required
@@ -89,17 +91,10 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             <p className="text-xs text-gray-500 mt-1">Between 6-50 players</p>
           </div>
 
-          <div>
-            <Label htmlFor="gameMode">Game Mode</Label>
-            <Select value={gameMode} onValueChange={(value: GameMode) => setGameMode(value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="timed">Timed (10 minutes)</SelectItem>
-                <SelectItem value="full-grid">Full Grid</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              <strong>Game Duration:</strong> 10 minutes (Timed Mode)
+            </p>
           </div>
 
           <div className="flex gap-2 pt-4">

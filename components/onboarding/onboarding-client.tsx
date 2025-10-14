@@ -54,13 +54,14 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
   }
 
   const validatePassword = (password: string): string | null => {
-    if (!password) return "Password is required";
-    if (password.trim() === "") return "Password cannot be Empty";
-    if (password.length < 8) return "Password must be at least 8 characters";
-    if (!/(?=.*[a-z])/.test(password)) return "Password must include at least one lowercase letter";
-    if (!/(?=.*[A-Z])/.test(password)) return "Password must include at least one Uppercase letter";
-    if (!/(?=.*[!@#$%^&*])/.test(password)) return "Password must be minimum of 8 characters and include at least one Uppercase, lowercase and a special character [!@#$%^&*]";
-    return null;
+    if (!password) return "Password is required"
+    if (password.trim() === "") return "Password cannot be Empty"
+    if (password.length < 8) return "Password must be at least 8 characters"
+    if (!/(?=.*[a-z])/.test(password)) return "Password must include at least one lowercase letter"
+    if (!/(?=.*[A-Z])/.test(password)) return "Password must include at least one Uppercase letter"
+    if (!/(?=.*[!@#$%^&*])/.test(password))
+      return "Password must be minimum of 8 characters and include at least one Uppercase, lowercase and a special character [!@#$%^&*]"
+    return null
   }
 
   const validateForm = () => {
@@ -105,9 +106,9 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     const start = Date.now()
     // guard: if the store is mocked in tests it may not expose getState/subscribe
     const storeApi: any = useAuthStore as any
-    if (!storeApi || typeof storeApi.getState !== 'function' || typeof storeApi.subscribe !== 'function') {
+    if (!storeApi || typeof storeApi.getState !== "function" || typeof storeApi.subscribe !== "function") {
       // nothing to wait for in this environment (tests/mock); return immediately
-      return Promise.resolve(storeApi && typeof storeApi.getState === 'function' ? storeApi.getState() : {})
+      return Promise.resolve(storeApi && typeof storeApi.getState === "function" ? storeApi.getState() : {})
     }
 
     // If already authenticated, return immediately
@@ -120,8 +121,8 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
           try {
             // optional debug logging
             // eslint-disable-next-line global-require
-            const { logDebug } = require('@/lib/hooks/use-debug-logger')
-            logDebug('Onboarding', { event: 'auth-initialized', state })
+            const { logDebug } = require("@/lib/hooks/use-debug-logger")
+            logDebug("Onboarding", { event: "auth-initialized", state })
           } catch (e) {
             // noop
           }
@@ -146,20 +147,26 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       } else {
         await register(formData.username.trim(), formData.email.trim(), formData.password)
       }
-        // Emit lightweight diagnostic logs (quiet when QUIET_LOGS=true)
-        try {
-          // eslint-disable-next-line global-require
-          const { logDebug } = require('@/lib/hooks/use-debug-logger')
-          // Read token from api client if available
-          const token = apiClient?.getToken?.() || null
-          logDebug('Onboarding', { event: 'register-complete', tokenPresent: !!token })
-        } catch (e) {
-          // noop
-        }
+      // Emit lightweight diagnostic logs (quiet when QUIET_LOGS=true)
+      try {
+        // eslint-disable-next-line global-require
+        const { logDebug } = require("@/lib/hooks/use-debug-logger")
+        // Read token from api client if available
+        const token = apiClient?.getToken?.() || null
+        logDebug("Onboarding", { event: "register-complete", tokenPresent: !!token })
+      } catch (e) {
+        // noop
+      }
       // Wait for auth store to initialize (token persisted and user set) before redirecting
       // Show a short loading/fallback to avoid blank screen
       await waitForAuthInit(7000)
-      router.push("/dashboard")
+      const authState = useAuthStore.getState()
+      if (authState.isAuthenticated && authState.user) {
+        router.push("/dashboard")
+      } else {
+        // Show error if auth didn't complete
+        setErrors({ general: "Registration completed but session not initialized. Please try logging in." })
+      }
     } catch (err) {
       // Error is handled by the store
     } finally {
@@ -179,15 +186,20 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       }
       try {
         // eslint-disable-next-line global-require
-        const { logDebug } = require('@/lib/hooks/use-debug-logger')
+        const { logDebug } = require("@/lib/hooks/use-debug-logger")
         const token = apiClient?.getToken?.() || null
-        logDebug('Onboarding', { event: 'login-complete', tokenPresent: !!token })
+        logDebug("Onboarding", { event: "login-complete", tokenPresent: !!token })
       } catch (e) {
         // noop
       }
       // Wait for auth store to be set before redirecting
       await waitForAuthInit(7000)
-      router.push("/dashboard")
+      const authState = useAuthStore.getState()
+      if (authState.isAuthenticated && authState.user) {
+        router.push("/dashboard")
+      } else {
+        setLoginError("Login completed but session not initialized. Please try again.")
+      }
     } catch (err: any) {
       if (err.message && err.message.toLowerCase().includes("not found")) {
         setLoginError("Credentials not found. Would you like to register instead?")
@@ -200,7 +212,11 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
   }
 
   const handleGoogleSignIn = () => {
-    window.location.href = apiClient.getGoogleAuthUrl()
+    if (mode === "host") {
+      window.location.href = apiClient.getHostGoogleAuthUrl()
+    } else {
+      window.location.href = apiClient.getGoogleAuthUrl()
+    }
   }
 
   return (
@@ -305,7 +321,7 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
 
             <label className="text-[#002B03] font-bold">Password</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
+              <span className="absolute left-3 top-3 text-[#6AC56E] z-10">
                 <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
                   <rect x="4" y="8" width="12" height="8" rx="2" stroke="#6AC56E" strokeWidth="1.5" />
                   <path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" />
@@ -326,7 +342,7 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
 
             <label className="text-[#002B03] font-bold">Confirm Password</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
+              <span className="absolute left-3 top-3 text-[#6AC56E] z-10">
                 <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
                   <rect x="4" y="8" width="12" height="8" rx="2" stroke="#6AC56E" strokeWidth="1.5" />
                   <path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" />
@@ -355,9 +371,7 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
             </button>
 
             <GameButton data-testid="onboarding-register-submit" type="submit" className="mt-2" disabled={loading}>
-              {loading
-                ? "Loading..."
-                : ctaText || "Register as Player"}
+              {loading ? "Loading..." : mode === "host" ? "Register as Host" : "Register as Player"}
             </GameButton>
           </form>
         )}
@@ -381,14 +395,14 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
                 type="email"
                 placeholder="Enter your email"
                 value={loginData.email}
-                onChange={e => handleLoginInputChange("email", e.target.value)}
+                onChange={(e) => handleLoginInputChange("email", e.target.value)}
                 className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]"
               />
             </div>
 
             <label className="text-[#002B03] font-bold">Password</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
+              <span className="absolute left-3 top-3 text-[#6AC56E] z-10">
                 <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
                   <rect x="4" y="8" width="12" height="8" rx="2" stroke="#6AC56E" strokeWidth="1.5" />
                   <path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" />
@@ -397,13 +411,25 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
               <PasswordInput
                 placeholder="Enter your password"
                 value={loginData.password}
-                onChange={e => handleLoginInputChange("password", e.target.value)}
+                onChange={(e) => handleLoginInputChange("password", e.target.value)}
                 className="pl-10"
               />
             </div>
+            <div className="flex justify-end -mt-2">
+              <button
+                type="button"
+                onClick={() => router.push("/auth/forgot/enter-email")}
+                className="text-sm text-[#6AC56E] hover:text-[#5AB55E] font-semibold underline"
+              >
+                Forgot password?
+              </button>
+            </div>
             {loginError && (
               <div className="text-red-500 text-sm -mt-2">
-                {loginError} <button type="button" className="underline ml-2" onClick={() => setTab("register")}>Register</button>
+                {loginError}{" "}
+                <button type="button" className="underline ml-2" onClick={() => setTab("register")}>
+                  Register
+                </button>
               </div>
             )}
             <GameButton data-testid="onboarding-login-submit" type="submit" className="mt-2" disabled={loading}>
@@ -413,9 +439,7 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
         )}
       </div>
 
-      {ctaText && (
-        <div className="text-center text-lg font-bold mt-4 text-green-700">{ctaText}</div>
-      )}
+      {ctaText && <div className="text-center text-lg font-bold mt-4 text-green-700">{ctaText}</div>}
     </div>
   )
 }

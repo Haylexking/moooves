@@ -35,7 +35,11 @@ const parseApiError = (error: string): string => {
   if (error.includes("Passwords do not match")) {
     return "Passwords do not match"
   }
-  if (error.toLowerCase().includes("invalid email or password") || error.toLowerCase().includes("incorrect password") || error.toLowerCase().includes("wrong password")) {
+  if (
+    error.toLowerCase().includes("invalid email or password") ||
+    error.toLowerCase().includes("incorrect password") ||
+    error.toLowerCase().includes("wrong password")
+  ) {
     return "Your password is incorrect. Please try again."
   }
   return error
@@ -62,7 +66,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             email: userData.email,
             fullName: (userData as any)?.fullName ?? (userData as any)?.name ?? "",
             emailVerified: (userData as any)?.emailVerified ?? false,
-            role: (userData as any)?.role ?? "player",
+            role: "player" as UserRole,
             gamesPlayed: typeof (userData as any)?.gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
             canHost: typeof (userData as any)?.canHost === "boolean" ? (userData as any).canHost : false,
             createdAt: new Date(userData.createdAt || new Date()).getTime(),
@@ -169,7 +173,6 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
       const response = await apiClient.createHost(fullName, email, password)
       if (response.success && response.data) {
         const token = (response.data as any)?.token
-        // Host registration returns host object, not data
         const hostData = (response.data as any)?.host ?? (response.data as any)?.data
         if (token) apiClient.setToken(token)
         set({
