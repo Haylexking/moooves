@@ -17,9 +17,10 @@ describe('Matchroom API (mock-first)', () => {
     const payload = { name: `room-${Date.now()}`, maxPlayers: 4 }
     const resCreate = await callApi({ method: 'post', path: createPath, body: payload, headers: { authorization: `Bearer ${host.token}` } })
     expect([200,201,404]).toContain(resCreate.status)
+    let roomCode = 'mock-room-1'
     if (resCreate.status === 200 || resCreate.status === 201) {
       const json = await resCreate.json()
-      const roomCode = json?.roomCode || json?.id || 'mock-room-1'
+      roomCode = json?.roomCode || json?.id || roomCode
       report.record(moduleName, createPath, 'passed', resCreate.status)
     } else {
       report.record(moduleName, createPath, 'tested', resCreate.status)

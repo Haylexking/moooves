@@ -34,7 +34,7 @@ export function MatchResultModal({ open, onClose, result }: MatchResultModalProp
         </p>
         <div className="flex gap-4 w-full justify-center">
           <a
-            href="https://t.me/moooves"
+            href="http://t.me/curatedforclam"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white font-bold hover:bg-green-800 transition-colors"
@@ -43,7 +43,7 @@ export function MatchResultModal({ open, onClose, result }: MatchResultModalProp
             Telegram
           </a>
           <a
-            href="https://wa.me/2340000000000"
+            href="https://chat.whatsapp.com/FD1BmxFTU1KLr65PnhDB6T?mode=ems_copy_t"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white font-bold hover:bg-green-800 transition-colors"

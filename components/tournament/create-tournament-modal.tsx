@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 interface CreateTournamentModalProps {
   open: boolean
@@ -19,6 +20,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
   const [entryFee, setEntryFee] = useState(500)
   const [maxPlayers, setMaxPlayers] = useState(50)
   const { createTournament, isLoading } = useTournamentStore()
+  const { user } = useAuthStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +36,8 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
         entryFee,
         maxPlayers,
         gameMode: "timed",
+        // organizerId is optional on backend; cast to any to avoid TS error if type not yet updated
+        ...(user?.id ? ({ organizerId: user.id } as any) : {}),
       })
       onClose()
       // Reset form

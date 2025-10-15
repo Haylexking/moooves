@@ -50,7 +50,13 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
 
   addUsedSequences: (sequences: Sequence[]) => {
     const { usedSequences } = get()
-    set({ usedSequences: [...usedSequences, ...sequences] })
+    // Canonicalize incoming sequences: sort each sequence by row then col to ensure
+    // store contains a deterministic representation.
+    const canonicalized = sequences.map((seq) =>
+      [...seq].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]) as Sequence,
+    )
+
+    set({ usedSequences: [...usedSequences, ...canonicalized] })
   },
 
   addUsedPositions: (positions: Position[]) => {

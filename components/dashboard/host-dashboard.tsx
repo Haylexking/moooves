@@ -23,7 +23,8 @@ export function HostDashboard() {
   const hostName = user?.fullName || user?.email || "Host"
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-green-950">
+    <div className="min-h-screen relative">
+      {/* Use the global background (app/layout.tsx) so non-onboarding routes use dashboard-background.png */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex-1">
@@ -34,10 +35,16 @@ export function HostDashboard() {
               Manage your tournaments, view stats, and take quick actions
             </p>
           </div>
-          <div className="flex-shrink-0 w-full sm:w-auto">
+          <div className="flex-shrink-0 w-full sm:w-auto flex gap-2">
             <GameButton onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2 inline" />
               Create Tournament
+            </GameButton>
+            <GameButton onClick={() => { /* Exit to home */ window.location.href = '/' }} className="w-full sm:w-auto bg-gray-200 text-gray-800">
+              Exit
+            </GameButton>
+            <GameButton onClick={() => { /* take host to player onboarding */ window.location.href = '/onboarding' }} className="w-full sm:w-auto bg-white text-green-800">
+              Log in as Player
             </GameButton>
           </div>
         </div>

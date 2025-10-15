@@ -37,11 +37,18 @@ export default function GamePageClient() {
   }, [localMode])
 
   const handlePlayAgain = () => {
-    initializeGame("timed");
+    // Restart a fresh timed game (local). If this page was tournament/server-authoritative, redirect to start menu.
+    if (localMode === 'ai' || localMode === 'p2p') {
+      initializeGame("timed")
+    } else {
+      // Redirect to menu to choose mode
+      const r = useRouter()
+      r.push('/start-game-options')
+    }
   };
 
   const handleBackToMenu = () => {
-    window.location.href = "/dashboard";
+    window.location.href = "/dashboard"
   };
 
   return (
@@ -51,6 +58,7 @@ export default function GamePageClient() {
       <GameResultModal
         open={gameStatus === "completed"}
         onClose={handleBackToMenu}
+        onPlayAgain={handlePlayAgain}
         result={scores.X > scores.O ? "win" : scores.X < scores.O ? "lose" : "draw"}
         scoreX={scores.X}
         scoreO={scores.O}

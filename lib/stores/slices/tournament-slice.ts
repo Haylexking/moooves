@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand"
 import type { Tournament, CreateTournamentRequest, JoinTournamentRequest } from "@/lib/types"
 import { tournamentEndpoints } from "@/lib/api/endpoints"
+import { API_CONFIG } from "@/lib/config/api-config"
 
 export interface TournamentSlice {
   tournaments: Tournament[]
@@ -26,7 +27,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   createTournament: async (request: CreateTournamentRequest) => {
     set({ isLoading: true })
     try {
-      const res = await fetch(tournamentEndpoints.create(), {
+      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.create()
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -53,7 +55,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
       // For now, assume inviteCode is used to get tournamentId
       // If endpoint expects /tournaments/:id/join, you may need to fetch tournamentId first
       // Here, we assume inviteCode is the id or backend accepts it
-      const res = await fetch(tournamentEndpoints.join(request.inviteCode), {
+      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.join(request.inviteCode)
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -70,7 +73,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   loadUserTournaments: async (userId: string) => {
     set({ isLoading: true })
     try {
-      const res = await fetch(tournamentEndpoints.userTournaments(userId), {
+      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.userTournaments(userId)
+      const res = await fetch(url, {
         credentials: "include",
       })
       if (!res.ok) throw new Error("Failed to fetch user tournaments")
@@ -85,7 +89,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   loadTournament: async (tournamentId: string) => {
     set({ isLoading: true })
     try {
-      const res = await fetch(tournamentEndpoints.getById(tournamentId), {
+      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.getById(tournamentId)
+      const res = await fetch(url, {
         credentials: "include",
       })
       if (!res.ok) throw new Error("Failed to fetch tournament")
@@ -101,7 +106,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     set({ isLoading: true })
     try {
       // Assuming PATCH or POST to start tournament (adjust as per backend)
-      const res = await fetch(tournamentEndpoints.getById(tournamentId), {
+      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.getById(tournamentId)
+      const res = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

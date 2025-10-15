@@ -66,12 +66,10 @@ describe('useBluetoothConnection hook', () => {
       addEventListener: jest.fn((ev: string, cb: any) => {}),
     }
 
-    // Mock navigator.bluetooth.requestDevice
-    // @ts-ignore
-    global.navigator = global.navigator || {}
-    // @ts-ignore
-    navigator.bluetooth = {
-      requestDevice: jest.fn(async () => mockDevice),
+    // @ts-ignore - mocking browser Bluetooth API
+    ;(global as any).navigator = (global.navigator as any) || {}
+    ;(global.navigator as any).bluetooth = {
+      requestDevice: jest.fn(async () => mockDevice) as any,
     }
 
     let apiRef: any = null

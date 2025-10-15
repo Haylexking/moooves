@@ -33,16 +33,16 @@ describe('useWiFiConnection hook', () => {
       setLocalDescription: jest.fn(async () => {}),
       setRemoteDescription: jest.fn(async () => {}),
       createAnswer: jest.fn(async () => ({ sdp: 'answer-sdp' })),
-      setLocalDescription: jest.fn(async () => {}),
+      // duplicate setLocalDescription removed
       close: jest.fn(),
       addIceCandidate: jest.fn(async () => {}),
       onicecandidate: null,
       onconnectionstatechange: null,
       ondatachannel: null,
-    }
+    };
 
-    // @ts-ignore
-    global.RTCPeerConnection = jest.fn(() => pcMock)
+  // @ts-ignore - jest mock for browser API
+  (global as any).RTCPeerConnection = jest.fn(() => pcMock)
 
   // Polyfill RTCSessionDescription and RTCIceCandidate for Jest node env
   // @ts-ignore

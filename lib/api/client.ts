@@ -61,19 +61,41 @@ class ApiClient {
         ...options,
         headers,
       })
+      // Check content type and try to parse JSON when possible. If the server returns HTML
+      // (for example an error page), avoid throwing a JSON parsing error and return a
+      // readable error string instead.
+      const contentType = response.headers.get("content-type") || ""
+      let parsed: any = null
 
-      const data = await response.json()
+      if (contentType.includes("application/json") || contentType.includes("application/ld+json")) {
+        try {
+          parsed = await response.json()
+        } catch (err) {
+          // If parsing fails, fall back to text to capture the server response
+          const text = await response.text()
+          parsed = { error: `Invalid JSON response`, raw: text }
+        }
+      } else {
+        // Non-JSON response (HTML or plain text). Capture text for diagnostics.
+        const text = await response.text()
+        parsed = { error: `Non-JSON response`, raw: text }
+      }
 
       if (!response.ok) {
+        // Prefer structured error message from parsed body, otherwise include raw text snippet
+        const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
+        // If the parsed raw content looks like HTML, give a concise message
+        const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
         return {
           success: false,
-          error: data.message || data.error || `HTTP ${response.status}`,
+          error: safeMsg || `HTTP ${response.status}`,
         }
       }
 
+      // Success: return parsed JSON if available, otherwise return raw text under data
       return {
         success: true,
-        data,
+        data: parsed,
       }
     } catch (error) {
       return {
@@ -137,16 +159,43 @@ class ApiClient {
 
   // Forgot Password (email-only) flow
   async forgotPassword(email: string): Promise<ApiResponse<any>> {
-    return this.request("/auth/forgot", {
+    // Use /forgot per Swagger definition (some backends expose /forgot under /api/v1)
+    return this.request("/forgot", {
       method: "POST",
       body: JSON.stringify({ email }),
     })
   }
 
-  async resetPassword(email: string, password: string): Promise<ApiResponse<any>> {
-    return this.request("/auth/forgot/reset", {
+  // Reset password. Backwards-compatible: callers may pass (email, password) or
+  // a payload object { id, newPassword } per the Swagger spec.
+  async resetPassword(
+    idOrEmailOrPayload: string | { id?: string; email?: string; newPassword: string },
+    password?: string,
+  ): Promise<ApiResponse<any>> {
+    let body: Record<string, any>
+
+    if (typeof idOrEmailOrPayload === "string") {
+      const first = idOrEmailOrPayload
+      const looksLikeEmail = first.includes("@")
+      if (looksLikeEmail) {
+        // legacy callers passing (email, password)
+        body = { email: first, newPassword: password }
+      } else {
+        // treat as id
+        body = { id: first, newPassword: password }
+      }
+    } else {
+      // payload object
+      body = {
+        ...(idOrEmailOrPayload.id ? { id: idOrEmailOrPayload.id } : {}),
+        ...(idOrEmailOrPayload.email ? { email: idOrEmailOrPayload.email } : {}),
+        newPassword: idOrEmailOrPayload.newPassword,
+      }
+    }
+
+    return this.request("/forgot/reset", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(body),
     })
   }
 

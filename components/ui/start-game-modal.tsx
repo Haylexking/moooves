@@ -34,14 +34,16 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
       await new Promise((resolve) => setTimeout(resolve, 2000))
       const token =
         type === "wifi" ? `WIFI-${Date.now().toString().slice(-6)}` : `BT-${Date.now().toString().slice(-6)}`
-      await matchRoom.createRoom(token)
+  const created = await matchRoom.createRoom(token)
       setRoomCode(token)
       toast({
         title: `Connected via ${type === "wifi" ? "Wi-Fi" : "Bluetooth"}`,
         description: `Room: ${token}`,
         variant: "default",
       })
-      setFlow("host-waiting")
+  // Start offline game mode when hosting a local connection
+  // Keep serverAuthoritative=false (handled in MatchRoom/createRoom)
+  setFlow("host-waiting")
     } catch (err) {
       toast({ title: "Connection failed", description: String(err), variant: "destructive" })
     } finally {

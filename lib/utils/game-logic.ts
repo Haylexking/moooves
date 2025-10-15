@@ -22,6 +22,9 @@ export function checkWinConditions(
   const newUsedPositions: Position[] = []
   let scoreIncrease = 0
 
+  // Build a quick lookup of already-used sequences using a canonical string key
+  const usedSequenceKeys = new Set<string>(usedSequences.map((s) => canonicalSeqKey(s)))
+
   // Check each direction (and its opposite implicitly by findSequenceInDirection)
   for (const [dr, dc] of DIRECTIONS) {
     const sequence = findSequenceInDirection(board, player, row, col, dr, dc)
@@ -43,14 +46,16 @@ export function checkWinConditions(
         // If either side extends the 5-window, skip it (we only count exact 5 that are not part of a longer contiguous run)
         if (isExtendableBefore || isExtendableAfter) continue
 
-        // Sort the sequence to ensure consistent comparison regardless of discovery order
-        const sortedFiveSequence = fiveSequence.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+        // Canonicalize the 5-window into a deterministic key (order-insensitive)
+        const canonicalKey = canonicalSeqKey(fiveSequence)
 
-        const hasUsedPosition = sortedFiveSequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
+        const hasUsedPosition = fiveSequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
 
-        if (!isSequenceUsed(sortedFiveSequence, usedSequences) && !hasUsedPosition) {
-          newSequences.push(sortedFiveSequence)
-          newUsedPositions.push(...sortedFiveSequence)
+        if (!usedSequenceKeys.has(canonicalKey) && !hasUsedPosition) {
+          // push the canonical (sorted) sequence so storage/use is consistent
+          const canonicalSeq = canonicalSeqFromKey(canonicalKey)
+          newSequences.push(canonicalSeq)
+          newUsedPositions.push(...canonicalSeq)
           scoreIncrease++
         }
       }
@@ -102,17 +107,21 @@ function findSequenceInDirection(
   return sequence
 }
 
-function isSequenceUsed(sequence: Position[], usedSequences: Sequence[]): boolean {
-  // Compare sorted sequences to ensure order doesn't matter for uniqueness
-  return usedSequences.some((usedSeq) => {
-    if (usedSeq.length !== sequence.length) return false
-    for (let i = 0; i < sequence.length; i++) {
-      if (sequence[i][0] !== usedSeq[i][0] || sequence[i][1] !== usedSeq[i][1]) {
-        return false
-      }
-    }
-    return true
-  })
+// Canonicalize a sequence into a stable string key (order-insensitive)
+function canonicalSeqKey(sequence: Position[]): string {
+  return [...sequence]
+    .slice()
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .map(([r, c]) => `${r},${c}`)
+    .join("|")
+}
+
+function canonicalSeqFromKey(key: string): Position[] {
+  if (!key) return []
+  return key.split("|").map((p) => {
+    const [r, c] = p.split(",").map((n) => parseInt(n, 10))
+    return [r, c]
+  }) as Position[]
 }
 
 // Utility function to get available moves

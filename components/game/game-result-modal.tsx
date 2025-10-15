@@ -49,8 +49,13 @@ export function GameResultModal({
   }
 
   const handlePlayAgain = () => {
+    // Prefer an explicit restart callback. If not provided, just refresh the page to menu.
     if (onPlayAgain) {
       onPlayAgain()
+    } else {
+      // Fallback: go back to /start-game-options to let the user pick a mode
+      const router = useRouter()
+      router.push('/start-game-options')
     }
     onClose()
   }

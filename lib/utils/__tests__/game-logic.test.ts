@@ -1,5 +1,5 @@
 import { checkWinConditions, isValidPosition, getAvailableMoves } from "../game-logic"
-import type { GameBoard } from "@/lib/types"
+import type { GameBoard, Sequence } from "@/lib/types"
 
 // Helper function to create a test board
 function createTestBoard(): GameBoard {
@@ -120,7 +120,7 @@ describe("Game Logic", () => {
         ].sort((a, b) => a[0] - b[0] || a[1] - b[1]), // Ensure used sequence is sorted
       ]
 
-      const result = checkWinConditions(board, "X", 10, 12, usedSequences, { X: 1, O: 0 })
+  const result = checkWinConditions(board, "X", 10, 12, usedSequences as unknown as Sequence[], { X: 1, O: 0 })
 
       expect(result.newSequences).toHaveLength(0)
       expect(result.updatedScores.X).toBe(1) // No increase
