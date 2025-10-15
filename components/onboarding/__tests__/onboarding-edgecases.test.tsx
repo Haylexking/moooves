@@ -122,4 +122,106 @@ describe('Onboarding edge cases', () => {
     // Sanity: ensure login mock still works
     expect(login).toBeDefined()
   })
+
+  test('registration: duplicate email shows inline error and preserves form', async () => {
+    // Fake store that will set error after register is called
+    let state: { rehydrated: boolean; isAuthenticated: boolean; error: string | null } = {
+      rehydrated: true,
+      isAuthenticated: false,
+      error: null,
+    }
+    const listeners: Array<(s: any) => void> = []
+    const fakeStore = {
+      getState: () => state,
+      subscribe: (cb: (s: any) => void) => {
+        listeners.push(cb)
+        return () => {}
+      },
+      register: jest.fn(async () => {
+        // Simulate backend returning duplicate email error
+        state = { ...state, error: 'Email: test@example.com already in use' }
+        listeners.forEach((l) => l(state))
+        return Promise.resolve()
+      }),
+      login: jest.fn(),
+      hostLogin: jest.fn(),
+      hostRegister: jest.fn(),
+      isLoading: false,
+      error: null,
+      clearError: jest.fn(),
+    }
+
+    mockedUseAuthStore.mockImplementation(() => fakeStore as any)
+
+    const rtl = require('@testing-library/react')
+    rtl.render(<OnboardingClient mode="player" />)
+
+    // Fill form
+    fireEvent.input(screen.getByPlaceholderText(/Enter your username/i), { target: { value: 'dupuser' } })
+    fireEvent.input(screen.getByPlaceholderText(/Enter your email/i), { target: { value: 'test@example.com' } })
+    fireEvent.input(screen.getByPlaceholderText(/Enter your password/i), { target: { value: 'Abc123!@#' } })
+    fireEvent.input(screen.getByPlaceholderText(/Confirm your password/i), { target: { value: 'Abc123!@#' } })
+
+    // Submit
+    fireEvent.click(screen.getByTestId('onboarding-register-submit'))
+
+    // register called
+    await waitFor(() => expect(fakeStore.register).toHaveBeenCalled())
+
+    // Inline email error should appear
+    await waitFor(() => expect(screen.getByText(/already in use/i)).toBeInTheDocument())
+
+    // Form values still present
+    expect((screen.getByPlaceholderText(/Enter your email/i) as HTMLInputElement).value).toBe('test@example.com')
+  })
+
+  test('registration: duplicate username shows inline error and preserves form', async () => {
+    let state: { rehydrated: boolean; isAuthenticated: boolean; error: string | null } = {
+      rehydrated: true,
+      isAuthenticated: false,
+      error: null,
+    }
+    const listeners: Array<(s: any) => void> = []
+    const fakeStore = {
+      getState: () => state,
+      subscribe: (cb: (s: any) => void) => {
+        listeners.push(cb)
+        return () => {}
+      },
+      register: jest.fn(async () => {
+        state = { ...state, error: 'Name: dupuser already in use' }
+        listeners.forEach((l) => l(state))
+        return Promise.resolve()
+      }),
+      login: jest.fn(),
+      hostLogin: jest.fn(),
+      hostRegister: jest.fn(),
+      isLoading: false,
+      error: null,
+      clearError: jest.fn(),
+    }
+
+    mockedUseAuthStore.mockImplementation(() => fakeStore as any)
+
+    const rtl = require('@testing-library/react')
+    rtl.render(<OnboardingClient mode="player" />)
+
+    // Fill form
+    fireEvent.input(screen.getByPlaceholderText(/Enter your username/i), { target: { value: 'dupuser' } })
+    fireEvent.input(screen.getByPlaceholderText(/Enter your email/i), { target: { value: 'unique@example.com' } })
+    fireEvent.input(screen.getByPlaceholderText(/Enter your password/i), { target: { value: 'Abc123!@#' } })
+    fireEvent.input(screen.getByPlaceholderText(/Confirm your password/i), { target: { value: 'Abc123!@#' } })
+
+    // Submit
+    fireEvent.click(screen.getByTestId('onboarding-register-submit'))
+
+    // register called
+    await waitFor(() => expect(fakeStore.register).toHaveBeenCalled())
+
+    // Inline username error should appear
+    await waitFor(() => expect(screen.getByText(/already in use/i)).toBeInTheDocument())
+
+    // Form values still present
+    expect((screen.getByPlaceholderText(/Enter your username/i) as HTMLInputElement).value).toBe('dupuser')
+  })
 })

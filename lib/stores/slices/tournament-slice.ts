@@ -41,6 +41,18 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
         currentTournament: tournament,
         isLoading: false,
       }))
+
+      // Auto-start if enough players already present
+      try {
+        if (typeof tournament.currentPlayers === "number" && typeof tournament.minPlayers === "number") {
+          if (tournament.currentPlayers >= tournament.minPlayers && tournament.status !== "active") {
+            // fire and forget start (backend will validate)
+            get().startTournament(tournament.id).catch(() => {})
+          }
+        }
+      } catch (err) {
+        // ignore auto-start errors
+      }
       return tournament
     } catch (error) {
       set({ isLoading: false })
@@ -63,6 +75,36 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
         body: JSON.stringify({ paymentMethod: request.paymentMethod }),
       })
       if (!res.ok) throw new Error("Failed to join tournament")
+      // If join succeeded, attempt to refresh the tournament and auto-start if threshold met
+      try {
+        // try to retrieve tournament id from response or assume inviteCode maps to id
+        const maybeTournament = await (async () => {
+          try {
+            return await res.clone().json()
+          } catch (e) {
+            return null
+          }
+        })()
+
+        // If response contains tournament id, reload it to get updated counts
+        const tournamentId = maybeTournament?.id || request.inviteCode
+        if (tournamentId) {
+          // load updated tournament
+          try {
+            await get().loadTournament(tournamentId)
+            const current = get().currentTournament
+            if (current && typeof current.currentPlayers === "number" && typeof current.minPlayers === "number") {
+              if (current.currentPlayers >= current.minPlayers && current.status !== "active") {
+                await get().startTournament(current.id)
+              }
+            }
+          } catch (e) {
+            // ignore reload/start errors
+          }
+        }
+      } catch (e) {
+        // ignore auto-start flow errors
+      }
       set({ isLoading: false })
     } catch (error) {
       set({ isLoading: false })

@@ -138,25 +138,37 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     try {
       if (mode === "host") {
         await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
-      // Immediately navigate to dashboard for optimistic UX/tests
-      router.push("/dashboard")
       } else {
         await register(formData.username.trim(), formData.email.trim(), formData.password)
-      router.push("/dashboard")
       }
-      try {
-        const { logDebug } = require("@/lib/hooks/use-debug-logger")
-        const token = apiClient?.getToken?.() || null
-        logDebug("Onboarding", { event: "register-complete", tokenPresent: !!token })
-      } catch (e) {
-        // noop
+
+      // After auth action completes, read auth store to decide next step
+      const authAfter = useAuthStore.getState()
+      if (authAfter.isAuthenticated) {
+        try {
+          const { logDebug } = require("@/lib/hooks/use-debug-logger")
+          const token = apiClient?.getToken?.() || null
+          logDebug("Onboarding", { event: "register-complete", tokenPresent: !!token })
+        } catch (e) {
+          // noop
+        }
+        await waitForAuthInit(7000)
+        router.push("/dashboard")
+        return
       }
-      await waitForAuthInit(7000)
-      const authState = useAuthStore.getState()
-      // Navigate to main dashboard (tests expect /dashboard)
-      router.push("/dashboard")
+
+      // If registration failed, map backend error into inline field errors when possible
+      if (authAfter.error) {
+        const msg: string = authAfter.error
+        if (/email/i.test(msg)) {
+          setErrors((prev) => ({ ...prev, email: msg }))
+        } else if (/user(name)?/i.test(msg) || /username/i.test(msg)) {
+          setErrors((prev) => ({ ...prev, username: msg }))
+        }
+      }
+      // Do not navigate — store error will be displayed in Alert; form values are preserved
     } catch (err) {
-      // Error is handled by the store
+      // Errors are already surfaced into auth store; keep form populated
     } finally {
       setLoading(false)
     }
@@ -169,22 +181,26 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     try {
       if (mode === "host") {
         await hostLogin(loginData.email.trim(), loginData.password)
-      router.push("/dashboard")
       } else {
         await login(loginData.email.trim(), loginData.password)
-      router.push("/dashboard")
       }
-      try {
-        const { logDebug } = require("@/lib/hooks/use-debug-logger")
-        const token = apiClient?.getToken?.() || null
-        logDebug("Onboarding", { event: "login-complete", tokenPresent: !!token })
-      } catch (e) {
-        // noop
+  const authAfterLogin = useAuthStore.getState()
+  if (authAfterLogin.isAuthenticated) {
+        try {
+          const { logDebug } = require("@/lib/hooks/use-debug-logger")
+          const token = apiClient?.getToken?.() || null
+          logDebug("Onboarding", { event: "login-complete", tokenPresent: !!token })
+        } catch (e) {
+          // noop
+        }
+        await waitForAuthInit(7000)
+        router.push("/dashboard")
+        return
       }
-      await waitForAuthInit(7000)
-      const authState = useAuthStore.getState()
-      // Navigate to main dashboard (tests expect /dashboard)
-      router.push("/dashboard")
+      if (authAfterLogin.error) {
+        // Map login-style error into loginError shown on form
+        setLoginError(authAfterLogin.error)
+      }
     } catch (err: any) {
       if (err.message && err.message.toLowerCase().includes("not found")) {
         setLoginError("Credentials not found. Would you like to register instead?")

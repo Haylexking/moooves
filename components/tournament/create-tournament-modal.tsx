@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 interface CreateTournamentModalProps {
@@ -21,6 +23,8 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
   const [maxPlayers, setMaxPlayers] = useState(50)
   const { createTournament, isLoading } = useTournamentStore()
   const { user } = useAuthStore()
+  const router = useRouter()
+  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +35,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
     }
 
     try {
-      await createTournament({
+      const tournament = await createTournament({
         name,
         entryFee,
         maxPlayers,
@@ -39,13 +43,20 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
         // organizerId is optional on backend; cast to any to avoid TS error if type not yet updated
         ...(user?.id ? ({ organizerId: user.id } as any) : {}),
       })
+
+      // UX: inform the user and navigate to the tournament page
+      toast({ title: "Tournament created", description: `Tournament \"${tournament.name}\" created.` })
       onClose()
       // Reset form
       setName("")
       setEntryFee(500)
       setMaxPlayers(50)
+
+      // Redirect to tournament view
+      router.push(`/tournament/${tournament.id}`)
     } catch (error) {
       console.error("Failed to create tournament:", error)
+      toast({ title: "Failed to create tournament", description: String(error) })
     }
   }
 
