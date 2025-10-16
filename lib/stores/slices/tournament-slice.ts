@@ -1,58 +1,56 @@
 import type { StateCreator } from "zustand"
-import type { Tournament, CreateTournamentRequest, JoinTournamentRequest } from "@/lib/types"
-import { tournamentEndpoints } from "@/lib/api/endpoints"
+import type { Tournament } from "@/lib/types"
 import { API_CONFIG } from "@/lib/config/api-config"
 
 export interface TournamentSlice {
   tournaments: Tournament[]
   currentTournament: Tournament | null
-  userTournaments: Tournament[]
   isLoading: boolean
 
   // Actions
-  createTournament: (request: CreateTournamentRequest) => Promise<Tournament>
-  joinTournament: (request: JoinTournamentRequest) => Promise<void>
-  loadUserTournaments: (userId: string) => Promise<void>
+  createTournament: (data: {
+    name: string
+    entryfee: number
+    maxPlayers: number
+    organizerId?: string
+  }) => Promise<Tournament>
+  joinTournament: (inviteCode: string, userId: string) => Promise<void>
+  loadAllTournaments: () => Promise<void>
   loadTournament: (tournamentId: string) => Promise<void>
   startTournament: (tournamentId: string) => Promise<void>
-  updateTournamentStatus: (tournamentId: string, status: Tournament["status"]) => void
 }
 
 export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) => ({
   tournaments: [],
   currentTournament: null,
-  userTournaments: [],
   isLoading: false,
 
-  createTournament: async (request: CreateTournamentRequest) => {
+  // ✅ CREATE TOURNAMENT
+  createTournament: async ({ name, entryfee, maxPlayers, organizerId }) => {
     set({ isLoading: true })
     try {
-      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.create()
-      const res = await fetch(url, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/v1/tournaments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          name,
+          entryfee,
+          maxPlayers: String(maxPlayers),
+          organizerId,
+        }),
       })
+
       if (!res.ok) throw new Error("Failed to create tournament")
-      const tournament = await res.json()
+
+      const data = await res.json()
+      const tournament = data.tournament || data
+
       set((state) => ({
         tournaments: [...state.tournaments, tournament],
         currentTournament: tournament,
         isLoading: false,
       }))
 
-      // Auto-start if enough players already present
-      try {
-        if (typeof tournament.currentPlayers === "number" && typeof tournament.minPlayers === "number") {
-          if (tournament.currentPlayers >= tournament.minPlayers && tournament.status !== "active") {
-            // fire and forget start (backend will validate)
-            get().startTournament(tournament.id).catch(() => {})
-          }
-        }
-      } catch (err) {
-        // ignore auto-start errors
-      }
       return tournament
     } catch (error) {
       set({ isLoading: false })
@@ -60,51 +58,18 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     }
   },
 
-  joinTournament: async (request: JoinTournamentRequest) => {
+  // ✅ JOIN TOURNAMENT
+  joinTournament: async (inviteCode: string, userId: string) => {
     set({ isLoading: true })
     try {
-      // Find tournament by inviteCode (if needed, or backend handles it)
-      // For now, assume inviteCode is used to get tournamentId
-      // If endpoint expects /tournaments/:id/join, you may need to fetch tournamentId first
-      // Here, we assume inviteCode is the id or backend accepts it
-      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.join(request.inviteCode)
-      const res = await fetch(url, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/v1/tournaments/join/${inviteCode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ paymentMethod: request.paymentMethod }),
+        body: JSON.stringify({ userId }),
       })
-      if (!res.ok) throw new Error("Failed to join tournament")
-      // If join succeeded, attempt to refresh the tournament and auto-start if threshold met
-      try {
-        // try to retrieve tournament id from response or assume inviteCode maps to id
-        const maybeTournament = await (async () => {
-          try {
-            return await res.clone().json()
-          } catch (e) {
-            return null
-          }
-        })()
 
-        // If response contains tournament id, reload it to get updated counts
-        const tournamentId = maybeTournament?.id || request.inviteCode
-        if (tournamentId) {
-          // load updated tournament
-          try {
-            await get().loadTournament(tournamentId)
-            const current = get().currentTournament
-            if (current && typeof current.currentPlayers === "number" && typeof current.minPlayers === "number") {
-              if (current.currentPlayers >= current.minPlayers && current.status !== "active") {
-                await get().startTournament(current.id)
-              }
-            }
-          } catch (e) {
-            // ignore reload/start errors
-          }
-        }
-      } catch (e) {
-        // ignore auto-start flow errors
-      }
+      if (!res.ok) throw new Error("Failed to join tournament")
+
       set({ isLoading: false })
     } catch (error) {
       set({ isLoading: false })
@@ -112,56 +77,57 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     }
   },
 
-  loadUserTournaments: async (userId: string) => {
+  // ✅ LOAD ALL TOURNAMENTS
+  loadAllTournaments: async () => {
     set({ isLoading: true })
     try {
-      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.userTournaments(userId)
-      const res = await fetch(url, {
-        credentials: "include",
-      })
-      if (!res.ok) throw new Error("Failed to fetch user tournaments")
-      const userTournaments = await res.json()
-      set({ userTournaments, isLoading: false })
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/v1/tournaments`)
+      if (!res.ok) throw new Error("Failed to load tournaments")
+
+      const data = await res.json()
+      set({ tournaments: data.tournaments || [], isLoading: false })
     } catch (error) {
       set({ isLoading: false })
       throw error
     }
   },
 
+  // ✅ LOAD SINGLE TOURNAMENT
   loadTournament: async (tournamentId: string) => {
     set({ isLoading: true })
     try {
-      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.getById(tournamentId)
-      const res = await fetch(url, {
-        credentials: "include",
-      })
-      if (!res.ok) throw new Error("Failed to fetch tournament")
-      const tournament = await res.json()
-      set({ currentTournament: tournament, isLoading: false })
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/v1/tournaments/${tournamentId}`)
+      if (!res.ok) throw new Error("Failed to load tournament")
+
+      const data = await res.json()
+      set({ currentTournament: data, isLoading: false })
     } catch (error) {
       set({ isLoading: false })
       throw error
     }
   },
 
+  // ✅ START TOURNAMENT
   startTournament: async (tournamentId: string) => {
     set({ isLoading: true })
     try {
-      // Assuming PATCH or POST to start tournament (adjust as per backend)
-      const url = API_CONFIG.BASE_URL + API_CONFIG.VERSION + tournamentEndpoints.getById(tournamentId)
-      const res = await fetch(url, {
-        method: "PATCH",
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/v1/tournaments/${tournamentId}/start`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status: "active" }),
       })
       if (!res.ok) throw new Error("Failed to start tournament")
-      const updatedTournament = await res.json()
+
+      const data = await res.json()
+      console.log(data)
+
       set((state) => ({
         tournaments: state.tournaments.map((t) =>
-          t.id === tournamentId ? updatedTournament : t
+          t.id === tournamentId ? { ...t, status: "active" } : t
         ),
-        currentTournament: updatedTournament,
+        currentTournament:
+          state.currentTournament?.id === tournamentId
+            ? { ...state.currentTournament, status: "active" }
+            : state.currentTournament,
         isLoading: false,
       }))
     } catch (error) {
@@ -169,16 +135,4 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
       throw error
     }
   },
-
-  updateTournamentStatus: (tournamentId: string, status: Tournament["status"]) => {
-    set((state) => ({
-      tournaments: state.tournaments.map((t) => (t.id === tournamentId ? { ...t, status } : t)),
-      currentTournament:
-        state.currentTournament?.id === tournamentId ? { ...state.currentTournament, status } : state.currentTournament,
-    }))
-  },
 })
-
-function generateInviteCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
-}
