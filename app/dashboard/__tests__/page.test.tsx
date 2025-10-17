@@ -1,5 +1,9 @@
 import React from "react"
-import { render, screen, act } from "@testing-library/react"
+import { screen, act } from "@testing-library/react"
+// Provide typing for the global test helper injected in jest.setup.js
+declare global {
+  var renderWithProviders: (ui: any, options?: any) => any
+}
 import "@testing-library/jest-dom"
 
 // Mock the auth store and next/navigation
@@ -30,13 +34,15 @@ describe("Dashboard page rehydration and auth behavior", () => {
   beforeEach(() => {
     mockedUseAuthStore.mockReset()
     mockedUseTournamentStore.mockReset()
+    mockPush.mockReset()
   })
 
   test("shows loading fallback when rehydrated=false", async () => {
     mockedUseAuthStore.mockReturnValue({ rehydrated: false } as any)
     mockedUseTournamentStore.mockReturnValue({ userTournaments: [], loadUserTournaments: jest.fn(), isLoading: false } as any)
+    // @ts-ignore - renderWithProviders injected by jest.setup.js
     await act(async () => {
-      render(<DashboardPage />)
+      global.renderWithProviders(<DashboardPage />)
     })
 
     expect(screen.getByText(/loading session/i)).toBeInTheDocument()
@@ -45,12 +51,10 @@ describe("Dashboard page rehydration and auth behavior", () => {
   test("renders dashboard when rehydrated and authenticated", async () => {
     mockedUseAuthStore.mockReturnValue({ rehydrated: true, isAuthenticated: true, user: { id: 1, username: 'u' } } as any)
     mockedUseTournamentStore.mockReturnValue({ userTournaments: [], loadUserTournaments: jest.fn(), isLoading: false } as any)
+    // Prefer the global render helper to ensure consistent providers
+    // @ts-ignore - renderWithProviders injected by jest.setup.js
     await act(async () => {
-      render(
-        <GameRulesProvider>
-          <DashboardPage />
-        </GameRulesProvider>
-      )
+      global.renderWithProviders(<DashboardPage />)
     })
 
     // Dashboard content includes heading or other known text; pick a safe assertion
@@ -61,8 +65,9 @@ describe("Dashboard page rehydration and auth behavior", () => {
   test("redirects to login when rehydrated and not authenticated", async () => {
     mockedUseTournamentStore.mockReturnValue({ userTournaments: [], loadUserTournaments: jest.fn(), isLoading: false } as any)
     mockedUseAuthStore.mockReturnValue({ rehydrated: true, isAuthenticated: false } as any)
+    // @ts-ignore - renderWithProviders injected by jest.setup.js
     await act(async () => {
-      render(<DashboardPage />)
+      global.renderWithProviders(<DashboardPage />)
     })
 
     // When not authenticated, component returns null; no loading text

@@ -29,6 +29,7 @@ interface BattleGroundProps {
   /** localMode: 'ai' = vs computer, 'p2p' = nearby multiplayer, 'tournament' = online tournament */
   localMode?: 'ai' | 'p2p' | 'tournament'
   onMoveMade?: (row: number, col: number, byPlayer: Player) => void
+  connectionType?: string | undefined
 }
 
 export function BattleGround({

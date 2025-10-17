@@ -1,5 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { Player, GameMode, Move, Sequence, Position } from "@/lib/types";
+// Use canonicalization helpers from game logic so stored sequences match keys
+import { canonicalSeqKey, canonicalSeqFromKey } from '@/lib/utils/game-logic'
 
 export interface GameStateSlice {
   currentPlayer: Player;
@@ -50,11 +52,9 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
 
   addUsedSequences: (sequences: Sequence[]) => {
     const { usedSequences } = get()
-    // Canonicalize incoming sequences: sort each sequence by row then col to ensure
-    // store contains a deterministic representation.
-    const canonicalized = sequences.map((seq) =>
-      [...seq].slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]) as Sequence,
-    )
+    // Canonicalize incoming sequences using the same canonical key used by game-logic
+    // so that sequence keys match and we avoid double-counting or omissions.
+    const canonicalized = sequences.map((seq) => canonicalSeqFromKey(canonicalSeqKey(seq)))
 
     set({ usedSequences: [...usedSequences, ...canonicalized] })
   },

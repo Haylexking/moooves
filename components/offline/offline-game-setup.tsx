@@ -11,6 +11,8 @@ import { useBluetoothConnection } from "@/lib/hooks/use-bluetooth-connection"
 import { useWiFiConnection } from "@/lib/hooks/use-wifi-connection"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { Bluetooth, Wifi, Users, Smartphone, AlertCircle, CheckCircle, Copy, RefreshCw } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Button as UiButton } from "@/components/ui/button"
 import { apiClient } from "@/lib/api/client"
 
 export function OfflineGameSetup() {
@@ -21,6 +23,82 @@ export function OfflineGameSetup() {
   const bluetooth = useBluetoothConnection()
   const wifi = useWiFiConnection()
   const matchRoom = useMatchRoom()
+
+  // Register to receive invite tokens through local channels. We don't auto-join;
+  // instead we surface a confirmation to the user (COD confirm) and call joinRoom
+  // only after explicit user consent.
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [pendingInvite, setPendingInvite] = useState<any>(null)
+
+  useEffect(() => {
+    // Bluetooth invite handler
+    const offBt = bluetooth.onMessage("ping", async (data: any) => {
+      const token = data?.inviteToken || data?.token || null
+      if (!token) return
+
+      // Try to derive roomId/roomCode from token heuristics — backend may return full object
+      const payload = { token: String(token), source: 'bluetooth' as const }
+
+      // Emit invite to matchRoom so other UI can respond
+      if ((matchRoom as any).emitInvite) {
+        ;(matchRoom as any).emitInvite(payload)
+      }
+
+      // Open our in-app invite modal (non-blocking)
+      setPendingInvite({ ...payload })
+      setInviteOpen(true)
+    })
+
+    // WiFi invite handler: data channel messages may carry inviteToken under ping as well
+    const offWifi = wifi.onMessage("ping", async (data: any) => {
+      const token = data?.inviteToken || data?.token || null
+      if (!token) return
+
+      const payload = { token: String(token), source: 'wifi' as const }
+      if ((matchRoom as any).emitInvite) {
+        ;(matchRoom as any).emitInvite(payload)
+      }
+      setPendingInvite({ ...payload })
+      setInviteOpen(true)
+    })
+
+    return () => {
+      offBt?.()
+      offWifi?.()
+    }
+  }, [bluetooth, wifi, matchRoom])
+
+  // Handler when user confirms invite in modal
+  const handleAcceptInvite = async () => {
+    if (!pendingInvite) return
+    setInviteOpen(false)
+    try {
+      const token = pendingInvite.token
+      const rooms = await apiClient.getAllMatchRooms()
+      const target = rooms.data?.find((r: any) => {
+        const code = r.roomCode || r.code || r.roomId || r._id || r.id
+        const bt = r.bluetoothToken || r.handshakeToken
+        return code === token || String(bt) === token || (bt && String(bt).includes(String(token)))
+      })
+      if (target) {
+        const handshakeToken = target.handshakeToken || target.bluetoothToken || token
+        await matchRoom.joinRoom(target.id || target._id || target.roomId, handshakeToken)
+      } else {
+        // No matching room
+        // Could use app toast; keep it simple here
+        alert('Invite token received but no matching game found on server')
+      }
+    } catch (err) {
+      console.error('Failed to join after invite', err)
+    } finally {
+      setPendingInvite(null)
+    }
+  }
+
+  const handleDeclineInvite = () => {
+    setInviteOpen(false)
+    setPendingInvite(null)
+  }
 
   // Copy room code to clipboard
   const copyRoomCode = async () => {
@@ -54,7 +132,17 @@ export function OfflineGameSetup() {
       setRetryCount(0)
       await bluetooth.scanForDevices()
       if (bluetooth.isConnected && bluetooth.connectedDevice) {
-        await matchRoom.createRoom(`bt_${bluetooth.connectedDevice.id}`)
+        // Create room on backend; backend returns a bluetoothToken which we should share with peer
+        const created = await matchRoom.createRoom()
+        const tokenToShare = created?.bluetoothToken || created?.roomCode || created?.roomId
+        if (tokenToShare) {
+          // Send token over Bluetooth to peer so they can call joinMatchRoom with handshakeToken
+          try {
+            await bluetooth.sendMessage("ping", { inviteToken: tokenToShare })
+          } catch (err) {
+            console.warn("Failed to send token over Bluetooth", err)
+          }
+        }
       }
     } catch (error) {
       console.error("Bluetooth scan failed:", error)
@@ -66,7 +154,12 @@ export function OfflineGameSetup() {
       setRetryCount(0)
       const wifiRoomCode = await wifi.hostGame()
       if (wifiRoomCode) {
-        await matchRoom.createRoom(`wifi_${wifiRoomCode}`)
+        const created = await matchRoom.createRoom()
+        const tokenToShare = created?.roomCode || created?.roomId || created?.bluetoothToken
+        // For WiFi, we treat roomCode as the visible code; the backend may also return a handshake token
+        if (tokenToShare && wifi.roomCode) {
+          // nothing extra to do - wifi.roomCode is already visible to host
+        }
       }
     } catch (error) {
       console.error("Failed to host game:", error)
@@ -81,11 +174,20 @@ export function OfflineGameSetup() {
       setRetryCount(0)
       await wifi.joinGame(roomCode.trim().toUpperCase())
       const rooms = await apiClient.getAllMatchRooms()
-      const targetRoom = rooms.data?.find(
-        (room: any) => room.bluetoothToken === `wifi_${roomCode.trim().toUpperCase()}`,
-      )
+      // Backend may store a token under bluetoothToken or handshakeToken or simply expose a roomCode
+      const targetRoom = rooms.data?.find((room: any) => {
+        const code = room.roomCode || room.code || room.roomId || room._id || room.id
+        const bt = room.bluetoothToken || room.handshakeToken
+        return (
+          code === roomCode.trim().toUpperCase() ||
+          (bt && String(bt).includes(roomCode.trim().toUpperCase()))
+        )
+      })
       if (targetRoom) {
-        await matchRoom.joinRoom(targetRoom.id, `handshake_${Date.now()}`)
+        // If backend requires handshakeToken, we expect the host to have shared it over the local channel.
+        // For WiFi join flow using localStorage signalling, there may be no handshake token; pass empty string if unknown.
+        const handshakeToken = targetRoom.handshakeToken || targetRoom.bluetoothToken || ""
+        await matchRoom.joinRoom(targetRoom.id || targetRoom._id || targetRoom.roomId, handshakeToken)
       }
     } catch (error) {
       console.error("Failed to join game:", error)
@@ -350,6 +452,26 @@ export function OfflineGameSetup() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Invite confirmation modal (non-blocking) */}
+      <Dialog open={inviteOpen} onOpenChange={(v) => { if (!v) handleDeclineInvite(); setInviteOpen(v) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Game Invite</DialogTitle>
+            <DialogDescription className="sr-only">You received a nearby game invite. Accept to join the matchroom.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm">You received an invite via {pendingInvite?.source === 'wifi' ? 'WiFi' : 'Bluetooth'}.</p>
+            <p className="text-sm mt-2">Token: <span className="font-mono text-xs">{String(pendingInvite?.token || '')}</span></p>
+          </div>
+          <DialogFooter>
+            <div className="flex gap-2 w-full">
+              <UiButton variant="outline" onClick={handleDeclineInvite} className="w-full">Decline</UiButton>
+              <UiButton onClick={handleAcceptInvite} className="w-full">Accept & Join</UiButton>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

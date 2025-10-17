@@ -76,6 +76,9 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
           isLoading: false,
         })
       } else {
+        // Ensure any previous token is cleared when login fails to avoid accidental
+        // re-authentication from stale tokens persisted in localStorage.
+        apiClient.clearToken()
         set({
           user: null,
           isAuthenticated: false,
@@ -84,6 +87,8 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         })
       }
     } catch (error) {
+      // On network exceptions also clear any possibly stale token
+      apiClient.clearToken()
       set({
         user: null,
         isAuthenticated: false,
@@ -97,36 +102,39 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.hostLogin(email, password)
-      if (response.success && response.data) {
-        const token = response.data.token
-        const userData = response.data.data
+      if (response.success) {
+        // Support multiple backend shapes: { data: { token, data|host } } or { token, data }
+        const token = (response.data && ((response.data as any).token || (response as any).token)) || (response as any).token || null
+        const payload = response.data || (response as any) || {}
+        const userData = (payload.host || payload.data || payload.user || payload) as any
+
         if (token) apiClient.setToken(token)
         set({
           user: {
-            id: userData._id,
-            email: userData.email,
-            fullName: (userData as any)?.name ?? (userData as any)?.fullName ?? "",
-            emailVerified: (userData as any)?.emailVerified ?? false,
+            id: userData?._id ?? userData?.id ?? null,
+            email: userData?.email ?? "",
+            fullName: userData?.fullName ?? userData?.name ?? "",
+            emailVerified: userData?.emailVerified ?? false,
             role: "host" as UserRole,
-            gamesPlayed: typeof (userData as any)?.gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
+            gamesPlayed: typeof userData?.gamesPlayed === "number" ? userData.gamesPlayed : 0,
             canHost: true,
-            createdAt: new Date(userData.createdAt || new Date()).getTime(),
-            lastActive: new Date(userData.updatedAt || new Date()).getTime(),
+            createdAt: new Date(userData?.createdAt || new Date()).getTime(),
+            lastActive: new Date(userData?.updatedAt || new Date()).getTime(),
           },
           isAuthenticated: true,
           isLoading: false,
         })
       } else {
-        set({
-          error: parseApiError(response.error || "Host login failed"),
-          isLoading: false,
-        })
+        // Clear token on failure
+        apiClient.clearToken()
+        set({ error: parseApiError(response.error || "Host login failed"), isLoading: false })
       }
     } catch (error) {
-      set({
-        error: "Network error occurred",
-        isLoading: false,
-      })
+        apiClient.clearToken()
+        set({
+          error: "Network error occurred",
+          isLoading: false,
+        })
     }
   },
 
@@ -171,30 +179,30 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.createHost(fullName, email, password)
-      if (response.success && response.data) {
-        const token = (response.data as any)?.token
-        const hostData = (response.data as any)?.host ?? (response.data as any)?.data
+      if (response.success) {
+        // Similar tolerant parsing as hostLogin: token may be nested
+        const token = (response.data && ((response.data as any).token || (response as any).token)) || (response as any).token || null
+        const payload = response.data || (response as any) || {}
+        const hostData = (payload.host || payload.data || payload.user || payload) as any
+
         if (token) apiClient.setToken(token)
         set({
           user: {
-            id: hostData._id,
-            email: hostData.email,
-            fullName: (hostData as any)?.fullName ?? (hostData as any)?.name ?? "",
-            emailVerified: false,
+            id: hostData?._id ?? hostData?.id ?? null,
+            email: hostData?.email ?? "",
+            fullName: hostData?.fullName ?? hostData?.name ?? "",
+            emailVerified: hostData?.emailVerified ?? false,
             role: "host" as UserRole,
             gamesPlayed: 0,
             canHost: true,
-            createdAt: new Date(hostData.createdAt || new Date()).getTime(),
-            lastActive: new Date(hostData.updatedAt || new Date()).getTime(),
+            createdAt: new Date(hostData?.createdAt || new Date()).getTime(),
+            lastActive: new Date(hostData?.updatedAt || new Date()).getTime(),
           },
           isAuthenticated: true,
           isLoading: false,
         })
       } else {
-        set({
-          error: parseApiError(response.error || "Host registration failed"),
-          isLoading: false,
-        })
+        set({ error: parseApiError(response.error || "Host registration failed"), isLoading: false })
       }
     } catch (error) {
       set({

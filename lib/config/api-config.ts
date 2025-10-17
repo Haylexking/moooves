@@ -24,10 +24,10 @@ export const API_CONFIG = {
     // Hosts (from Swagger)
     HOSTS: {
       CREATE: "/host", // POST /api/v1/host
-      LIST: "/hosts", // GET /api/v1/hosts
-      GET_BY_ID: "/hosts/:id", // GET /api/v1/hosts/:id
-      UPDATE: "/hosts/:id", // PUT /api/v1/hosts/:id
-      DELETE: "/hosts/:id", // DELETE /api/v1/hosts/:id
+      LIST: "/host", // GET /api/v1/host (Swagger exposes singular /host for creating and listing)
+      GET_BY_ID: "/host/:id", // GET /api/v1/host/:id
+      UPDATE: "/host/:id", // PUT /api/v1/host/:id
+      DELETE: "/host/:id", // DELETE /api/v1/host/:id
       LOGIN: "/hostlogin", // POST /api/v1/hostlogin
 
       // According to Swagger
@@ -55,7 +55,7 @@ export const API_CONFIG = {
 
     // MatchRoom endpoints (from Swagger)
     MATCHROOM: {
-      LIST: "/matchroom", // GET /api/v1/matchroom
+      LIST: "/matchroom", // GET /api/v1/matchroom (swagger canonical)
       GET_BY_ID: "/matchroom/:id", // GET /api/v1/matchroom/:id
       CREATE: "/matchroom", // POST /api/v1/matchroom
       UPDATE: "/matchroom/:id", // PUT /api/v1/matchroom/:id
@@ -79,4 +79,16 @@ export const API_CONFIG = {
     ATTEMPTS: 3,
     DELAY: 1000, // 1 second
   },
+} as const
+
+// For backwards-compatibility with the running backend (older server paths), provide
+// a small helper that maps the client to the actual endpoints the ApiClient uses
+// (these are the routes observed in the wild: /match and /matchs). Use this in
+// places where the client needs the concrete runtime path.
+export const MATCHROOM_ENDPOINTS = {
+  CREATE: "/match",
+  JOIN: "/match/:id",
+  LIST: "/matchs",
+  GET_BY_ID: "/matchs/:id",
+  DELETE: "/matchs/:id",
 } as const

@@ -36,6 +36,20 @@ export function GlobalSidebar() {
     }
     setShowExitModal(false)
     setOpen(false)
+    // Also log user out to clear auth state and tokens
+    try {
+      const authStore: any = require('@/lib/stores/auth-store')
+      if (authStore && typeof authStore.getState === 'function') {
+        const api = authStore.getState()
+        if (api && typeof api.logout === 'function') api.logout()
+      } else if ((authStore as any)?.useAuthStore) {
+        // fallback: call exported hook's logout
+        const maybe = (authStore as any).useAuthStore()
+        if (maybe && typeof maybe.logout === 'function') maybe.logout()
+      }
+    } catch (e) {
+      // ignore errors during logout attempt
+    }
     // Navigate to onboarding/dashboard
     router.push("/dashboard")
   }

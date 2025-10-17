@@ -3,21 +3,24 @@
 import { useState } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
+import type { Tournament } from '@/lib/types'
 import { GameButton } from "@/components/ui/game-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Trophy, Users, DollarSign, Calendar } from "lucide-react"
 import { CreateTournamentModal } from "@/components/tournament/create-tournament-modal"
+import { apiClient } from "@/lib/api/client"
 
 export function HostDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [loadingTournamentId, setLoadingTournamentId] = useState<string | null>(null)
   const { user, rehydrated } = useAuthStore()
-  const { userTournaments } = useTournamentStore()
+  const { userTournaments = [] } = useTournamentStore() as any
 
   if (!rehydrated) {
     return <div className="min-h-screen flex items-center justify-center text-white">Loading session...</div>
   }
 
-  const hostedTournaments = userTournaments.filter((t) => t.hostId === user?.id)
+  const hostedTournaments: Tournament[] = (userTournaments as Tournament[]).filter((t: Tournament) => t.hostId === user?.id)
   const totalEarnings = 0 // TODO: Calculate from completed tournaments
 
   const hostName = user?.fullName || user?.email || "Host"
@@ -72,7 +75,7 @@ export function HostDashboard() {
             </CardHeader>
             <CardContent className="pt-2 sm:pt-3">
               <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-green-900">
-                {hostedTournaments.reduce((sum, t) => sum + t.currentPlayers, 0)}
+                {hostedTournaments.reduce((sum: number, t: Tournament) => sum + (t.currentPlayers || 0), 0)}
               </p>
             </CardContent>
           </Card>
@@ -100,7 +103,7 @@ export function HostDashboard() {
             </CardHeader>
             <CardContent className="pt-2 sm:pt-3">
               <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-green-900">
-                {hostedTournaments.filter((t) => t.status === "active").length}
+                {hostedTournaments.filter((t: Tournament) => t.status === "active").length}
               </p>
             </CardContent>
           </Card>
@@ -125,7 +128,7 @@ export function HostDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {hostedTournaments.map((tournament) => (
+                    {hostedTournaments.map((tournament: Tournament) => (
                       <Card key={tournament.id} className="hover:shadow-md transition-shadow bg-white border-green-300">
                         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
                           <div className="flex-1 w-full sm:w-auto">
@@ -149,7 +152,24 @@ export function HostDashboard() {
                             >
                               {tournament.status}
                             </span>
-                            <GameButton className="w-full sm:w-auto text-sm py-2">Manage</GameButton>
+                            <GameButton onClick={() => {
+                              // call backend verification/winners for completed tournaments
+                              const t = tournament
+                              const handle = async () => {
+                                try {
+                                  setLoadingTournamentId(t.id)
+                                  if (t.status === 'completed') {
+                                    await apiClient.getTournamentWinners(t.id)
+                                    await apiClient.verifyTournamentPayouts(t.id)
+                                  }
+                                } finally {
+                                  setLoadingTournamentId(null)
+                                }
+                              }
+                              void handle()
+                            }} className="w-full sm:w-auto text-sm py-2">
+                              {loadingTournamentId === tournament.id ? 'Loading...' : 'View'}
+                            </GameButton>
                           </div>
                         </CardContent>
                       </Card>

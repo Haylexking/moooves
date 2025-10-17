@@ -30,19 +30,19 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
     setLoading(true)
     setConnectionType(type)
     try {
-      // Mock 2-second connection delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      const token =
-        type === "wifi" ? `WIFI-${Date.now().toString().slice(-6)}` : `BT-${Date.now().toString().slice(-6)}`
-  const created = await matchRoom.createRoom(token)
-      setRoomCode(token)
+      // Create room on backend and receive server tokens
+      const created = await matchRoom.createRoom()
+      // created may be null if backend didn't return structured data
+      const backendCode = created?.roomCode || created?.roomId || created?.bluetoothToken || null
+      setRoomCode(backendCode || "")
       toast({
         title: `Connected via ${type === "wifi" ? "Wi-Fi" : "Bluetooth"}`,
-        description: `Room: ${token}`,
+        description: backendCode ? `Room: ${backendCode}` : `Room created`,
         variant: "default",
       })
-  // Start offline game mode when hosting a local connection
-  // Keep serverAuthoritative=false (handled in MatchRoom/createRoom)
+    // Start offline game mode when hosting a local connection
+    // The caller should share `created.bluetoothToken` (if present) over the local channel
+    // Keep serverAuthoritative=false (handled in MatchRoom/createRoom)
   setFlow("host-waiting")
     } catch (err) {
       toast({ title: "Connection failed", description: String(err), variant: "destructive" })

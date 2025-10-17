@@ -51,10 +51,13 @@ export default function GamePageClient() {
     window.location.href = "/dashboard"
   };
 
+  // Determine connectionType from query params (used by tests)
+  const connectionType = searchParams?.get('connection') || undefined
+
   return (
     <ProtectedRoute>
       <GlobalSidebar />
-      <BattleGround player1={user?.fullName || "User"} localMode={localMode} />
+      <BattleGround player1={user?.fullName || "User"} localMode={localMode} connectionType={connectionType} />
       <GameResultModal
         open={gameStatus === "completed"}
         onClose={handleBackToMenu}

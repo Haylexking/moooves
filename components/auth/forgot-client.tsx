@@ -225,7 +225,7 @@ export default function ForgotClient({
             </div>
 
             {error && (
-              <div className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>
+              <div role="alert" className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>
             )}
 
             <GameButton data-testid="forgot-reset" type="submit" className="mt-2" disabled={loading}>
@@ -276,7 +276,7 @@ export default function ForgotClient({
             />
           </div>
 
-          {error && <div className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
+          {error && <div role="alert" className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
 
           <GameButton data-testid="forgot-send" type="submit" className="mt-2" disabled={loading}>
             {loading ? "Verifying..." : "Verify Email"}

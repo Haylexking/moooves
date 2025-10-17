@@ -1,9 +1,15 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+// Provide typing for the global test helper injected in jest.setup.js
+declare global {
+  var renderWithProviders: (ui: any, options?: any) => any
+}
 
 // Mock next/navigation before importing the component that uses useRouter
+// Use the default test router mock from jest.setup.js where possible; keep local mock harmless
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
+  __esModule: true,
 }))
 
 import StartGameModal from '../start-game-modal'
@@ -28,10 +34,12 @@ jest.mock('@/hooks/use-toast', () => ({
 describe('StartGameModal', () => {
   test('renders and allows launching AI (Play vs Computer)', async () => {
     const onOpenChange = jest.fn()
-    render(<StartGameModal open={true} onOpenChange={onOpenChange} />)
+    // @ts-ignore - global helper injected by jest.setup.js
+    global.renderWithProviders(<StartGameModal open={true} onOpenChange={onOpenChange} />)
 
-    // Play vs Computer should be visible
-    const aiBtn = screen.getByText(/Play vs Computer/i)
+  // Wait for dialog to open, then find the Player vs Computer button
+  await screen.findByRole('dialog')
+  const aiBtn = await screen.findByText(/Player vs Computer/i)
     expect(aiBtn).toBeInTheDocument()
 
     fireEvent.click(aiBtn)
@@ -42,10 +50,11 @@ describe('StartGameModal', () => {
 
   test('join tournament navigates to tournaments', async () => {
     const onOpenChange = jest.fn()
-    render(<StartGameModal open={true} onOpenChange={onOpenChange} />)
+    // @ts-ignore - global helper injected by jest.setup.js
+    global.renderWithProviders(<StartGameModal open={true} onOpenChange={onOpenChange} />)
 
     // Join Tournament should be visible
-    const joinTournament = screen.getByText(/Join Tournament/i)
+    const joinTournament = await screen.findByText(/Join Tournament/i)
     expect(joinTournament).toBeInTheDocument()
 
     fireEvent.click(joinTournament)

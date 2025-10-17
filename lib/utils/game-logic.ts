@@ -30,29 +30,35 @@ export function checkWinConditions(
     const sequence = findSequenceInDirection(board, player, row, col, dr, dc)
 
     if (sequence.length >= 5) {
-      // Only award sequences that are exactly 5 long or are "isolated" 5-length windows
-      // We should avoid counting overlapping subsequences that are part of a longer run unless
-      // that exact window is bounded by empty cells or board edges (i.e., not extendable on either side).
+      // We'll scan every 5-length window within the contiguous run and decide whether
+      // to count it. Use direction-based checks to determine if the 5-window is
+      // extendable beyond its ends on the board (not just by presence in sequence array).
       for (let i = 0; i <= sequence.length - 5; i++) {
         const fiveSequence = sequence.slice(i, i + 5)
 
-        // Determine if this 5-window is extendable on either side (part of a longer run)
-        const before = sequence[i - 1]
-        const after = sequence[i + 5]
+        // Compute before/after coordinates using vector from first two elements
+        // of the fiveSequence to determine direction.
+        const [r0, c0] = fiveSequence[0]
+        const [r1, c1] = fiveSequence[1]
+        const dr = r1 - r0
+        const dc = c1 - c0
 
-        const isExtendableBefore = !!before && board[before[0]][before[1]] === player
-        const isExtendableAfter = !!after && board[after[0]][after[1]] === player
+        // position just before the five-window
+        const beforeR = r0 - dr
+        const beforeC = c0 - dc
+        const afterR = fiveSequence[4][0] + dr
+        const afterC = fiveSequence[4][1] + dc
 
-        // If either side extends the 5-window, skip it (we only count exact 5 that are not part of a longer contiguous run)
+        const isExtendableBefore = isValidPosition(beforeR, beforeC) && board[beforeR][beforeC] === player
+        const isExtendableAfter = isValidPosition(afterR, afterC) && board[afterR][afterC] === player
+
+        // If either side extends the 5-window as contiguous same-player marks, skip it
         if (isExtendableBefore || isExtendableAfter) continue
 
-        // Canonicalize the 5-window into a deterministic key (order-insensitive)
         const canonicalKey = canonicalSeqKey(fiveSequence)
-
         const hasUsedPosition = fiveSequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
 
         if (!usedSequenceKeys.has(canonicalKey) && !hasUsedPosition) {
-          // push the canonical (sorted) sequence so storage/use is consistent
           const canonicalSeq = canonicalSeqFromKey(canonicalKey)
           newSequences.push(canonicalSeq)
           newUsedPositions.push(...canonicalSeq)
@@ -107,16 +113,17 @@ function findSequenceInDirection(
   return sequence
 }
 
-// Canonicalize a sequence into a stable string key (order-insensitive)
-function canonicalSeqKey(sequence: Position[]): string {
-  return [...sequence]
-    .slice()
-    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
-    .map(([r, c]) => `${r},${c}`)
-    .join("|")
+// Create a canonical key for a sequence that is orientation-insensitive but preserves
+// adjacency (so diagonals stay correctly ordered). We compute both forward and
+// reversed string forms and pick the lexicographically smaller one as canonical.
+export function canonicalSeqKey(sequence: Position[]): string {
+  if (!sequence || sequence.length === 0) return ""
+  const forward = sequence.map(([r, c]) => `${r},${c}`).join("|")
+  const reversed = [...sequence].reverse().map(([r, c]) => `${r},${c}`).join("|")
+  return forward < reversed ? forward : reversed
 }
 
-function canonicalSeqFromKey(key: string): Position[] {
+export function canonicalSeqFromKey(key: string): Position[] {
   if (!key) return []
   return key.split("|").map((p) => {
     const [r, c] = p.split(",").map((n) => parseInt(n, 10))

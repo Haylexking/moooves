@@ -6,7 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -65,6 +65,10 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Setup Tournament</DialogTitle>
+          {/* Provide an accessible description for the dialog content per Radix recommendations */}
+          <DialogDescription className="sr-only">
+            Create a new tournament by providing a name, entry fee, and max players. This dialog will create a tournament and navigate to its page.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

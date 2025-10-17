@@ -59,7 +59,7 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
         }}
         {...props}
       >
-        <span className="relative z-10 w-full text-center select-none">{children}</span>
+        <span className="relative z-10 w-full select-none whitespace-nowrap">{children}</span>
       </button>
     )
   },

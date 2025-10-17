@@ -33,7 +33,7 @@ describe("OnboardingClient mode switch", () => {
   beforeEach(() => {
     mockedUseAuthStore.mockReset()
     // reset router push mock
-    ;(useRouter() as any).push.mockReset?.()
+    mockPush.mockReset()
   })
 
   // Helper to return a base auth store mock with rehydrated control
@@ -55,7 +55,8 @@ describe("OnboardingClient mode switch", () => {
       baseAuthMock({ hostRegister, hostLogin, rehydrated: true, isAuthenticated: true })
     )
 
-  render(<OnboardingClient mode="host" />)
+  // @ts-ignore - renderWithProviders is provided by jest.setup.js
+  global.renderWithProviders(<OnboardingClient mode="host" />)
     const user = userEvent.setup()
 
     // Fill register fields (username, email, password)
@@ -76,8 +77,8 @@ describe("OnboardingClient mode switch", () => {
       await user.click(registerBtn)
     })
     await waitFor(() => expect(hostRegister).toHaveBeenCalled())
-    // navigation should have been triggered to /dashboard
-    expect(useRouter().push).toHaveBeenCalledWith("/dashboard")
+  // navigation should have been triggered to /dashboard
+  expect(mockPush).toHaveBeenCalledWith("/dashboard")
 
     // Now click login tab and submit login
     const loginTab = screen.getByRole("button", { name: /login/i })
@@ -105,7 +106,8 @@ describe("OnboardingClient mode switch", () => {
 
     mockedUseAuthStore.mockReturnValue(baseAuthMock({ register, login, rehydrated: true, isAuthenticated: true }))
 
-    render(<OnboardingClient mode="player" />)
+    // @ts-ignore - renderWithProviders is provided by jest.setup.js
+    global.renderWithProviders(<OnboardingClient mode="player" />)
     const user = userEvent.setup()
 
     const username = screen.getByPlaceholderText(/username/i)
@@ -125,7 +127,7 @@ describe("OnboardingClient mode switch", () => {
       await user.click(registerBtn)
     })
     await waitFor(() => expect(register).toHaveBeenCalled())
-    expect(useRouter().push).toHaveBeenCalledWith("/dashboard")
+  expect(mockPush).toHaveBeenCalledWith("/dashboard")
 
   const loginTab = screen.getByRole("button", { name: /login/i })
   await act(async () => {

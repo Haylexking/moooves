@@ -101,6 +101,29 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
 
   const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
 
+  // Helper to read the current auth store state in a way that works both with the
+  // real Zustand store (which exposes getState on the hook function) and simple
+  // test mocks that return a plain object from calling useAuthStore().
+  const readAuthState = () => {
+    try {
+      const storeFn: any = useAuthStore as any
+      if (storeFn && typeof storeFn.getState === 'function') {
+        return storeFn.getState()
+      }
+    } catch (e) {
+      // ignore and fallback
+    }
+    // Fallback: call the hook to get the current state object
+    try {
+      const maybeStore = (useAuthStore as any)()
+      // If the returned object exposes getState (fake store pattern), prefer that
+      if (maybeStore && typeof maybeStore.getState === 'function') return maybeStore.getState()
+      return maybeStore
+    } catch (e) {
+      return {}
+    }
+  }
+
   const waitForAuthInit = async (timeout = 7000) => {
     const start = Date.now()
     const storeApi: any = useAuthStore as any
@@ -143,7 +166,7 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       }
 
       // After auth action completes, read auth store to decide next step
-      const authAfter = useAuthStore.getState()
+  const authAfter = readAuthState()
       if (authAfter.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
@@ -184,7 +207,7 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       } else {
         await login(loginData.email.trim(), loginData.password)
       }
-  const authAfterLogin = useAuthStore.getState()
+  const authAfterLogin = readAuthState()
   if (authAfterLogin.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
