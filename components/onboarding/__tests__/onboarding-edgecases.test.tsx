@@ -7,7 +7,7 @@ jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }), __
 jest.mock('@/lib/api/client', () => ({ apiClient: { getToken: jest.fn(() => null) } }))
 
 import { useAuthStore } from '@/lib/stores/auth-store'
-import OnboardingClient from '@/components/onboarding/onboarding-client'
+import OnboardingPlayerClient from '@/components/onboarding/onboarding-player-client'
 
 const mockedUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore>
 
@@ -63,7 +63,7 @@ describe('Onboarding edge cases', () => {
     } as any))
 
     const rtl = require('@testing-library/react')
-    const { rerender } = rtl.render(<OnboardingClient mode="player" />)
+  const { rerender } = rtl.render(<OnboardingPlayerClient />)
 
     // Ensure loading fallback is visible initially; the component uses rehydrated to decide
     // We'll assert the page rendered (no crash) and call the register button
@@ -91,7 +91,7 @@ describe('Onboarding edge cases', () => {
     mockedUseAuthStore.mockReturnValue({ login, rehydrated: false, isAuthenticated: false } as any)
 
   const rtl = require('@testing-library/react')
-  rtl.render(<OnboardingClient mode="player" />)
+  rtl.render(<OnboardingPlayerClient />)
 
   // Switch to login tab first
   fireEvent.click(screen.getByRole('button', { name: /login/i }))
@@ -109,15 +109,15 @@ describe('Onboarding edge cases', () => {
     mockedUseAuthStore.mockReturnValue({ login, rehydrated: true, isAuthenticated: true, user: { id: 1 } } as any)
 
   const rtl = require('@testing-library/react')
-  const { rerender } = rtl.render(<OnboardingClient mode="player" />)
+  const { rerender } = rtl.render(<OnboardingPlayerClient />)
 
     // Now simulate switching accounts: auth cleared then set for account B
-    mockedUseAuthStore.mockReturnValue({ login, rehydrated: false, isAuthenticated: false } as any)
-    rerender(<OnboardingClient mode="player" />)
+  mockedUseAuthStore.mockReturnValue({ login, rehydrated: false, isAuthenticated: false } as any)
+  rerender(<OnboardingPlayerClient />)
 
     // Then rehydrate for account B
-    mockedUseAuthStore.mockReturnValue({ login, rehydrated: true, isAuthenticated: true, user: { id: 2 } } as any)
-    rerender(<OnboardingClient mode="player" />)
+  mockedUseAuthStore.mockReturnValue({ login, rehydrated: true, isAuthenticated: true, user: { id: 2 } } as any)
+  rerender(<OnboardingPlayerClient />)
 
     // Sanity: ensure login mock still works
     expect(login).toBeDefined()
@@ -154,7 +154,7 @@ describe('Onboarding edge cases', () => {
     mockedUseAuthStore.mockImplementation(() => fakeStore as any)
 
     const rtl = require('@testing-library/react')
-    rtl.render(<OnboardingClient mode="player" />)
+  rtl.render(<OnboardingPlayerClient />)
 
     // Fill form
     fireEvent.input(screen.getByPlaceholderText(/Enter your username/i), { target: { value: 'dupuser' } })
@@ -204,7 +204,7 @@ describe('Onboarding edge cases', () => {
     mockedUseAuthStore.mockImplementation(() => fakeStore as any)
 
     const rtl = require('@testing-library/react')
-    rtl.render(<OnboardingClient mode="player" />)
+  rtl.render(<OnboardingPlayerClient />)
 
     // Fill form
     fireEvent.input(screen.getByPlaceholderText(/Enter your username/i), { target: { value: 'dupuser' } })

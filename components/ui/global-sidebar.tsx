@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Menu, X, Gamepad2, Trophy, BarChart3, Wallet, HelpCircle, LogOut } from "lucide-react"
 import { GameButton } from "./game-button"
 import { useGameStore } from "@/lib/stores/game-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 const menuItems = [
   { icon: Gamepad2, label: "Play game", href: "/dashboard" },
@@ -38,14 +39,12 @@ export function GlobalSidebar() {
     setOpen(false)
     // Also log user out to clear auth state and tokens
     try {
-      const authStore: any = require('@/lib/stores/auth-store')
-      if (authStore && typeof authStore.getState === 'function') {
-        const api = authStore.getState()
+      // Call the persisted Zustand store logout using the exported hook's
+      // getState() to ensure we call the exact store instance used across the app.
+      const storeApi: any = useAuthStore as any
+      if (storeApi && typeof storeApi.getState === 'function') {
+        const api = storeApi.getState()
         if (api && typeof api.logout === 'function') api.logout()
-      } else if ((authStore as any)?.useAuthStore) {
-        // fallback: call exported hook's logout
-        const maybe = (authStore as any).useAuthStore()
-        if (maybe && typeof maybe.logout === 'function') maybe.logout()
       }
     } catch (e) {
       // ignore errors during logout attempt

@@ -11,6 +11,7 @@ export interface GameStateSlice {
   moveHistory: Move[];
   usedSequences: Sequence[];
   usedPositions: Set<string>;
+  showStartAlert: boolean;
 
   setCurrentPlayer: (player: Player) => void;
   setGameStatus: (status: "waiting" | "playing" | "paused" | "completed") => void;
@@ -21,6 +22,8 @@ export interface GameStateSlice {
   switchPlayer: () => void;
   startGame: (mode?: GameMode) => void;
   resetGameState: () => void;
+  setShowStartAlert: (show: boolean) => void;
+  confirmGameStart: () => void;
 }
 
 
@@ -32,6 +35,7 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
   moveHistory: [],
   usedSequences: [],
   usedPositions: new Set<string>(),
+  showStartAlert: false,
 
   setCurrentPlayer: (player: Player) => {
     set({ currentPlayer: player })
@@ -74,11 +78,20 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
   },
 
   startGame: (mode: GameMode = "timed") => {
+    // Show the alert first instead of starting immediately
+    set({ showStartAlert: true, gameMode: mode })
+  },
+
+  setShowStartAlert: (show: boolean) => {
+    set({ showStartAlert: show })
+  },
+
+  confirmGameStart: () => {
     set({
       gameStatus: "playing",
-      gameMode: mode,
       gameStartTime: Date.now(),
       currentPlayer: "X",
+      showStartAlert: false,
     })
   },
 
@@ -91,6 +104,7 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
       moveHistory: [],
       usedSequences: [],
       usedPositions: new Set<string>(),
+      showStartAlert: false,
     })
   },
 })

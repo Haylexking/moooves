@@ -12,7 +12,7 @@ import { Alert } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 
-export default function OnboardingClient({ mode = "player" }: { mode?: "player" | "host" }) {
+export default function OnboardingHostClient() {
   const [tab, setTab] = useState<"register" | "login">("register")
   const [formData, setFormData] = useState({
     username: "",
@@ -89,7 +89,6 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       newErrors.email = "Please enter a valid email address"
     }
 
-    // Apply password validation
     const passwordError = validatePassword(formData.password)
     if (passwordError) {
       newErrors.password = passwordError
@@ -99,11 +98,8 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     return Object.keys(newErrors).length === 0
   }
 
-  const { login, register, hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
+  const { hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
 
-  // Helper to read the current auth store state in a way that works both with the
-  // real Zustand store (which exposes getState on the hook function) and simple
-  // test mocks that return a plain object from calling useAuthStore().
   const readAuthState = () => {
     try {
       const storeFn: any = useAuthStore as any
@@ -113,10 +109,8 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     } catch (e) {
       // ignore and fallback
     }
-    // Fallback: call the hook to get the current state object
     try {
       const maybeStore = (useAuthStore as any)()
-      // If the returned object exposes getState (fake store pattern), prefer that
       if (maybeStore && typeof maybeStore.getState === 'function') return maybeStore.getState()
       return maybeStore
     } catch (e) {
@@ -159,14 +153,9 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     if (!validateForm()) return
     setLoading(true)
     try {
-      if (mode === "host") {
-        await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
-      } else {
-        await register(formData.username.trim(), formData.email.trim(), formData.password)
-      }
+      await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
 
-      // After auth action completes, read auth store to decide next step
-  const authAfter = readAuthState()
+      const authAfter = readAuthState()
       if (authAfter.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
@@ -180,7 +169,6 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
         return
       }
 
-      // If registration failed, map backend error into inline field errors when possible
       if (authAfter.error) {
         const msg: string = authAfter.error
         if (/email/i.test(msg)) {
@@ -189,7 +177,6 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
           setErrors((prev) => ({ ...prev, username: msg }))
         }
       }
-      // Do not navigate — store error will be displayed in Alert; form values are preserved
     } catch (err) {
       // Errors are already surfaced into auth store; keep form populated
     } finally {
@@ -202,13 +189,9 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     setLoginError("")
     setLoading(true)
     try {
-      if (mode === "host") {
-        await hostLogin(loginData.email.trim(), loginData.password)
-      } else {
-        await login(loginData.email.trim(), loginData.password)
-      }
-  const authAfterLogin = readAuthState()
-  if (authAfterLogin.isAuthenticated) {
+      await hostLogin(loginData.email.trim(), loginData.password)
+      const authAfterLogin = readAuthState()
+      if (authAfterLogin.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
           const token = apiClient?.getToken?.() || null
@@ -221,7 +204,6 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
         return
       }
       if (authAfterLogin.error) {
-        // Map login-style error into loginError shown on form
         setLoginError(authAfterLogin.error)
       }
     } catch (err: any) {
@@ -234,8 +216,6 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
       setLoading(false)
     }
   }
-
-  // Google sign-in removed: users should register using email/password only.
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-black overflow-hidden">
@@ -375,11 +355,8 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
             </div>
             {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
 
-            {/* Google sign-in has been removed to avoid broken OAuth flows.
-                Users should Register with email and password above. */}
-
             <GameButton data-testid="onboarding-register-submit" type="submit" className="mt-2" disabled={loading}>
-              {loading ? "Loading..." : mode === "host" ? "Register as Host" : "Register as Player"}
+              {loading ? "Loading..." : "Register as Host"}
             </GameButton>
           </form>
         )}

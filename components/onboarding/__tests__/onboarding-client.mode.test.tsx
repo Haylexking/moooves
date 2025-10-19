@@ -25,7 +25,8 @@ jest.setTimeout(10000)
 
 // Test helpers
 const getSubmitButtonByTestId = (id: string) => screen.getByTestId(id)
-import OnboardingClient from "../onboarding-client"
+import OnboardingHostClient from "../onboarding-host-client"
+import OnboardingPlayerClient from "../onboarding-player-client"
 
 describe("OnboardingClient mode switch", () => {
   const mockedUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore>
@@ -56,7 +57,7 @@ describe("OnboardingClient mode switch", () => {
     )
 
   // @ts-ignore - renderWithProviders is provided by jest.setup.js
-  global.renderWithProviders(<OnboardingClient mode="host" />)
+  global.renderWithProviders(<OnboardingHostClient />)
     const user = userEvent.setup()
 
     // Fill register fields (username, email, password)
@@ -106,8 +107,8 @@ describe("OnboardingClient mode switch", () => {
 
     mockedUseAuthStore.mockReturnValue(baseAuthMock({ register, login, rehydrated: true, isAuthenticated: true }))
 
-    // @ts-ignore - renderWithProviders is provided by jest.setup.js
-    global.renderWithProviders(<OnboardingClient mode="player" />)
+  // @ts-ignore - renderWithProviders is provided by jest.setup.js
+  global.renderWithProviders(<OnboardingPlayerClient />)
     const user = userEvent.setup()
 
     const username = screen.getByPlaceholderText(/username/i)

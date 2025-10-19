@@ -34,6 +34,14 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       return
     }
 
+    // Client-side guard: ensure only hosts can create tournaments
+    if (!user || user.role !== 'host') {
+      toast({ title: "Insufficient permissions", description: "Only hosts can create tournaments. Request host access or login with a host account." })
+      // Optionally redirect to onboarding/host to register as a host or request access
+      router.push('/onboarding/host')
+      return
+    }
+
     try {
       const tournament = await createTournament({
         name,
@@ -56,7 +64,14 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       router.push(`/tournament/${tournament.id}`)
     } catch (error) {
       console.error("Failed to create tournament:", error)
-      toast({ title: "Failed to create tournament", description: String(error) })
+      const msg = String(error)
+      if (msg.toLowerCase().includes('session expired')) {
+        toast({ title: "Session expired", description: "Please login again to create a tournament" })
+        // Push to onboarding/login
+        router.push('/onboarding')
+        return
+      }
+      toast({ title: "Failed to create tournament", description: msg })
     }
   }
 

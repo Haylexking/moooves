@@ -56,6 +56,34 @@ class ApiClient {
       headers["Authorization"] = `Bearer ${this.token}`
     }
 
+    // Defensive: if token isn't set on this ApiClient instance but a token exists
+    // in localStorage (rehydration race or different initialization order), read
+    // it so requests include the up-to-date token.
+    try {
+      if (!this.token && typeof window !== "undefined") {
+        const stored = localStorage.getItem("auth_token")
+        if (stored) {
+          this.token = stored
+          headers["Authorization"] = `Bearer ${this.token}`
+        }
+      }
+    } catch (e) {
+      // ignore localStorage access errors
+    }
+
+    // Debug: log request metadata and whether an Authorization header is present.
+    // We intentionally log only a short snippet of the token (not the full token)
+    // to avoid leaking secrets in logs.
+    try {
+      if (typeof window !== "undefined") {
+        const authSnippet = headers["Authorization"] ? String(headers["Authorization"]).slice(0, 20) + '...' : null
+        // eslint-disable-next-line no-console
+        console.debug('[ApiClient] Request', { endpoint, method: (options.method || 'GET'), authorizationSnippet: authSnippet })
+      }
+    } catch (e) {
+      // noop
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -106,6 +134,15 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        // If the server responded with 401 Unauthorized, clear stored token
+        // to avoid reusing an invalid/expired token on subsequent requests.
+        try {
+          if ((response as any).status === 401) {
+            this.clearToken()
+          }
+        } catch (e) {
+          // ignore
+        }
         // Prefer structured error message from parsed body, otherwise include raw text snippet
         const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
         // If the parsed raw content looks like HTML, give a concise message
@@ -244,7 +281,6 @@ class ApiClient {
     fullName: string,
     email: string,
     password: string,
-    phone?: string,
   ): Promise<ApiResponse<RegisterResponse>> {
     return this.request<RegisterResponse>("/host", {
       method: "POST",
@@ -253,14 +289,117 @@ class ApiClient {
         email,
         password,
         repeatPassword: password, // API requires repeatPassword field
-        phone,
       }),
     })
   }
 
   // User methods
   async getCurrentUser(): Promise<ApiResponse<any>> {
-    return this.request("/users/me")
+    // Prefer decoding the JWT and fetching the user by id using the Swagger-documented
+    // GET /users/{id} endpoint. This mirrors the host flow and avoids relying on a
+    // non-existent /users/me endpoint on some backend versions.
+    let token: string | null = this.token
+    try {
+      if (!token && typeof window !== "undefined") {
+        token = localStorage.getItem("auth_token")
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    if (token) {
+      try {
+        const parts = token.split('.')
+        if (parts.length >= 2) {
+          const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+          const pad = payloadB64.length % 4
+          const padded = pad === 0 ? payloadB64 : payloadB64 + '='.repeat(4 - pad)
+          const json = JSON.parse(typeof atob === 'function' ? atob(padded) : Buffer.from(padded, 'base64').toString('utf8'))
+          const candidateId = json?.userId || json?.id || json?._id || json?.sub
+          if (candidateId) {
+            const res = await this.request(`/users/${candidateId}`)
+            if (res.success) return res
+            return { success: false, error: `Failed to fetch user by id (${candidateId}): ${res.error || 'unknown'}` }
+          }
+        }
+      } catch (err) {
+        // decoding failed - fall through to legacy probing
+      }
+    }
+
+    // Legacy fallback: try common /users/me path
+    try {
+      const res = await this.request('/users/me')
+      return res
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  // Host identity endpoint (hosts are stored separately from users)
+  async getCurrentHost(): Promise<ApiResponse<any>> {
+    // First attempt: if we have a JWT, decode it and try to resolve the host by ID
+    // using the Swagger-documented endpoint: GET /api/v1/host/{id}.
+    // This is more reliable than probing for a /host(s)/me endpoint because
+    // the Swagger exposes GET /host/{id} and createHost may not return a token.
+    let token: string | null = this.token
+    try {
+      if (!token && typeof window !== "undefined") {
+        token = localStorage.getItem("auth_token")
+      }
+    } catch (e) {
+      // ignore localStorage errors
+    }
+
+    if (token) {
+      try {
+        const parts = token.split('.')
+        if (parts.length >= 2) {
+          // base64 decode the payload portion (URL-safe base64)
+          const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+          // Add padding if necessary
+          const pad = payloadB64.length % 4
+          const padded = pad === 0 ? payloadB64 : payloadB64 + '='.repeat(4 - pad)
+          // atob exists in browsers; wrap in try/catch for safety
+          const json = JSON.parse(typeof atob === 'function' ? atob(padded) : Buffer.from(padded, 'base64').toString('utf8'))
+
+          // Try a list of common claim names that might contain the host id
+          const candidateId = json?.hostId || json?.userId || json?.id || json?._id || json?.sub
+          if (candidateId) {
+            const res = await this.request(`/host/${candidateId}`)
+            if (res.success) return res
+            // If fetching by id failed, return the error from the attempt so callers get immediate feedback
+            return {
+              success: false,
+              error: `Failed to fetch host by id (${candidateId}): ${res.error || 'unknown'}`,
+            }
+          }
+        }
+      } catch (err) {
+        // decoding failed, fall through to the legacy probing behavior below
+      }
+    }
+
+    // Legacy fallback: try multiple possible host identity endpoints used by different backend versions.
+    const candidates = ["/hosts/me", "/host/me"]
+    let lastErr: ApiResponse<any> | null = null
+    for (const ep of candidates) {
+      try {
+        const res = await this.request(ep)
+        if (res.success) return res
+        lastErr = res
+        // continue to next candidate on non-success (e.g., 404)
+      } catch (e) {
+        // ignore and try next
+        lastErr = { success: false, error: (e instanceof Error ? e.message : String(e)) }
+      }
+    }
+
+    // If none succeeded, return a helpful error indicating which endpoints were tried.
+    return {
+      success: false,
+      error: `Host identity not resolvable. Tried: decode->/host/{id} and endpoints: ${candidates.join(', ')}. Last error: ${lastErr ? lastErr.error : 'unknown'}`,
+    }
   }
 
   async updateUser(id: string, data: any): Promise<ApiResponse<any>> {
