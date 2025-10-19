@@ -152,7 +152,7 @@ describe("Game Logic", () => {
       expect(result.updatedScores.X).toBe(2) // Score should increase by 2
     })
 
-    it("should not count subsequences inside longer runs (only exact 5 counts)", () => {
+    it("should count 1 for any continuous streak of 5+ (longer than 5 counts once)", () => {
       const board = createTestBoard()
 
       // Place 6 X's horizontally
@@ -162,9 +162,9 @@ describe("Game Logic", () => {
 
       const result = checkWinConditions(board, "X", 10, 15, [], { X: 0, O: 0 })
 
-      // Under the new rule only exact-5 sequences are counted; a contiguous run of 6 should not award any exact-5
-      expect(result.newSequences).toHaveLength(0)
-      expect(result.updatedScores.X).toBe(0)
+      // New rule: any 5+ streak counts once
+      expect(result.newSequences).toHaveLength(1)
+      expect(result.updatedScores.X).toBe(1)
     })
   })
 

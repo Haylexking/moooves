@@ -6,8 +6,8 @@ function emptyBoard(): GameBoard {
   return Array.from({ length: 30 }, () => Array.from({ length: 30 }, () => null))
 }
 
-describe('checkWinConditions - exact 5 scoring', () => {
-  test('counts exact 5 but not subsequences inside longer runs', () => {
+describe('checkWinConditions - 5+ streak scoring', () => {
+  test('counts 1 for a continuous run of 6 (5+ counts once)', () => {
     const board = emptyBoard()
     const player: Player = 'X'
 
@@ -20,9 +20,9 @@ describe('checkWinConditions - exact 5 scoring', () => {
     // place at one end (10,5) reported as last move
     const { newSequences, updatedScores } = checkWinConditions(board, player, 10, 10, usedSequences, currentScores)
 
-    // There is a 6-length run; we should NOT award any exact-5 sequence inside it
-    expect(newSequences.length).toBe(0)
-    expect(updatedScores.X).toBe(0)
+    // There is a 6-length run; it should count once
+    expect(newSequences.length).toBe(1)
+    expect(updatedScores.X).toBe(1)
   })
 
   test('counts an isolated exact-5 sequence', () => {

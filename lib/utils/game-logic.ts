@@ -66,60 +66,40 @@ export function checkWinConditions(
     })
 
     if (sequence.length >= 5) {
-      console.log(`✅ SEQUENCE LENGTH >= 5 IN ${directionName}`, {
+      console.log(`✅ STREAK CANDIDATE (5+) IN ${directionName}`, {
         length: sequence.length,
-        windows: sequence.length - 4,
+        start: sequence[0] ? [sequence[0][0], sequence[0][1]] : null,
+        end: sequence[sequence.length - 1] ? [sequence[sequence.length - 1][0], sequence[sequence.length - 1][1]] : null,
         timestamp: new Date().toISOString()
       })
 
-      // We'll scan every 5-length window within the contiguous run and decide whether
-      // to count it. Use direction-based checks to determine if the 5-window is
-      // extendable beyond its ends on the board (not just by presence in sequence array).
-      for (let i = 0; i <= sequence.length - 5; i++) {
-        const fiveSequence = sequence.slice(i, i + 5)
+      // Check that the streak begins at an edge or immediately after an interruption
+      const [sr, sc] = sequence[0]
+      const beforeR = sr - dr
+      const beforeC = sc - dc
+      const beginsAtEdgeOrInterruption = !isValidPosition(beforeR, beforeC) || board[beforeR][beforeC] !== player
 
-        console.log(`🔍 CHECKING 5-SEQUENCE WINDOW ${i + 1}/${sequence.length - 4}`, {
-          window: fiveSequence.map(pos => `[${pos[0]},${pos[1]}]`),
+      console.log(`🟢 STREAK BEGIN CHECK`, {
+        beginsAt: [sr, sc],
+        before: { pos: [beforeR, beforeC], valid: isValidPosition(beforeR, beforeC), value: isValidPosition(beforeR, beforeC) ? board[beforeR][beforeC] : 'out of bounds' },
+        beginsAtEdgeOrInterruption,
+        timestamp: new Date().toISOString()
+      })
+
+      if (beginsAtEdgeOrInterruption) {
+        // Log when the streak reaches 5
+        const reachFivePos = sequence[4]
+        console.log(`🏁 STREAK REACHED 5`, {
+          at: [reachFivePos[0], reachFivePos[1]],
           direction: [dr, dc],
           timestamp: new Date().toISOString()
         })
 
-        // Compute before/after coordinates using vector from first two elements
-        // of the fiveSequence to determine direction.
-        const [r0, c0] = fiveSequence[0]
-        const [r1, c1] = fiveSequence[1]
-        const dr = r1 - r0
-        const dc = c1 - c0
-
-        // position just before the five-window
-        const beforeR = r0 - dr
-        const beforeC = c0 - dc
-        const afterR = fiveSequence[4][0] + dr
-        const afterC = fiveSequence[4][1] + dc
-
-        const isExtendableBefore = isValidPosition(beforeR, beforeC) && board[beforeR][beforeC] === player
-        const isExtendableAfter = isValidPosition(afterR, afterC) && board[afterR][afterC] === player
-
-        console.log(`🔍 EXTENSIBILITY CHECK`, {
-          before: { pos: [beforeR, beforeC], valid: isValidPosition(beforeR, beforeC), value: isValidPosition(beforeR, beforeC) ? board[beforeR][beforeC] : 'out of bounds', extendable: isExtendableBefore },
-          after: { pos: [afterR, afterC], valid: isValidPosition(afterR, afterC), value: isValidPosition(afterR, afterC) ? board[afterR][afterC] : 'out of bounds', extendable: isExtendableAfter },
-          timestamp: new Date().toISOString()
-        })
-
-        // If either side extends the 5-window as contiguous same-player marks, skip it
-        if (isExtendableBefore || isExtendableAfter) {
-          console.log(`⏭️ SKIPPING EXTENDABLE SEQUENCE`, {
-            reason: isExtendableBefore ? 'extendable before' : 'extendable after',
-            sequence: fiveSequence.map(pos => `[${pos[0]},${pos[1]}]`),
-            timestamp: new Date().toISOString()
-          })
-          continue
-        }
-
+        const fiveSequence = sequence.slice(0, 5)
         const canonicalKey = canonicalSeqKey(fiveSequence)
         const hasUsedPosition = fiveSequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
 
-        console.log(`🔑 SEQUENCE VALIDATION`, {
+        console.log(`🔑 STREAK VALIDATION`, {
           canonicalKey,
           hasUsedSequence: usedSequenceKeys.has(canonicalKey),
           hasUsedPosition,
@@ -134,20 +114,29 @@ export function checkWinConditions(
           newUsedPositions.push(...canonicalSeq)
           scoreIncrease++
 
-          console.log(`✅ NEW SEQUENCE ADDED`, {
+          console.log(`✅ STREAK ENDED AND SCORED`, {
+            start: [sr, sc],
+            end: [sequence[sequence.length - 1][0], sequence[sequence.length - 1][1]],
+            direction: [dr, dc],
             sequence: canonicalSeq.map(pos => `[${pos[0]},${pos[1]}]`),
             canonicalKey,
             scoreIncrease,
             timestamp: new Date().toISOString()
           })
         } else {
-          console.log(`❌ SEQUENCE REJECTED`, {
+          console.log(`❌ STREAK REJECTED`, {
             reason: usedSequenceKeys.has(canonicalKey) ? 'already used sequence' : 'has used position',
             sequence: fiveSequence.map(pos => `[${pos[0]},${pos[1]}]`),
             canonicalKey,
             timestamp: new Date().toISOString()
           })
         }
+      } else {
+        console.log(`ℹ️ STREAK DOES NOT BEGIN AT EDGE/INTERRUPTION`, {
+          start: [sr, sc],
+          direction: [dr, dc],
+          timestamp: new Date().toISOString()
+        })
       }
     } else {
       console.log(`ℹ️ SEQUENCE TOO SHORT IN ${directionName}`, {
