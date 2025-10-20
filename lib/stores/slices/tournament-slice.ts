@@ -21,6 +21,7 @@ export interface TournamentSlice {
   loadAllTournaments: () => Promise<void>
   loadTournament: (tournamentId: string) => Promise<void>
   startTournament: (tournamentId: string) => Promise<void>
+  loadUserTournaments: (userId: string) => Promise<Tournament[]>
 }
 
 export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) => ({
