@@ -40,7 +40,7 @@ export const useGameStore = create<GameStore>()(
       aiAutoEnabled: false,
 
       // Combined actions
-      serverAuthoritative: false,
+  serverAuthoritative: false,
       initializeGame: (mode: GameMode = "timed") => {
         get().initializeBoard()
         get().resetScores()
@@ -50,42 +50,12 @@ export const useGameStore = create<GameStore>()(
 
       makeMove: (row: number, col: number) => {
         const state = get()
-
-        console.log("🎯 MOVE EXECUTION START", {
-          position: [row, col],
-          player: state.currentPlayer,
-          gameStatus: state.gameStatus,
-          cellValue: state.getCellValue(row, col),
-          currentScores: state.scores,
-          usedSequences: state.usedSequences.map(seq => ({ sequence: seq, key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}` })),
-          usedPositions: Array.from(state.usedPositions),
-          timestamp: new Date().toISOString()
-        })
-
         if (state.gameStatus !== "playing" || state.getCellValue(row, col) !== null) {
-          console.log("❌ MOVE REJECTED", {
-            reason: state.gameStatus !== "playing" ? "Game not playing" : "Cell occupied",
-            gameStatus: state.gameStatus,
-            cellValue: state.getCellValue(row, col),
-            timestamp: new Date().toISOString()
-          })
           return
         }
 
         // Update the board
         state.updateCell(row, col, state.currentPlayer)
-        console.log("✅ BOARD UPDATED", {
-          position: [row, col],
-          newValue: state.currentPlayer,
-          timestamp: new Date().toISOString()
-        })
-
-        console.log("🔍 CHECKING WIN CONDITIONS", {
-          position: [row, col],
-          player: state.currentPlayer,
-          boardState: state.board.map((row, i) => row.map((cell, j) => ({ pos: [i, j], value: cell }))).flat().filter(cell => cell.value !== null),
-          timestamp: new Date().toISOString()
-        })
 
         const { newSequences, updatedScores, newUsedPositions } = checkWinConditions(
           state.board,
@@ -97,42 +67,11 @@ export const useGameStore = create<GameStore>()(
           state.usedPositions,
         )
 
-        console.log("📊 SCORING RESULTS", {
-          newSequences: newSequences.map(seq => ({
-            sequence: seq,
-            key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}`,
-            positions: seq.map(pos => `[${pos[0]},${pos[1]}]`)
-          })),
-          scoreChange: {
-            X: updatedScores.X - state.scores.X,
-            O: updatedScores.O - state.scores.O
-          },
-          oldScores: state.scores,
-          newScores: updatedScores,
-          newUsedPositions: Array.from(newUsedPositions),
-          timestamp: new Date().toISOString()
-        })
-
         // Always update scores with the latest from checkWinConditions
         set({ scores: updatedScores })
         if (newSequences.length > 0) {
-          console.log("✅ ADDING NEW SEQUENCES", {
-            count: newSequences.length,
-            sequences: newSequences.map(seq => ({
-              sequence: seq,
-              key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}`,
-              positions: seq.map(pos => `[${pos[0]},${pos[1]}]`)
-            })),
-            timestamp: new Date().toISOString()
-          })
           state.addUsedSequences(newSequences)
           state.addUsedPositions(newUsedPositions)
-        } else {
-          console.log("ℹ️ NO NEW SEQUENCES FOUND", {
-            position: [row, col],
-            player: state.currentPlayer,
-            timestamp: new Date().toISOString()
-          })
         }
 
         // Add move to history
@@ -144,32 +83,15 @@ export const useGameStore = create<GameStore>()(
         }
         state.addMove(move)
 
-        console.log("📝 MOVE ADDED TO HISTORY", {
-          move,
-          totalMoves: state.moveHistory.length,
-          timestamp: new Date().toISOString()
-        })
-
         // Check if game should end
         const isFull = state.isBoardFull()
         if (isFull) {
-          console.log("🏁 GAME ENDED - BOARD FULL", {
-            totalMoves: state.moveHistory.length,
-            finalScores: updatedScores,
-            timestamp: new Date().toISOString()
-          })
           state.setGameStatus("completed")
           return
         }
 
         // Switch players
-        const previousPlayer = state.currentPlayer
         state.switchPlayer()
-        console.log("🔄 PLAYER SWITCHED", {
-          from: previousPlayer,
-          to: state.currentPlayer,
-          timestamp: new Date().toISOString()
-        })
 
         // Mock opponent move (optional internal auto-controller; disabled by default)
         if (get().aiAutoEnabled && state.currentPlayer === "O") {
@@ -241,7 +163,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       endGame: () => {
-        get().setGameStatus("completed")
+  get().setGameStatus("completed")
       },
 
       pauseGame: () => {

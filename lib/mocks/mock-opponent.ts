@@ -1,6 +1,5 @@
 import type { GameBoard, Position, Player, Sequence } from "@/lib/types"
 import { checkWinConditions } from "@/lib/utils/game-logic"
-import { logDebug } from '@/lib/hooks/use-debug-logger'
 
 export function mockOpponentMove(
   board: GameBoard,
@@ -8,54 +7,20 @@ export function mockOpponentMove(
   usedSequences: Sequence[] = [],
   currentScores: Record<Player, number> = { X: 0, O: 0 },
 ): Position | null {
-  console.log("🤖 AI DECISION START", {
-    currentPlayer,
-    usedSequences: usedSequences.map(seq => ({ sequence: seq, key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}` })),
-    currentScores,
-    boardState: board.map((row, i) => row.map((cell, j) => ({ pos: [i, j], value: cell }))).flat().filter(cell => cell.value !== null),
-    timestamp: new Date().toISOString()
-  })
-
   const availableMoves = getAvailableMoves(board)
-  console.log("🎯 AVAILABLE MOVES", {
-    total: availableMoves.length,
-    moves: availableMoves.slice(0, 10).map(pos => `[${pos[0]},${pos[1]}]`), // Show first 10
-    timestamp: new Date().toISOString()
-  })
 
   // Candidate pruning: only consider moves within a small radius of existing pieces
   const candidateMoves = getNearbyCandidates(board, 3)
   const movesToConsider = candidateMoves.length > 0 ? candidateMoves : availableMoves
 
-  console.log("🎯 CANDIDATE MOVES", {
-    pruned: candidateMoves.length > 0,
-    candidateCount: candidateMoves.length,
-    totalCount: availableMoves.length,
-    candidates: candidateMoves.slice(0, 10).map(pos => `[${pos[0]},${pos[1]}]`), // Show first 10
-    timestamp: new Date().toISOString()
-  })
-
   if (availableMoves.length === 0) {
-    console.log("❌ NO AVAILABLE MOVES", { timestamp: new Date().toISOString() })
     return null
   }
 
   // 1. First priority: Check if computer can win in one move (but only NEW sequences)
   // Prefer evaluating the pruned candidate set first
-  console.log("🔍 CHECKING FOR WINNING MOVE", {
-    player: currentPlayer,
-    movesToCheck: movesToConsider.length,
-    timestamp: new Date().toISOString()
-  })
-
   const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
   if (winningMove) {
-    console.log("🎯 WINNING MOVE FOUND", {
-      move: winningMove,
-      position: `[${winningMove[0]}, ${winningMove[1]}]`,
-      timestamp: new Date().toISOString()
-    })
-
     // Even if we can win now, check if the opponent has an immediate winning response next turn
     // If opponent can also win next turn (e.g., via another move), prefer a blocking move to secure the game
     const opponent: Player = currentPlayer === 'X' ? 'O' : 'X'
@@ -68,113 +33,37 @@ export function mockOpponentMove(
       return opponentCanWin
     })()
 
-    console.log("🔍 CHECKING OPPONENT COUNTER-WIN", {
-      opponent,
-      opponentCanWinAfterOurMove: opponentWinningAfterOurWin,
-      timestamp: new Date().toISOString()
-    })
-
     if (opponentWinningAfterOurWin) {
       // If opponent could win after our move, try to block opponent instead
       const blockingMove = findWinningMove(board, opponent, movesToConsider, usedSequences, currentScores)
       if (blockingMove) {
-        console.log("🛡️ PREFERRING BLOCKING OVER WINNING", {
-          winningMove,
-          blockingMove,
-          position: `[${blockingMove[0]}, ${blockingMove[1]}]`,
-          timestamp: new Date().toISOString()
-        })
-        logDebug('AI', { action: 'preferBlockingOverWinning', winningMove, blockingMove })
         return blockingMove
       }
     }
 
-    console.log("✅ EXECUTING WINNING MOVE", {
-      move: winningMove,
-      position: `[${winningMove[0]}, ${winningMove[1]}]`,
-      timestamp: new Date().toISOString()
-    })
-    logDebug('AI', { action: 'winningMove', move: winningMove })
     return winningMove
-  } else {
-    console.log("ℹ️ NO WINNING MOVE FOUND", { timestamp: new Date().toISOString() })
   }
 
   // 2. Second priority: Block player from winning (prevent NEW sequences)
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
-  console.log("🛡️ CHECKING FOR BLOCKING MOVE", {
-    opponent: opponentPlayer,
-    timestamp: new Date().toISOString()
-  })
-
   const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
-  if (blockingMove) {
-    console.log("🛡️ BLOCKING MOVE FOUND", {
-      move: blockingMove,
-      position: `[${blockingMove[0]}, ${blockingMove[1]}]`,
-      timestamp: new Date().toISOString()
-    })
-    logDebug('AI', { action: 'blockingMove', move: blockingMove })
-    return blockingMove
-  } else {
-    console.log("ℹ️ NO BLOCKING MOVE FOUND", { timestamp: new Date().toISOString() })
-  }
+  if (blockingMove) return blockingMove
 
   // 3. Third priority: Aggressively block emerging threats (length 2–4 with openness)
-  console.log("⚠️ CHECKING FOR THREAT BLOCKING", { timestamp: new Date().toISOString() })
   const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, movesToConsider)
-  if (threatBlockingMove) {
-    console.log("⚠️ THREAT BLOCKING MOVE FOUND", {
-      move: threatBlockingMove,
-      position: `[${threatBlockingMove[0]}, ${threatBlockingMove[1]}]`,
-      timestamp: new Date().toISOString()
-    })
-    logDebug('AI', { action: 'threatBlockingMove', move: threatBlockingMove })
-    return threatBlockingMove
-  } else {
-    console.log("ℹ️ NO THREAT BLOCKING MOVE FOUND", { timestamp: new Date().toISOString() })
-  }
+  if (threatBlockingMove) return threatBlockingMove
 
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
-  console.log("🎯 CHECKING FOR STRATEGIC MOVE", { timestamp: new Date().toISOString() })
   const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
-  if (strategicMove) {
-    console.log("🎯 STRATEGIC MOVE FOUND", {
-      move: strategicMove,
-      position: `[${strategicMove[0]}, ${strategicMove[1]}]`,
-      timestamp: new Date().toISOString()
-    })
-    logDebug('AI', { action: 'strategicMove', move: strategicMove })
-    return strategicMove
-  } else {
-    console.log("ℹ️ NO STRATEGIC MOVE FOUND", { timestamp: new Date().toISOString() })
-  }
+  if (strategicMove) return strategicMove
 
   // 5. Fifth priority: Move near existing pieces
   // If pruning was used, try to pick from candidateMoves; as a fallback use the existing nearby heuristic
-  console.log("📍 CHECKING FOR NEARBY MOVE", { timestamp: new Date().toISOString() })
   const nearbyMove = findNearbyMove(board, movesToConsider)
-  if (nearbyMove) {
-    console.log("📍 NEARBY MOVE FOUND", {
-      move: nearbyMove,
-      position: `[${nearbyMove[0]}, ${nearbyMove[1]}]`,
-      timestamp: new Date().toISOString()
-    })
-    logDebug('AI', { action: 'nearbyMove', move: nearbyMove })
-    return nearbyMove
-  } else {
-    console.log("ℹ️ NO NEARBY MOVE FOUND", { timestamp: new Date().toISOString() })
-  }
+  if (nearbyMove) return nearbyMove
 
   // 6. Fallback: Random move (prefer center area)
-  console.log("🎲 FALLING BACK TO RANDOM MOVE", { timestamp: new Date().toISOString() })
   const randomMove = getRandomMove(availableMoves)
-  console.log("🎲 RANDOM MOVE SELECTED", {
-    move: randomMove,
-    position: `[${randomMove[0]}, ${randomMove[1]}]`,
-    timestamp: new Date().toISOString()
-  })
-  logDebug('AI', { action: 'randomMove', move: randomMove })
   return randomMove
 }
 
@@ -224,13 +113,6 @@ function findWinningMove(
   usedSequences: Sequence[],
   currentScores: Record<Player, number>,
 ): Position | null {
-  console.log("🔍 FIND WINNING MOVE", {
-    player,
-    movesToCheck: availableMoves.length,
-    usedSequences: usedSequences.length,
-    timestamp: new Date().toISOString()
-  })
-
   // Try each available move and see if it creates NEW winning sequences
   for (const [row, col] of availableMoves) {
     // Temporarily place the piece
@@ -240,26 +122,8 @@ function findWinningMove(
     // Check if this move creates any NEW sequences (not already used)
     const { newSequences } = checkWinConditions(testBoard, player, row, col, usedSequences, currentScores)
 
-    if (newSequences.length > 0) {
-      console.log("🎯 WINNING MOVE FOUND IN SEARCH", {
-        position: [row, col],
-        newSequences: newSequences.map(seq => ({
-          sequence: seq.map(pos => `[${pos[0]},${pos[1]}]`),
-          key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}`
-        })),
-        count: newSequences.length,
-        timestamp: new Date().toISOString()
-      })
-      logDebug('AI', { action: 'foundNewSequences', count: newSequences.length, move: [row, col] })
-      return [row, col]
-    }
+    if (newSequences.length > 0) return [row, col]
   }
-
-  console.log("ℹ️ NO WINNING MOVE FOUND IN SEARCH", {
-    player,
-    movesChecked: availableMoves.length,
-    timestamp: new Date().toISOString()
-  })
   return null
 }
 

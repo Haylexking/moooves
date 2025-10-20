@@ -3,12 +3,12 @@ import dynamicImport from "next/dynamic"
 
 export const dynamic = "force-dynamic"
 
-const OnboardingPlayerClient = dynamicImport(() => import("@/components/onboarding/onboarding-player-client"), { ssr: false })
+const OnboardingClient = dynamicImport(() => import("@/components/onboarding/onboarding-client"), { ssr: false })
 
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <OnboardingPlayerClient />
+      <OnboardingClient />
     </Suspense>
   )
 }

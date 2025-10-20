@@ -21,7 +21,6 @@ import { useRouter } from 'next/navigation'
 import { getUserDisplayName } from "@/lib/utils/display-name"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { toast } from "@/hooks/use-toast"
-import { GameStartAlert } from "./game-start-alert"
 
 interface BattleGroundProps {
   player1?: string
@@ -55,8 +54,6 @@ export function BattleGround({
   const usedSequences = useGameStore((state) => state.usedSequences)
   const setCurrentPlayer = useGameStore((state) => state.setCurrentPlayer)
   const switchPlayer = useGameStore((state) => state.switchPlayer)
-  const showStartAlert = useGameStore((state) => state.showStartAlert)
-  const confirmGameStart = useGameStore((state) => state.confirmGameStart)
   const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(10 * 60) // 10 minutes
   const { user } = useAuthStore()
   const matchRoom = useMatchRoom()
@@ -156,35 +153,14 @@ export function BattleGround({
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
       const computerMoveTimer = setTimeout(() => {
-        console.log("🤖 COMPUTER MOVE START", {
-          currentPlayer,
-          gameStatus,
-          boardState: board.map((row, i) => row.map((cell, j) => ({ pos: [i, j], value: cell }))).flat().filter(cell => cell.value !== null),
-          usedSequences: usedSequences.map(seq => ({ sequence: seq, key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}` })),
-          currentScores: scores,
-          timestamp: new Date().toISOString()
-        })
-
         // Pass used sequences and current scores to prevent reusing sequences
         const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
-
         if (computerMove) {
-          console.log("🤖 COMPUTER MOVE DECISION", {
-            move: computerMove,
-            position: `[${computerMove[0]}, ${computerMove[1]}]`,
-            player: "O",
-            reasoning: "AI calculated move based on current board state and used sequences",
-            timestamp: new Date().toISOString()
-          })
-
+          // Use structured debug logger
+          // eslint-disable-next-line no-console
+          // Import at top of file
+          // ...existing code...
           makeMove(computerMove[0], computerMove[1])
-        } else {
-          console.log("🤖 COMPUTER MOVE FAILED", {
-            reason: "No valid move found",
-            boardState: board,
-            usedSequences,
-            timestamp: new Date().toISOString()
-          })
         }
       }, 1000) // 1 second delay for better UX
 
@@ -198,48 +174,15 @@ export function BattleGround({
     const row = Math.floor(index / 30)
     const col = index % 30
 
-    console.log("👤 PLAYER MOVE ATTEMPT", {
-      index,
-      position: [row, col],
-      currentPlayer,
-      gameStatus,
-      cellValue: board[row][col],
-      gameMode,
-      timestamp: new Date().toISOString()
-    })
-
-    if (board[row][col] !== null) {
-      console.log("❌ PLAYER MOVE BLOCKED", {
-        reason: "Cell already occupied",
-        position: [row, col],
-        currentValue: board[row][col],
-        timestamp: new Date().toISOString()
-      })
-      return
-    }
+    if (board[row][col] !== null) return
 
     // For player vs computer, only allow human player (X) to make moves directly
     if (gameMode === "player-vs-computer" && currentPlayer !== "X") {
-      console.log("❌ PLAYER MOVE BLOCKED", {
-        reason: "Not player's turn in vs computer mode",
-        currentPlayer,
-        expectedPlayer: "X",
-        timestamp: new Date().toISOString()
-      })
       return
     }
 
     // Capture who is making the move before state switches
     const moveBy: Player = currentPlayer
-
-    console.log("✅ PLAYER MOVE PROCEEDING", {
-      moveBy,
-      position: [row, col],
-      boardState: board.map((row, i) => row.map((cell, j) => ({ pos: [i, j], value: cell }))).flat().filter(cell => cell.value !== null),
-      usedSequences: usedSequences.map(seq => ({ sequence: seq, key: `${seq[0][0]},${seq[0][1]}-${seq[1][0]},${seq[1][1]}-${seq[2][0]},${seq[2][1]}` })),
-      currentScores: scores,
-      timestamp: new Date().toISOString()
-    })
     if (serverAuthoritative) {
       // Prevent duplicate submissions while waiting for server
       if (pendingMove) return
@@ -355,30 +298,24 @@ export function BattleGround({
       <GlobalSidebar />
       <TopNavigation username={displayUsername} balance={0} />
       {/* Match Result Modal */}
-      <GameResultModal
-        open={resultModalOpen}
-        onClose={() => setResultModalOpen(false)}
-        onPlayAgain={() => {
-          // Restart the timed game
-          useGameStore.getState().startGame("timed")
-          setResultModalOpen(false)
-        }}
-        onBackToMenu={() => {
-          // Close modal and navigate back to dashboard using Next router
-          setResultModalOpen(false)
-          const router = useRouter()
-          router.push('/dashboard')
-        }}
-        result={resultType}
-        scoreX={scores.X}
-        scoreO={scores.O}
-      />
-
-      {/* Game Start Alert */}
-      <GameStartAlert
-        open={showStartAlert}
-        onContinue={confirmGameStart}
-      />
+  <GameResultModal
+    open={resultModalOpen}
+    onClose={() => setResultModalOpen(false)}
+    onPlayAgain={() => {
+      // Restart the timed game
+      useGameStore.getState().startGame("timed")
+      setResultModalOpen(false)
+    }}
+    onBackToMenu={() => {
+      // Close modal and navigate back to dashboard using Next router
+      setResultModalOpen(false)
+      const router = useRouter()
+      router.push('/dashboard')
+    }}
+    result={resultType}
+    scoreX={scores.X}
+    scoreO={scores.O}
+  />
       {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"
@@ -404,7 +341,7 @@ export function BattleGround({
 
       {/* Scoreboard - now above the board and closer, with responsive margin */}
       <div className="w-full flex justify-center mt-2 mb-2 sm:mt-4 sm:mb-4">
-        {/* Scoreboard */}
+  {/* Scoreboard */}
         <GameScore
           player1={player1}
           player2={player2}
@@ -422,8 +359,8 @@ export function BattleGround({
           {/* 30x30 Grid Container */}
           <div
             className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
-              ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
-              : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
+                ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
+                : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
               } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""}`}
           >
             {/* Actual 30x30 Grid */}
@@ -435,28 +372,28 @@ export function BattleGround({
               }}
             >
               {Array.from({ length: 900 }, (_, index) => {
-                const cellContent = getCellContent(index)
-                const isUsed = isCellUsed(index)
-                const row = Math.floor(index / 30)
-                const col = index % 30
+                  const cellContent = getCellContent(index)
+                  const isUsed = isCellUsed(index)
+                  const row = Math.floor(index / 30)
+                  const col = index % 30
 
-                return (
-                  <div key={index} style={{ fontSize: expanded ? "10px" : "8px" }}>
-                    <Cell
-                      value={cellContent}
-                      onClick={() => {
-                        if (serverAuthoritative && pendingMove) return
-                        handleCellClick(index)
-                      }}
-                      disabled={gameMode === "player-vs-computer" && currentPlayer === "O"}
-                      row={row}
-                      col={col}
-                      isHighlighted={false}
-                      isUsed={isUsed}
-                    />
-                  </div>
-                )
-              })}
+                  return (
+                    <div key={index} style={{ fontSize: expanded ? "10px" : "8px" }}>
+                      <Cell
+                        value={cellContent}
+                        onClick={() => {
+                          if (serverAuthoritative && pendingMove) return
+                          handleCellClick(index)
+                        }}
+                        disabled={gameMode === "player-vs-computer" && currentPlayer === "O"}
+                        row={row}
+                        col={col}
+                        isHighlighted={false}
+                        isUsed={isUsed}
+                      />
+                    </div>
+                  )
+                })}
             </div>
           </div>
         </div>
@@ -497,8 +434,8 @@ export function BattleGround({
               onClick={handlePlay}
               disabled={gameStatus === "playing"}
               className={`px-6 py-2 font-bold rounded-lg transition-colors w-full sm:w-auto ${gameStatus === "playing"
-                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+                  ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                  : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
                 }`}
             >
               {gameStatus === "playing" ? "PLAYING" : "PLAY"}

@@ -71,7 +71,7 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600">
+      <DialogContent className="w-[min(92vw,44rem)] max-w-none sm:max-w-[44rem] bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600 overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black text-green-900">Start Game</DialogTitle>
           <DialogDescription className="text-green-700">Select how you want to play</DialogDescription>
@@ -148,24 +148,24 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
                 <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-sm text-green-800 font-semibold mb-2">Waiting for another player to connect...</p>
               </div>
-              <div className="bg-green-200 rounded-xl p-4 text-center">
+              <div className="bg-green-200 rounded-xl p-4 text-center break-words overflow-hidden">
                 <p className="text-xs text-green-700 mb-2 font-semibold">Share this code:</p>
-                <div className="text-2xl font-black text-green-900 tracking-wider mb-2">{roomCode}</div>
+                <div className="text-xl sm:text-2xl font-black text-green-900 tracking-wider mb-2 break-all">{roomCode}</div>
                 <p className="text-xs text-green-600">
                   Connected via {connectionType === "wifi" ? "Wi-Fi" : "Bluetooth"}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <GameButton
                   onClick={() => {
                     handleClose(false)
                     router.push("/game?mode=p2p&role=host")
                   }}
-                  className="flex-1"
+                  className="w-full sm:flex-1 text-sm sm:text-base py-3 sm:py-4"
                 >
                   Start Game
                 </GameButton>
-                <GameButton variant="pressed" onClick={() => setFlow("main")} className="flex-1">
+                <GameButton variant="pressed" onClick={() => setFlow("main")} className="w-full sm:flex-1 text-sm sm:text-base py-3 sm:py-4">
                   Cancel
                 </GameButton>
               </div>

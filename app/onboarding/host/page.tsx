@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic"
 import { useEffect } from "react";
 import { useOnboardingCtaStore } from "@/lib/stores/onboarding-cta-store";
-import OnboardingHostClient from "@/components/onboarding/onboarding-host-client";
+import OnboardingClient from "@/components/onboarding/onboarding-client";
 
 export default function HostOnboardingPage() {
 	const setCtaText = useOnboardingCtaStore((state) => state.setCtaText);
@@ -10,6 +10,6 @@ export default function HostOnboardingPage() {
 		setCtaText("Host Onboarding");
 		return () => setCtaText("");
 	}, [setCtaText]);
-	return <OnboardingHostClient />;
+	return <OnboardingClient mode="host" />;
 }
 

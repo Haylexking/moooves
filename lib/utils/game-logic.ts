@@ -9,14 +9,6 @@ const DIRECTIONS = [
   // No need for opposite directions, as findSequenceInDirection handles both ways
 ]
 
-function getDirectionName(dr: number, dc: number): string {
-  if (dr === 0 && dc === 1) return "HORIZONTAL_RIGHT"
-  if (dr === 1 && dc === 0) return "VERTICAL_DOWN"
-  if (dr === 1 && dc === 1) return "DIAGONAL_DOWN_RIGHT"
-  if (dr === 1 && dc === -1) return "DIAGONAL_DOWN_LEFT"
-  return `UNKNOWN_${dr}_${dc}`
-}
-
 export function checkWinConditions(
   board: GameBoard,
   player: Player,
@@ -26,15 +18,6 @@ export function checkWinConditions(
   currentScores: Record<Player, number>,
   usedPositions: Set<string> = new Set(),
 ): { newSequences: Sequence[]; updatedScores: Record<Player, number>; newUsedPositions: Position[] } {
-  console.log("🔍 CHECK WIN CONDITIONS START", {
-    player,
-    position: [row, col],
-    usedSequences: usedSequences.map(seq => ({ sequence: seq, key: canonicalSeqKey(seq) })),
-    usedPositions: Array.from(usedPositions),
-    currentScores,
-    timestamp: new Date().toISOString()
-  })
-
   const newSequences: Sequence[] = []
   const newUsedPositions: Position[] = []
   let scoreIncrease = 0
@@ -42,108 +25,29 @@ export function checkWinConditions(
   // Build a quick lookup of already-used sequences using a canonical string key
   const usedSequenceKeys = new Set<string>(usedSequences.map((s) => canonicalSeqKey(s)))
 
-  console.log("📋 USED SEQUENCE KEYS", {
-    keys: Array.from(usedSequenceKeys),
-    count: usedSequenceKeys.size,
-    timestamp: new Date().toISOString()
-  })
-
   // Check each direction (and its opposite implicitly by findSequenceInDirection)
   for (const [dr, dc] of DIRECTIONS) {
-    const directionName = getDirectionName(dr, dc)
-    console.log(`🧭 CHECKING DIRECTION: ${directionName}`, {
-      direction: [dr, dc],
-      timestamp: new Date().toISOString()
-    })
-
     const sequence = findSequenceInDirection(board, player, row, col, dr, dc)
 
-    console.log(`📏 SEQUENCE FOUND IN ${directionName}`, {
-      direction: [dr, dc],
-      sequenceLength: sequence.length,
-      sequence: sequence.map(pos => `[${pos[0]},${pos[1]}]`),
-      timestamp: new Date().toISOString()
-    })
-
     if (sequence.length >= 5) {
-      console.log(`✅ STREAK CANDIDATE (5+) IN ${directionName}`, {
-        length: sequence.length,
-        start: sequence[0] ? [sequence[0][0], sequence[0][1]] : null,
-        end: sequence[sequence.length - 1] ? [sequence[sequence.length - 1][0], sequence[sequence.length - 1][1]] : null,
-        timestamp: new Date().toISOString()
-      })
-
-      // Check that the streak begins at an edge or immediately after an interruption
+      // New rule: streak must start at edge or immediately after interruption
       const [sr, sc] = sequence[0]
       const beforeR = sr - dr
       const beforeC = sc - dc
       const beginsAtEdgeOrInterruption = !isValidPosition(beforeR, beforeC) || board[beforeR][beforeC] !== player
 
-      console.log(`🟢 STREAK BEGIN CHECK`, {
-        beginsAt: [sr, sc],
-        before: { pos: [beforeR, beforeC], valid: isValidPosition(beforeR, beforeC), value: isValidPosition(beforeR, beforeC) ? board[beforeR][beforeC] : 'out of bounds' },
-        beginsAtEdgeOrInterruption,
-        timestamp: new Date().toISOString()
-      })
-
       if (beginsAtEdgeOrInterruption) {
-        // Log when the streak reaches 5
-        const reachFivePos = sequence[4]
-        console.log(`🏁 STREAK REACHED 5`, {
-          at: [reachFivePos[0], reachFivePos[1]],
-          direction: [dr, dc],
-          timestamp: new Date().toISOString()
-        })
-
         const fiveSequence = sequence.slice(0, 5)
         const canonicalKey = canonicalSeqKey(fiveSequence)
         const hasUsedPosition = fiveSequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
-
-        console.log(`🔑 STREAK VALIDATION`, {
-          canonicalKey,
-          hasUsedSequence: usedSequenceKeys.has(canonicalKey),
-          hasUsedPosition,
-          usedPositions: fiveSequence.map(([r, c]) => `${r},${c}`).filter(pos => usedPositions.has(pos)),
-          valid: !usedSequenceKeys.has(canonicalKey) && !hasUsedPosition,
-          timestamp: new Date().toISOString()
-        })
 
         if (!usedSequenceKeys.has(canonicalKey) && !hasUsedPosition) {
           const canonicalSeq = canonicalSeqFromKey(canonicalKey)
           newSequences.push(canonicalSeq)
           newUsedPositions.push(...canonicalSeq)
           scoreIncrease++
-
-          console.log(`✅ STREAK ENDED AND SCORED`, {
-            start: [sr, sc],
-            end: [sequence[sequence.length - 1][0], sequence[sequence.length - 1][1]],
-            direction: [dr, dc],
-            sequence: canonicalSeq.map(pos => `[${pos[0]},${pos[1]}]`),
-            canonicalKey,
-            scoreIncrease,
-            timestamp: new Date().toISOString()
-          })
-        } else {
-          console.log(`❌ STREAK REJECTED`, {
-            reason: usedSequenceKeys.has(canonicalKey) ? 'already used sequence' : 'has used position',
-            sequence: fiveSequence.map(pos => `[${pos[0]},${pos[1]}]`),
-            canonicalKey,
-            timestamp: new Date().toISOString()
-          })
         }
-      } else {
-        console.log(`ℹ️ STREAK DOES NOT BEGIN AT EDGE/INTERRUPTION`, {
-          start: [sr, sc],
-          direction: [dr, dc],
-          timestamp: new Date().toISOString()
-        })
       }
-    } else {
-      console.log(`ℹ️ SEQUENCE TOO SHORT IN ${directionName}`, {
-        length: sequence.length,
-        required: 5,
-        timestamp: new Date().toISOString()
-      })
     }
   }
 
@@ -151,21 +55,6 @@ export function checkWinConditions(
     ...currentScores,
     [player]: currentScores[player] + scoreIncrease,
   }
-
-  console.log("🏁 CHECK WIN CONDITIONS COMPLETE", {
-    player,
-    position: [row, col],
-    newSequences: newSequences.map(seq => ({
-      sequence: seq.map(pos => `[${pos[0]},${pos[1]}]`),
-      key: canonicalSeqKey(seq)
-    })),
-    newUsedPositions: newUsedPositions.map(pos => `[${pos[0]},${pos[1]}]`),
-    scoreIncrease,
-    oldScores: currentScores,
-    newScores: updatedScores,
-    totalNewSequences: newSequences.length,
-    timestamp: new Date().toISOString()
-  })
 
   return { newSequences, updatedScores, newUsedPositions }
 }
