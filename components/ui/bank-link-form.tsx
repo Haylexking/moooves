@@ -132,21 +132,24 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
           onChange={e => setAccountNumber(e.target.value)}
           className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
-        <select
+        <input
+          list="bank-list"
+          type="text"
+          placeholder="Search and select your bank"
           value={bankName}
           onChange={e => {
             const name = e.target.value
             setBankName(name)
-            const matched = banks.find(b => b.name === name)
+            const matched = banks.find(b => b.name.toLowerCase() === name.toLowerCase())
             setBankCode(matched?.code || "")
           }}
-          className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
-        >
-          <option value="">Select Bank</option>
+          className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+        <datalist id="bank-list">
           {banks.map((b) => (
-            <option key={b.code} value={b.name}>{b.name}</option>
+            <option key={b.code} value={b.name} />
           ))}
-        </select>
+        </datalist>
         <select value={role} onChange={e => setRole(e.target.value)} className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500">
           <option value="user">User</option>
           <option value="host">Host</option>

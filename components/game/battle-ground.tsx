@@ -13,6 +13,7 @@ import { useGameStore } from "@/lib/stores/game-store"
 import { Cell } from "./cell"
 import type { Player } from "@/lib/types"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
+import { GameStartAlert } from "@/components/game/game-start-alert"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
 import { logDebug } from '@/lib/hooks/use-debug-logger'
 import { logDebug as log } from '@/lib/logger'
@@ -59,6 +60,7 @@ export function BattleGround({
   const matchRoom = useMatchRoom()
   const serverAuthoritative = useGameStore((s) => s.serverAuthoritative)
   const [pendingMove, setPendingMove] = useState(false)
+  const [showGameStartAlert, setShowGameStartAlert] = useState(true)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const previousActiveElementRef = useRef<HTMLElement | null>(null)
 
@@ -274,6 +276,8 @@ export function BattleGround({
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
+      {/* Heads-up alert about known scoring bug fix in progress */}
+      <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
       <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
       {/* Pending move overlay */}
       {pendingMove && serverAuthoritative && (
@@ -361,7 +365,7 @@ export function BattleGround({
             className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
                 ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
                 : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
-              } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""}`}
+              } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""} ${showGameStartAlert ? "pointer-events-none opacity-60" : ""}`}
           >
             {/* Actual 30x30 Grid */}
             <div

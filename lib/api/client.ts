@@ -106,14 +106,9 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        // Prefer structured error message from parsed body, otherwise include raw text snippet
         const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
-        // If the parsed raw content looks like HTML, give a concise message
         const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
-        const looksAuthError =
-          response.status === 401 ||
-          (typeof msg === 'string' && /unauth|auth|expired|token|jwt/i.test(msg))
-        if (looksAuthError && typeof window !== 'undefined') {
+        if (response.status === 401 && typeof window !== 'undefined') {
           try {
             const ret = `${window.location.pathname}${window.location.search}${window.location.hash}`
             localStorage.setItem('return_to', ret)

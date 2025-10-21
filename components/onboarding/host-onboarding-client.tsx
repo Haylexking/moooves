@@ -1,7 +1,7 @@
 "use client"
 import Image from "next/image"
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { GameButton } from "@/components/ui/game-button"
 import PasswordInput from "@/components/ui/password-input"
@@ -21,6 +21,11 @@ export default function HostOnboardingClient() {
   const router = useRouter()
 
   const { hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
+
+  // Persist onboarding mode for auth redirects
+  useEffect(() => {
+    try { localStorage.setItem('onboarding_mode', 'host') } catch {}
+  }, [])
 
   const validatePassword = (password: string): string | null => {
     if (!password) return "Password is required"

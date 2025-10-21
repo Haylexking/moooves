@@ -43,7 +43,8 @@ export function SavedBanksModal({
           setLoading(false)
           return
         }
-        const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/${user.role}/${user.id}`
+        const roleParam = user.role === 'player' ? 'user' : user.role
+        const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/${roleParam}/${user.id}`
         const res = await authFetch(url, {
           headers: {
             Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem("auth_token") : ""}`,
@@ -52,6 +53,7 @@ export function SavedBanksModal({
         })
         if (!res.ok) {
           setBanks([])
+          try { console.debug('SavedBanks', { method: 'GET', url, status: res.status }) } catch {}
           setError(`Failed to load banks`)
           setLoading(false)
           return
