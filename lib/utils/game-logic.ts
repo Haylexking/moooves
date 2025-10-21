@@ -21,6 +21,7 @@ export function checkWinConditions(
   const newSequences: Sequence[] = []
   const newUsedPositions: Position[] = []
   let scoreIncrease = 0
+  const awardedKeys = new Set<string>()
 
   // Build a quick lookup of already-used sequences using a canonical string key
   const usedSequenceKeys = new Set<string>(usedSequences.map((s) => canonicalSeqKey(s)))
@@ -37,15 +38,21 @@ export function checkWinConditions(
       const beginsAtEdgeOrInterruption = !isValidPosition(beforeR, beforeC) || board[beforeR][beforeC] !== player
 
       if (beginsAtEdgeOrInterruption) {
-        const fiveSequence = sequence.slice(0, 5)
-        const canonicalKey = canonicalSeqKey(fiveSequence)
-        const hasUsedPosition = fiveSequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
+        // Award +1 for each non-overlapping 5-block within this uninterrupted run
+        const chunks = Math.floor(sequence.length / 5)
+        for (let j = 0; j < chunks; j++) {
+          const start = j * 5
+          const fiveSequence = sequence.slice(start, start + 5)
+          const canonicalKey = canonicalSeqKey(fiveSequence)
 
-        if (!usedSequenceKeys.has(canonicalKey) && !hasUsedPosition) {
-          const canonicalSeq = canonicalSeqFromKey(canonicalKey)
-          newSequences.push(canonicalSeq)
-          newUsedPositions.push(...canonicalSeq)
-          scoreIncrease++
+          // Dedupe across moves by usedSequenceKeys, and within this call by awardedKeys
+          if (!usedSequenceKeys.has(canonicalKey) && !awardedKeys.has(canonicalKey)) {
+            const canonicalSeq = canonicalSeqFromKey(canonicalKey)
+            newSequences.push(canonicalSeq)
+            newUsedPositions.push(...canonicalSeq)
+            awardedKeys.add(canonicalKey)
+            scoreIncrease++
+          }
         }
       }
     }

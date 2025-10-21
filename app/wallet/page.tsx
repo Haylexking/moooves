@@ -1,10 +1,13 @@
 "use client"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
-import { BankLinkForm } from "@/components/ui/bank-link-form"
+import { LinkBankModal } from "@/components/ui/link-bank-modal"
+import { SavedBanksModal } from "@/components/ui/saved-banks-modal"
+import type { SavedBank } from "@/components/ui/saved-banks-modal"
 import { GameButton } from "@/components/ui/game-button"
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import { authFetch } from "@/lib/utils/auth-fetch"
 
 interface Transaction {
   id: string
@@ -24,32 +27,46 @@ export default function WalletPage() {
   const [reason, setReason] = useState("Play game")
   const [accountNumber, setAccountNumber] = useState("XXXX-XXXX-XXXX")
   const [bankName, setBankName] = useState("Access bank")
+  const [accountName, setAccountName] = useState("")
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [activeModal, setActiveModal] = useState<ModalType>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [showSavedBanks, setShowSavedBanks] = useState(false)
+  const [banksReloadToken, setBanksReloadToken] = useState(0)
+  const [selectedBank, setSelectedBank] = useState<SavedBank | null>(null)
 
   useEffect(() => {
     // Fetch wallet data from backend
     const fetchWalletData = async () => {
       try {
-        // This would be the actual API call
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet`, {
+        // @deprecated Temporary placeholder until Swagger wallet balance endpoint is confirmed
+        const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet`
+        const response = await authFetch(url, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
             "Content-Type": "application/json",
           },
         })
+        console.debug("Wallet", { method: "GET", url, status: response.status })
         if (response.ok) {
           const data = await response.json()
           setBalance(data.balance || 0)
           setTransactions(data.transactions || [])
         }
       } catch (error) {
-        console.error("Failed to fetch wallet data:", error)
+        console.debug("Wallet", { method: "GET", url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet`, error: String(error) })
       }
     }
     fetchWalletData()
   }, [])
+
+  // When switching to request tab, ensure a bank is selected via modal first
+  useEffect(() => {
+    if (activeTab === "request" && !selectedBank) {
+      setShowSavedBanks(true)
+    }
+  }, [activeTab, selectedBank])
 
   const handleFundWallet = async () => {
     if (!amount || Number.parseFloat(amount) < 5000) {
@@ -58,8 +75,9 @@ export default function WalletPage() {
     }
     setIsLoading(true)
     try {
-      // Call wallet top-up API (payment initialization)
-      const res = await fetch(`/api/v1/initial`, {
+      // @deprecated Temporary placeholder until Swagger payment init endpoint is confirmed
+      const initUrl = `/api/v1/initial`
+      const res = await authFetch(initUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,6 +89,7 @@ export default function WalletPage() {
           redirectUrl: window.location.href,
         }),
       })
+      console.debug("Wallet", { method: "POST", url: initUrl, status: res.status })
       const data = await res.json()
       if (!res.ok || !data.success) {
         setActiveModal("failed")
@@ -93,6 +112,10 @@ export default function WalletPage() {
   }
 
   const handleRequestFunds = async () => {
+    if (!selectedBank) {
+      setShowSavedBanks(true)
+      return
+    }
     if (!amount || Number.parseFloat(amount) < 5000) {
       alert("Minimum amount is ₦5,000")
       return
@@ -117,8 +140,9 @@ export default function WalletPage() {
     }
     setIsLoading(true)
     try {
-      // Call wallet top-up API (card payment)
-      const res = await fetch(`/api/v1/initial`, {
+      // @deprecated Temporary placeholder until Swagger payment init endpoint is confirmed
+      const initUrl = `/api/v1/initial`
+      const res = await authFetch(initUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,6 +154,7 @@ export default function WalletPage() {
           redirectUrl: window.location.href,
         }),
       })
+      console.debug("Wallet", { method: "POST", url: initUrl, status: res.status })
       const data = await res.json()
       if (!res.ok || !data.success) {
         setActiveModal("failed")
@@ -181,9 +206,13 @@ export default function WalletPage() {
                   <p className="text-2xl sm:text-3xl md:text-4xl font-bold">{balance.toFixed(3)}</p>
                 </div>
               </div>
-              {/* Bank Account Linking */}
+              {/* Quick Actions */}
               <div className="mb-4 sm:mb-6">
-                <BankLinkForm />
+                <h3 className="text-green-900 font-bold mb-2">Quick actions</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <GameButton onClick={() => setShowSavedBanks(true)} className="w-full">Saved bank details</GameButton>
+                  <GameButton onClick={() => setShowLinkModal(true)} className="w-full">Link account</GameButton>
+                </div>
               </div>
               {/* Tab Navigation */}
               <div className="flex mb-4 sm:mb-6 border-b-2 border-green-300">
@@ -259,9 +288,54 @@ export default function WalletPage() {
                   </GameButton>
                 </div>
               )}
+
+      {/* Saved Banks Modal */}
+      <SavedBanksModal
+        open={showSavedBanks}
+        onOpenChange={setShowSavedBanks}
+        onSelect={(bank) => {
+          setSelectedBank(bank)
+          setAccountNumber(bank.accountNumber || "")
+          setBankName(bank.bankName || bank.bankCode || "")
+          setAccountName(bank.accountName || "")
+          setShowSavedBanks(false)
+        }}
+        onAddNew={() => {
+          setShowSavedBanks(false)
+          setShowLinkModal(true)
+        }}
+        reloadToken={banksReloadToken}
+      />
+
+      {/* Link Bank Modal */}
+      <LinkBankModal
+        open={showLinkModal}
+        onOpenChange={setShowLinkModal}
+        onSuccess={() => {
+          setBanksReloadToken(Date.now())
+          setShowLinkModal(false)
+          setShowSavedBanks(true)
+        }}
+      />
               {/* Request Funds Tab */}
               {activeTab === "request" && (
                 <div className="space-y-3 sm:space-y-4">
+                  {/* Selected bank summary + change */}
+                  <div className="p-3 bg-green-200/50 rounded-lg border border-green-300 flex items-center justify-between">
+                    <div className="text-green-900 text-sm">
+                      {selectedBank ? (
+                        <>
+                          <div className="font-bold">{selectedBank.bankName || selectedBank.bankCode || "Bank"}</div>
+                          <div>{selectedBank.accountNumber}</div>
+                          {selectedBank.accountName && <div className="text-green-700">{selectedBank.accountName}</div>}
+                        </>
+                      ) : (
+                        <div className="text-green-700">No bank selected</div>
+                      )}
+                    </div>
+                    <button className="text-green-800 font-semibold underline text-sm" onClick={() => setShowSavedBanks(true)}>Change</button>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">
@@ -270,8 +344,8 @@ export default function WalletPage() {
                       <input
                         type="text"
                         value={accountNumber}
-                        onChange={(e) => setAccountNumber(e.target.value)}
-                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        readOnly
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -279,10 +353,20 @@ export default function WalletPage() {
                       <input
                         type="text"
                         value={bankName}
-                        onChange={(e) => setBankName(e.target.value)}
-                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        readOnly
+                        className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-green-900 font-semibold mb-2 text-sm sm:text-base">Account name</label>
+                    <input
+                      type="text"
+                      value={accountName}
+                      readOnly
+                      className="w-full p-2 sm:p-3 text-sm sm:text-base rounded-lg bg-green-200/50 border border-green-300 text-green-900 focus:outline-none"
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

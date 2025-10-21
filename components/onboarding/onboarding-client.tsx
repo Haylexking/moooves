@@ -11,6 +11,7 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { Alert } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
+import { getReturnPath, clearReturnPath } from "@/lib/utils/navigation"
 
 export default function OnboardingClient({ mode = "player" }: { mode?: "player" | "host" }) {
   const [tab, setTab] = useState<"register" | "login">("register")
@@ -176,7 +177,13 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
           // noop
         }
         await waitForAuthInit(7000)
-        router.push("/dashboard")
+        const ret = typeof window !== 'undefined' ? getReturnPath() : null
+        if (ret) {
+          clearReturnPath()
+          router.push(ret)
+        } else {
+          router.push("/dashboard")
+        }
         return
       }
 

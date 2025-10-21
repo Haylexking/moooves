@@ -25,7 +25,8 @@ jest.setTimeout(10000)
 
 // Test helpers
 const getSubmitButtonByTestId = (id: string) => screen.getByTestId(id)
-import OnboardingClient from "../onboarding-client"
+import PlayerOnboardingClient from "../player-onboarding-client"
+import HostOnboardingClient from "../host-onboarding-client"
 
 describe("OnboardingClient mode switch", () => {
   const mockedUseAuthStore = useAuthStore as jest.MockedFunction<typeof useAuthStore>
@@ -46,7 +47,7 @@ describe("OnboardingClient mode switch", () => {
     ...overrides,
   } as any)
 
-  test("calls hostRegister when registering in host mode and hostLogin when logging in", async () => {
+  test("calls hostRegister when registering in host onboarding and hostLogin when logging in", async () => {
     const hostRegister = jest.fn().mockResolvedValue(undefined)
     const hostLogin = jest.fn().mockResolvedValue(undefined)
 
@@ -56,7 +57,7 @@ describe("OnboardingClient mode switch", () => {
     )
 
   // @ts-ignore - renderWithProviders is provided by jest.setup.js
-  global.renderWithProviders(<OnboardingClient mode="host" />)
+  global.renderWithProviders(<HostOnboardingClient />)
     const user = userEvent.setup()
 
     // Fill register fields (username, email, password)
@@ -100,14 +101,14 @@ describe("OnboardingClient mode switch", () => {
     await waitFor(() => expect(useRouter().push).toHaveBeenCalledWith("/dashboard"))
   })
 
-  test("calls register and login for player mode", async () => {
+  test("calls register and login for player onboarding", async () => {
     const register = jest.fn().mockResolvedValue(undefined)
     const login = jest.fn().mockResolvedValue(undefined)
 
     mockedUseAuthStore.mockReturnValue(baseAuthMock({ register, login, rehydrated: true, isAuthenticated: true }))
 
     // @ts-ignore - renderWithProviders is provided by jest.setup.js
-    global.renderWithProviders(<OnboardingClient mode="player" />)
+    global.renderWithProviders(<PlayerOnboardingClient />)
     const user = userEvent.setup()
 
     const username = screen.getByPlaceholderText(/username/i)

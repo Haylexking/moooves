@@ -15,6 +15,7 @@ export interface AuthSlice {
   hostLogin: (email: string, password: string) => Promise<void>
   hostRegister: (fullName: string, email: string, password: string) => Promise<void>
   verifyEmail: (code: string) => Promise<void>
+  verifyAccountOtp: (email: string, otp: string) => Promise<void>
   logout: () => void
   clearError: () => void
   setToken: (token: string) => void
@@ -213,28 +214,43 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   },
 
   verifyEmail: async (code: string) => {
+    // Deprecated in favor of verifyAccountOtp with email+otp, but kept for compatibility.
+    const currentUser = get().user
+    if (!currentUser?.email) {
+      set({ error: "Email unavailable for verification", isLoading: false })
+      return
+    }
+    await get().verifyAccountOtp(currentUser.email, code)
+  },
+
+  verifyAccountOtp: async (email: string, otp: string) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await apiClient.verifyEmail(code)
+      const response = await apiClient.verifyAccountOtp(email, otp)
       if (response.success) {
         const currentUser = get().user
         if (currentUser) {
-          set({
-            user: { ...currentUser, emailVerified: true },
-            isLoading: false,
-          })
+          set({ user: { ...currentUser, emailVerified: true }, isLoading: false })
+        } else {
+          set({ isLoading: false })
+        }
+        // Redirect similar to post-login: honor return_to if present
+        if (typeof window !== 'undefined') {
+          try {
+            const ret = localStorage.getItem('return_to')
+            if (ret) {
+              localStorage.removeItem('return_to')
+              window.location.href = ret
+              return
+            }
+          } catch {}
+          try { window.location.href = '/dashboard' } catch {}
         }
       } else {
-        set({
-          error: response.error || "Verification failed",
-          isLoading: false,
-        })
+        set({ error: response.error || response.message || 'OTP verification failed', isLoading: false })
       }
     } catch (error) {
-      set({
-        error: "Network error occurred",
-        isLoading: false,
-      })
+      set({ error: 'Network error occurred', isLoading: false })
     }
   },
 

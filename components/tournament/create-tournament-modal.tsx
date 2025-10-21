@@ -21,6 +21,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
   const [name, setName] = useState("")
   const [entryFee, setEntryFee] = useState(500)
   const [maxPlayers, setMaxPlayers] = useState(50)
+  const [startTimeLocal, setStartTimeLocal] = useState<string>("")
   const { createTournament, isLoading } = useTournamentStore()
   const { user } = useAuthStore()
   const router = useRouter()
@@ -35,13 +36,19 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
     }
 
     try {
+      // Require a start time; default to 24h in the future if not set
+      const selected = startTimeLocal
+        ? new Date(startTimeLocal)
+        : new Date(Date.now() + 24 * 60 * 60 * 1000)
+      const startTimeISO = selected.toISOString()
       const tournament = await createTournament({
         name,
         entryFee,
         maxPlayers,
         gameMode: "timed",
-        // organizerId is optional on backend; cast to any to avoid TS error if type not yet updated
+        // organizerId + startTime per Swagger
         ...(user?.id ? ({ organizerId: user.id } as any) : {}),
+        startTime: startTimeISO,
       })
 
       // UX: inform the user and navigate to the tournament page
@@ -108,6 +115,18 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
               required
             />
             <p className="text-xs text-gray-500 mt-1">Between 6-50 players</p>
+          </div>
+
+          <div>
+            <Label htmlFor="startTime">Start Time (UTC)</Label>
+            <Input
+              id="startTime"
+              type="datetime-local"
+              value={startTimeLocal}
+              onChange={(e) => setStartTimeLocal(e.target.value)}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">Set a future date/time. Will be sent as UTC ISO.</p>
           </div>
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">

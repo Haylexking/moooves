@@ -110,6 +110,19 @@ class ApiClient {
         const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
         // If the parsed raw content looks like HTML, give a concise message
         const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
+        const looksAuthError =
+          response.status === 401 ||
+          (typeof msg === 'string' && /unauth|auth|expired|token|jwt/i.test(msg))
+        if (looksAuthError && typeof window !== 'undefined') {
+          try {
+            const ret = `${window.location.pathname}${window.location.search}${window.location.hash}`
+            localStorage.setItem('return_to', ret)
+          } catch {}
+          this.clearToken()
+          try {
+            window.location.href = '/onboarding'
+          } catch {}
+        }
         return {
           success: false,
           error: safeMsg || `HTTP ${response.status}`,
@@ -390,14 +403,14 @@ class ApiClient {
   }
 
   // Tournament methods
-  async createTournament(payload: { name: string; organizerId?: string; maxPlayers?: number | string; entryFee?: number; gameMode?: string }): Promise<ApiResponse<any>> {
-    // The backend Swagger expects `createdBy` (required) and `entryfee` (lowercase).
-    // Keep `organizerId` for backwards compatibility, but include `createdBy` when organizerId is provided.
+  async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number; gameMode?: string }): Promise<ApiResponse<any>> {
+    // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryFee
     const body: any = {
+      organizerId: payload.organizerId,
       name: payload.name,
-      ...(payload.organizerId ? { organizerId: payload.organizerId, createdBy: payload.organizerId } : {}),
-      ...(payload.maxPlayers ? { maxPlayers: String(payload.maxPlayers) } : {}),
-      ...(typeof payload.entryFee !== 'undefined' ? { entryfee: payload.entryFee } : {}),
+      startTime: payload.startTime,
+      ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
+      ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
       ...(payload.gameMode ? { gameMode: payload.gameMode } : {}),
     }
 
@@ -432,9 +445,17 @@ class ApiClient {
     return this.request(`/tournaments/${tournamentId}/invite`)
   }
 
-  async startTournament(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/tournaments/${id}/start`, {
+  async startTournament(id: string, force?: boolean): Promise<ApiResponse<any>> {
+    const qs = force ? "?force=true" : ""
+    return this.request(`/tournaments/${id}/start${qs}`, {
       method: "POST",
+    })
+  }
+
+  async rescheduleTournament(id: string, newStartTime: string): Promise<ApiResponse<any>> {
+    return this.request(`/tournaments/${id}/reschedule`, {
+      method: "PATCH",
+      body: JSON.stringify({ newStartTime }),
     })
   }
 
@@ -464,6 +485,12 @@ class ApiClient {
   }
 
   // Match/Game methods
+  async joinMatch(matchId: string): Promise<ApiResponse<any>> {
+    // POST /api/v1/matches/{matchId}/join per Swagger
+    return this.request(`/matches/${matchId}/join`, {
+      method: "POST",
+    })
+  }
   async getAllMatches(): Promise<ApiResponse<any[]>> {
     return this.request<any[]>("/matches")
   }
@@ -489,6 +516,15 @@ class ApiClient {
     return this.request(`/${matchId}/submit-resultoffline`, {
       method: "POST",
       body: JSON.stringify({ winnerId, handshakeToken }),
+    })
+  }
+
+  // OTP / Verification
+  async verifyAccountOtp(email: string, otp: string): Promise<ApiResponse<any>> {
+    // Swagger: POST /api/v1/verify with { email, otp }
+    return this.request("/verify", {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
     })
   }
 

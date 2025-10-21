@@ -20,6 +20,104 @@
           "scheme": "bearer",
           "bearerFormat": "JWT"
         }
+      },
+      "schemas": {
+        "StartTournamentLogic": {
+          "type": "object",
+          "description": "Internal logic function responsible for initializing a tournament.   It is not exposed as a direct API endpoint, but called internally by /api/v1/tournaments/{id}/start.   Handles participant validation, match pairing, status updates, email notifications, and logging.\n",
+          "properties": {
+            "input": {
+              "type": "object",
+              "properties": {
+                "tournamentDoc": {
+                  "type": "string",
+                  "description": "Either a full Tournament document (with participants populated)   or just a tournament ID (string).   If only ID is provided, it fetches the document internally.\n",
+                  "example": "670f1b6d2c1a5e304bce9f8a"
+                }
+              }
+            },
+            "process": {
+              "type": "object",
+              "description": "Steps performed by the logic",
+              "properties": {
+                "1": {
+                  "type": "string",
+                  "example": "Fetch full tournament document if only ID is provided."
+                },
+                "2": {
+                  "type": "string",
+                  "example": "Validate min and max participants."
+                },
+                "3": {
+                  "type": "string",
+                  "example": "Calculate prize pool based on entry fee × participant count."
+                },
+                "4": {
+                  "type": "string",
+                  "example": "Randomly pair participants into matches (Round 1)."
+                },
+                "5": {
+                  "type": "string",
+                  "example": "Create Match documents and link them to Round 1."
+                },
+                "6": {
+                  "type": "string",
+                  "example": "Update tournament status to 'ongoing'."
+                },
+                "7": {
+                  "type": "string",
+                  "example": "Send tournament-start emails to all participants."
+                },
+                "8": {
+                  "type": "string",
+                  "example": "Send confirmation email to tournament creator (Host/User)."
+                },
+                "9": {
+                  "type": "string",
+                  "example": "Log every email in EmailLog collection."
+                }
+              }
+            },
+            "output": {
+              "type": "object",
+              "properties": {
+                "matchIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "6710cbd512c1a5e304bce9a1",
+                    "6710cbd512c1a5e304bce9a2"
+                  ]
+                },
+                "prizePool": {
+                  "type": "number",
+                  "example": 2500
+                }
+              }
+            }
+          },
+          "example": {
+            "input": {
+              "tournamentDoc": "670f1b6d2c1a5e304bce9f8a"
+            },
+            "process": {
+              "1": "Fetch tournament by ID",
+              "2": "Validate participants",
+              "3": "Pair players",
+              "4": "Create matches",
+              "5": "Send emails"
+            },
+            "output": {
+              "matchIds": [
+                "6710cbd512c1a5e304bce9a1",
+                "6710cbd512c1a5e304bce9a2"
+              ],
+              "prizePool": 2500
+            }
+          }
+        }
       }
     },
     "security": [
@@ -300,6 +398,94 @@
             },
             "500": {
               "description": "Internal server error"
+            }
+          }
+        }
+      },
+      "/api/v1/matches/{matchId}/join": {
+        "post": {
+          "summary": "Join or start a match in a tournament",
+          "description": "This endpoint allows an authenticated player to join a specific match in a tournament.  \n<br><br>\nFlow Overview:  \n- When a player joins, they are added to the joinedPlayers array in the match.  \n- If both players have joined, the match automatically transitions to \"ongoing\" status and starts immediately.  \n- If only one player joins and the opponent does not join within a 2-minute grace period, the player who joined first wins automatically (\"auto-win\").  \n- Automatic email notifications are sent to both players (and can be extended to hosts).  \n- All notifications are logged to the EmailLog collection for transparency.  \n\nNotifications include:  \n- 🎉 Auto-win notification (to the winner)  \n- 😔 Forfeit notification (to the loser)\n\nThis system ensures fair play and tournament automation.\n\nAuthorization:  \nRequires a valid JWT token (Bearer Auth).\n",
+          "tags": [
+            "Matches"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "matchId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "MongoDB ObjectId of the match to join."
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successfully joined or completed the match logic.",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "bothJoined": {
+                      "summary": "Both players joined, match started",
+                      "value": {
+                        "message": "Both players joined. Match started!",
+                        "matchId": "670f52e81df21e2c4b6a120c",
+                        "status": "ongoing"
+                      }
+                    },
+                    "autoWin": {
+                      "summary": "Opponent didn’t show up — auto-win applied",
+                      "value": {
+                        "message": "Opponent didn’t show up. Auto-win applied.",
+                        "winner": "670f52d91df21e2c4b6a11ff",
+                        "matchId": "670f52e81df21e2c4b6a120c",
+                        "status": "completed"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "202": {
+              "description": "Waiting for opponent to join.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Waiting for opponent to join...",
+                    "matchId": "670f52e81df21e2c4b6a120c",
+                    "joinedPlayers": [
+                      "670f52d91df21e2c4b6a11ff"
+                    ],
+                    "status": "pending"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Match not found.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Match not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Internal server error"
+                  }
+                }
+              }
             }
           }
         }
@@ -1521,10 +1707,15 @@
       },
       "/api/v1/tournaments": {
         "post": {
-          "summary": "Create a new tournament and generate an invite link",
-          "description": "Creates a tournament (by host or user) and returns the tournament data plus a unique invite link.   Use this link to allow others to join.  \n",
+          "summary": "Create a new tournament and generate a unique invite link",
+          "description": "This endpoint allows a User or Host to create a new tournament.  \n\n### 🧩 Logic Flow:\n- The organizer can be either a User or a Host.  \n- A User must have joined at least 2 tournaments before being allowed to host their own (unless already granted host rights).  \n- The system automatically validates maxPlayers, entryFee, and startTime.  \n- The maximum number of players allowed is 50.  \n- The startTime must be a valid future UTC date (ISO format).  \n- On success, the response includes a generated invite link (using a 4-byte random hex code).  \n- An optional email notification is sent to the organizer, confirming the tournament schedule.  \n\nNote:  \n- Default maxParticipants is 16 if not provided.  \n- Default entryFee is 0 if not provided.  \n- Automatically sets status to \"scheduled\".  \n- Auto-start is enabled by default (`autoStartEnabled: true`).\n\nAuthorization: Requires Bearer Token (JWT)\n",
           "tags": [
             "Tournaments"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
           ],
           "requestBody": {
             "required": true,
@@ -1533,26 +1724,36 @@
                 "schema": {
                   "type": "object",
                   "required": [
+                    "organizerId",
                     "name",
-                    "createdBy"
+                    "startTime"
                   ],
                   "properties": {
-                    "name": {
-                      "type": "string",
-                      "example": "strange"
-                    },
-                    "maxPlayers": {
-                      "type": "string",
-                      "example": "25"
-                    },
-                    "entryfee": {
-                      "type": "Number",
-                      "example": "500"
-                    },
                     "organizerId": {
                       "type": "string",
                       "description": "ID of the user or host creating the tournament",
-                      "example": "64f2b8d91a32f9c8b1c12345"
+                      "example": "670f52e81df21e2c4b6a120c"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "The name of the tournament",
+                      "example": "MOOOVES Pro League"
+                    },
+                    "maxPlayers": {
+                      "type": "integer",
+                      "description": "Maximum number of players allowed (must be ≤ 50)",
+                      "example": 32
+                    },
+                    "entryFee": {
+                      "type": "number",
+                      "description": "Entry fee per participant",
+                      "example": 500
+                    },
+                    "startTime": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "UTC start time (ISO 8601 format)",
+                      "example": "2025-11-01T15:00:00Z"
                     }
                   }
                 }
@@ -1565,28 +1766,82 @@
               "content": {
                 "application/json": {
                   "example": {
-                    "message": "Tournament created",
+                    "message": "Tournament created successfully",
                     "tournament": {
-                      "id": "64f2b8d91a32f9c8b1c67890",
-                      "name": "Summer Championship",
-                      "inviteLink": "http://localhost:5000/api/v1/tournaments/join/abc123"
-                    }
+                      "_id": "670f52e81df21e2c4b6a120c",
+                      "name": "MOOOVES Pro League",
+                      "createdBy": "670f52d91df21e2c4b6a11ff",
+                      "createdByModel": "Host",
+                      "participants": [],
+                      "maxParticipants": 32,
+                      "entryFee": 500,
+                      "prizePool": 0,
+                      "inviteCode": "a1b2c3d4",
+                      "status": "scheduled",
+                      "startTime": "2025-11-01T15:00:00.000Z",
+                      "autoStartEnabled": true
+                    },
+                    "inviteLink": "https://your-domain.com/api/v1/tournaments/join/a1b2c3d4"
                   }
                 }
               }
             },
             "400": {
-              "description": "Missing required fields or invalid data",
+              "description": "Missing or invalid input fields",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "missingFields": {
+                      "summary": "Missing organizerId or name",
+                      "value": {
+                        "error": "Host and name are required"
+                      }
+                    },
+                    "invalidStartTime": {
+                      "summary": "Invalid or past start time",
+                      "value": {
+                        "error": "Invalid or past start time"
+                      }
+                    },
+                    "maxPlayerExceeded": {
+                      "summary": "Too many players specified",
+                      "value": {
+                        "error": "maximum player is 50"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "User not eligible to host",
               "content": {
                 "application/json": {
                   "example": {
-                    "error": "Tournament name is required"
+                    "error": "You must join at least 2 tournaments before hosting one"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Organizer not found",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Organizer not found"
                   }
                 }
               }
             },
             "500": {
-              "description": "Server error"
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Unexpected server error"
+                  }
+                }
+              }
             }
           }
         },
@@ -1619,6 +1874,140 @@
             },
             "500": {
               "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/v1/tournaments/{id}/reschedule": {
+        "patch": {
+          "summary": "Reschedule a tournament (creator only)",
+          "description": "Allows the tournament creator to change the start time of a scheduled tournament.   Only tournaments with a status of scheduled can be rescheduled.   The new start time must be a valid future date.  \nAfter successful update, all participants can optionally be notified via email or WhatsApp (if implemented).\n",
+          "tags": [
+            "Tournaments"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The unique ID of the tournament to reschedule.",
+              "example": "6710a5e3b1d6c8f8a93b52a1"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "newStartTime"
+                  ],
+                  "properties": {
+                    "newStartTime": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "The new start date and time for the tournament. Must be in the future.",
+                      "example": "2025-11-10T14:30:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Tournament rescheduled successfully.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Tournament rescheduled"
+                      },
+                      "startTime": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-11-10T14:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid new start time or tournament status.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Invalid new start time"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "403": {
+              "description": "Only the tournament creator can perform this action.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Only creator can reschedule"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Tournament not found.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Tournament not found"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Unexpected error occurred"
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -1744,48 +2133,96 @@
       },
       "/api/v1/tournaments/{id}/start": {
         "post": {
-          "summary": "Start a tournament",
-          "description": "Marks the tournament as started.   Can only be started once players have joined.  \n",
+          "summary": "Manually start a tournament",
+          "description": "Starts a tournament when the creator decides to begin it.  \nThis endpoint checks that:\n- The tournament exists  \n- The authenticated user is the creator  \n- The tournament status is \"scheduled\" or \"pending\"  \n- The minimum number of participants has joined  \n\nOnce validated:\n- Players are randomly paired into matches for Round 1.  \n- Tournament status changes to \"ongoing\".  \n- All participants receive email notifications that the tournament has started.  \n- The creator (host/user) also receives a start confirmation email.  \n- Every sent email is logged in the EmailLog collection.  \n\n> ⚙️ You can also use ?force=true to override the minimum player requirement (for testing or host override).\n",
           "tags": [
             "Tournaments"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
           ],
           "parameters": [
             {
               "in": "path",
               "name": "id",
               "required": true,
+              "description": "The unique tournament ID to start.",
               "schema": {
                 "type": "string"
               },
-              "example": "64f2b8d91a32f9c8b1c67890"
+              "example": "670f1b6d2c1a5e304bce9f8a"
+            },
+            {
+              "in": "query",
+              "name": "force",
+              "required": false,
+              "description": "Allows the creator to bypass minimum participant checks (use with caution).",
+              "schema": {
+                "type": "boolean",
+                "example": true
+              }
             }
           ],
           "responses": {
             "200": {
-              "description": "Tournament started successfully",
+              "description": "Tournament started successfully.",
               "content": {
                 "application/json": {
                   "example": {
-                    "message": "Tournament started"
+                    "message": "Tournament started successfully",
+                    "tournamentId": "670f1b6d2c1a5e304bce9f8a"
                   }
                 }
               }
             },
             "400": {
-              "description": "Invalid request (already started, no players, etc.)",
+              "description": "Invalid tournament state or permission error.",
               "content": {
                 "application/json": {
-                  "example": {
-                    "error": "Tournament already started"
+                  "examples": {
+                    "NotCreator": {
+                      "summary": "Unauthorized user",
+                      "value": {
+                        "message": "Only the creator can start this tournament"
+                      }
+                    },
+                    "AlreadyStarted": {
+                      "summary": "Tournament already active",
+                      "value": {
+                        "message": "Tournament already started or completed"
+                      }
+                    },
+                    "NotEnoughPlayers": {
+                      "summary": "Minimum player requirement not met",
+                      "value": {
+                        "message": "At least 4 participants required to start."
+                      }
+                    }
                   }
                 }
               }
             },
             "404": {
-              "description": "Tournament not found"
+              "description": "Tournament not found.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Tournament not found"
+                  }
+                }
+              }
             },
             "500": {
-              "description": "Server error"
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Unexpected error occurred while starting tournament"
+                  }
+                }
+              }
             }
           }
         }
@@ -2160,6 +2597,98 @@
                 "application/json": {
                   "example": {
                     "message": "Error verifying payment"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "summary": "Verify account OTP",
+          "description": "This endpoint verifies the one-time password (OTP) sent to a user's registered email during sign-up or password reset.\nIf the OTP is valid and unexpired, the account is marked as verified.\n",
+          "tags": [
+            "Auth"
+          ],
+          "security": [],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "otp"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "description": "Registered user email to verify.",
+                      "example": "moooves455@gmail.com"
+                    },
+                    "otp": {
+                      "type": "string",
+                      "description": "6-digit OTP sent to the user's email.",
+                      "example": "123674"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "OTP verified successfully.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": true,
+                    "message": "Account verified successfully"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid or expired OTP.",
+              "content": {
+                "application/json": {
+                  "examples": {
+                    "InvalidOTP": {
+                      "summary": "Wrong code",
+                      "value": {
+                        "success": false,
+                        "message": "Invalid OTP"
+                      }
+                    },
+                    "ExpiredOTP": {
+                      "summary": "OTP expired",
+                      "value": {
+                        "success": false,
+                        "message": "OTP expired"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Account not found.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": false,
+                    "message": "Account not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": false,
+                    "message": "Server error"
                   }
                 }
               }
@@ -2615,6 +3144,144 @@
                   "example": {
                     "success": false,
                     "message": "Payout transfer failed"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/all": {
+        "get": {
+          "summary": "Retrieve all added bank details",
+          "description": "Returns a list of all bank records stored for both hosts and players.",
+          "tags": [
+            "Banks"
+          ],
+          "responses": {
+            "200": {
+              "description": "List of all saved bank records.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": true,
+                    "data": [
+                      {
+                        "_id": "652a9fd2c3b0f8429b8a1190",
+                        "userId": "652a9fd2c3b0f8429b8a1190",
+                        "role": "host",
+                        "bankName": "GTBank",
+                        "accountNumber": "0123456789",
+                        "accountName": "John Doe"
+                      },
+                      {
+                        "_id": "652a9fd2c3b0f8429b8a1191",
+                        "userId": "652a9fd2c3b0f8429b8a1191",
+                        "role": "player",
+                        "bankName": "Access Bank",
+                        "accountNumber": "0987654321",
+                        "accountName": "Jane Doe"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "No bank records found.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": false,
+                    "message": "No bank details found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": false,
+                    "message": "Failed to fetch bank details"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/{role}/{id}": {
+        "get": {
+          "summary": "Get a specific user's bank details",
+          "description": "Fetch the bank details of a specific host or player by their user ID.",
+          "tags": [
+            "Banks"
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "role",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "host",
+                  "player"
+                ]
+              },
+              "description": "The role of the user.",
+              "example": "host"
+            },
+            {
+              "in": "path",
+              "name": "id",
+              "required": true,
+              "schema": {
+                "type": "string"
+              },
+              "description": "The unique ID of the user.",
+              "example": "652a9fd2c3b0f8429b8a1190"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Bank details retrieved successfully.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": true,
+                    "data": {
+                      "_id": "652a9fd2c3b0f8429b8a1190",
+                      "userId": "652a9fd2c3b0f8429b8a1190",
+                      "role": "host",
+                      "bankName": "GTBank",
+                      "accountNumber": "0123456789",
+                      "accountName": "John Doe"
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Bank details not found for the specified user.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": false,
+                    "message": "Bank details not found"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error.",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": false,
+                    "message": "Failed to retrieve bank details"
                   }
                 }
               }
@@ -3930,6 +4597,14 @@
       }
     },
     "tags": [
+      {
+        "name": "Internal Logic",
+        "description": "Non-endpoint business logic used internally by API controllers."
+      },
+      {
+        "name": "Banks",
+        "description": "Manage host and player bank details"
+      },
       {
         "name": "Auth",
         "description": "User & Host onboarding and password recovery"

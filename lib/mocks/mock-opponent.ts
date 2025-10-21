@@ -17,37 +17,14 @@ export function mockOpponentMove(
     return null
   }
 
-  // 1. First priority: Check if computer can win in one move (but only NEW sequences)
-  // Prefer evaluating the pruned candidate set first
-  const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
-  if (winningMove) {
-    // Even if we can win now, check if the opponent has an immediate winning response next turn
-    // If opponent can also win next turn (e.g., via another move), prefer a blocking move to secure the game
-    const opponent: Player = currentPlayer === 'X' ? 'O' : 'X'
-    const opponentWinningAfterOurWin = (() => {
-      // Simulate placing our winning move, then check if opponent has any immediate winning move
-      const testBoard = board.map((r) => [...r])
-      testBoard[winningMove[0]][winningMove[1]] = currentPlayer
-
-      const opponentCanWin = !!findWinningMove(testBoard, opponent, getNearbyCandidates(testBoard, 3).length ? getNearbyCandidates(testBoard, 3) : getAvailableMoves(testBoard), usedSequences, currentScores)
-      return opponentCanWin
-    })()
-
-    if (opponentWinningAfterOurWin) {
-      // If opponent could win after our move, try to block opponent instead
-      const blockingMove = findWinningMove(board, opponent, movesToConsider, usedSequences, currentScores)
-      if (blockingMove) {
-        return blockingMove
-      }
-    }
-
-    return winningMove
-  }
-
-  // 2. Second priority: Block player from winning (prevent NEW sequences)
+  // 1. First priority: Block opponent immediate win
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
   const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
   if (blockingMove) return blockingMove
+
+  // 2. Second priority: Try to win immediately
+  const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
+  if (winningMove) return winningMove
 
   // 3. Third priority: Aggressively block emerging threats (length 2–4 with openness)
   const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, movesToConsider)

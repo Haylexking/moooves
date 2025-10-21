@@ -16,6 +16,7 @@ export interface TournamentSlice {
     entryfee?: number
     maxPlayers: number
     organizerId?: string
+    startTime?: string
   }) => Promise<Tournament>
   joinTournament: (inviteCode: string, userId: string) => Promise<void>
   loadAllTournaments: () => Promise<void>
@@ -31,7 +32,7 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   isLoading: false,
 
   // ✅ CREATE TOURNAMENT
-  createTournament: async ({ name, entryFee, entryfee, maxPlayers, organizerId, gameMode }: any) => {
+  createTournament: async ({ name, entryFee, entryfee, maxPlayers, organizerId, gameMode, startTime }: any) => {
     set({ isLoading: true })
     try {
       const fee = typeof entryFee !== 'undefined' ? entryFee : entryfee
@@ -42,6 +43,7 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
         maxPlayers,
         entryFee: typeof fee !== 'undefined' ? fee : undefined,
         gameMode: (gameMode as string) || undefined,
+        startTime: startTime,
       })
 
       if (!res.success) throw new Error(res.error || res.message || 'Failed to create tournament')

@@ -1,15 +1,34 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { GameButton } from "@/components/ui/game-button";
+import { authFetch } from "@/lib/utils/auth-fetch";
 
 export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
   const { user } = useAuthStore();
   const [accountNumber, setAccountNumber] = useState("");
   const [bankCode, setBankCode] = useState("");
+  const [bankName, setBankName] = useState("");
   const [role, setRole] = useState("user");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountName, setAccountName] = useState<string | null>(null);
+  const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([]);
+
+  // Load bank list from Swagger endpoint to allow name selection
+  useEffect(() => {
+    let mounted = true
+    const loadBanks = async () => {
+      try {
+        const res = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/banks`)
+        const data = await res.json().catch(() => null)
+        if (!mounted) return
+        const list = (data?.banks || []) as Array<{ name: string; code: string }>
+        if (Array.isArray(list)) setBanks(list)
+      } catch {}
+    }
+    loadBanks()
+    return () => { mounted = false }
+  }, [])
 
   // Step 1: Verify account number and bank code
   const handleVerify = async () => {
@@ -17,7 +36,24 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
     setError(null);
     setAccountName(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/bank/verify`, {
+      // If bankCode is not known, try to find by name via Swagger endpoint
+      let resolvedBankCode = bankCode
+      if (!resolvedBankCode && bankName) {
+        try {
+          const r = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/banks/find`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: bankName }),
+          })
+          const j = await r.json().catch(() => null)
+          const found = Array.isArray(j?.banks) ? j.banks[0] : null
+          if (found?.code) resolvedBankCode = String(found.code)
+        } catch {}
+      }
+
+      const res = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/bank/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -25,7 +61,7 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
         },
         body: JSON.stringify({
           account_number: accountNumber,
-          bank_code: bankCode,
+          bank_code: resolvedBankCode || bankCode,
         }),
       });
       let data;
@@ -53,7 +89,7 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/bank/add`, {
+      const res = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/bank/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,7 +97,7 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
         },
         body: JSON.stringify({
           accountNumber,
-          bankCode,
+          bankCode: bankCode || (banks.find(b => b.name === bankName)?.code ?? ""),
           role,
           userId: user?.id,
         }),
@@ -96,18 +132,26 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
           onChange={e => setAccountNumber(e.target.value)}
           className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
-        <input
-          type="text"
-          placeholder="Bank Code (e.g. 044)"
-          value={bankCode}
-          onChange={e => setBankCode(e.target.value)}
-          className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 placeholder-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
+        <select
+          value={bankName}
+          onChange={e => {
+            const name = e.target.value
+            setBankName(name)
+            const matched = banks.find(b => b.name === name)
+            setBankCode(matched?.code || "")
+          }}
+          className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+        >
+          <option value="">Select Bank</option>
+          {banks.map((b) => (
+            <option key={b.code} value={b.name}>{b.name}</option>
+          ))}
+        </select>
         <select value={role} onChange={e => setRole(e.target.value)} className="w-full p-3 rounded-lg bg-green-200/50 border border-green-300 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500">
           <option value="user">User</option>
           <option value="host">Host</option>
         </select>
-        <GameButton disabled={loading || !accountNumber || !bankCode} onClick={handleVerify} className="w-full">
+        <GameButton disabled={loading || !accountNumber || !(bankCode || bankName)} onClick={handleVerify} className="w-full">
           {loading ? "Verifying..." : "Verify Account"}
         </GameButton>
         {accountName && (
