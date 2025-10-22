@@ -9,9 +9,8 @@ export function mockOpponentMove(
 ): Position | null {
   const availableMoves = getAvailableMoves(board)
 
-  // Candidate pruning: only consider moves within a small radius of existing pieces
-  const candidateMoves = getNearbyCandidates(board, 3)
-  const movesToConsider = candidateMoves.length > 0 ? candidateMoves : availableMoves
+  // Final-boss mode: consider all moves so we don't miss distant blocks
+  const movesToConsider = availableMoves
 
   if (availableMoves.length === 0) {
     return null
@@ -22,13 +21,13 @@ export function mockOpponentMove(
   const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
   if (blockingMove) return blockingMove
 
-  // 2. Second priority: Try to win immediately
+  // 2. Second priority: Aggressively block emerging threats (length >= 2 with openness)
+  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, currentPlayer, movesToConsider)
+  if (threatBlockingMove) return threatBlockingMove
+
+  // 3. Third priority: Try to win immediately
   const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
   if (winningMove) return winningMove
-
-  // 3. Third priority: Aggressively block emerging threats (length 2–4 with openness)
-  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, movesToConsider)
-  if (threatBlockingMove) return threatBlockingMove
 
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
   const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
@@ -104,20 +103,35 @@ function findWinningMove(
   return null
 }
 
-// Threat detection: find opponent patterns of length 2–4 with open ends and block the best
+// Threat detection: aggressively block opponent patterns of length >= 2 with openness
 function findThreatBlockingMove(
   board: GameBoard,
   opponent: Player,
+  self: Player,
   availableMoves: Position[],
 ): Position | null {
-  let best: { position: Position; score: number } | null = null
+  let best: { position: Position; score: number; selfTie: number } | null = null
 
   for (const [row, col] of availableMoves) {
     // Hypothetically place opponent here to evaluate threat growth prevented
     const score = evaluateThreatBlockedByMove(board, opponent, row, col)
     if (score > 0) {
-      if (!best || score > best.score) {
-        best = { position: [row, col], score }
+      // Tie-breaker: if two blocks are equally strong defensively, prefer the one that also
+      // improves our own potential (longer line with open ends)
+      let selfTie = 0
+      const directions: Position[] = [
+        [-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1],
+      ]
+      for (const [dr, dc] of directions) {
+        const { length, openEnds } = measureLine(board, self, row, col, dr, dc)
+        if (length > 0 && openEnds > 0) {
+          const endsMultiplier = openEnds === 2 ? 2 : 1
+          selfTie += Math.pow(length, 2) * endsMultiplier
+        }
+      }
+
+      if (!best || score > best.score || (score === best.score && selfTie > best.selfTie)) {
+        best = { position: [row, col], score, selfTie }
       }
     }
   }
@@ -132,7 +146,8 @@ function evaluateThreatBlockedByMove(
   col: number,
 ): number {
   // Block threats by occupying the empty that would extend or keep open an opponent line
-  // Score higher for blocking longer, more open lines (e.g., open-3, open-2)
+  // Score higher for blocking longer, more open lines (e.g., open-4, open-3, open-2)
+  // Use an aggressive weighting to prioritize defense over offense
   let total = 0
   const directions: Position[] = [
     [-1, -1],
@@ -147,11 +162,14 @@ function evaluateThreatBlockedByMove(
 
   for (const [dr, dc] of directions) {
     const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc);
-    // Only consider emerging threats (2–3) with at least one open end
-    if (length >= 2 && length <= 3 && openEnds > 0) {
-      // Heuristic: longer lines and more open ends are more dangerous
-      const threatScore = length * length * (openEnds === 2 ? 2 : 1);
-      total += threatScore;
+    // Consider any emerging threat length >= 2 with at least one open end
+    if (length >= 2 && openEnds > 0) {
+      // Heuristic: cubic growth by length, and strong bias for two open ends
+      const endsMultiplier = openEnds === 2 ? 3 : 1.5
+      // Boost for very long lines (>=4) to ensure we always block them
+      const longBoost = length >= 4 ? 2 : 1
+      const threatScore = Math.pow(length, 3) * endsMultiplier * longBoost
+      total += threatScore
     }
   }
 
