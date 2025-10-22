@@ -56,84 +56,104 @@ class ApiClient {
       headers["Authorization"] = `Bearer ${this.token}`
     }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      })
-      // Check content type and try to parse JSON when possible. If the server returns HTML
-      // (for example an error page), avoid throwing a JSON parsing error and return a
-      // readable error string instead.
-      // response.headers may be missing or not implement .get in test mocks
-      let contentType = ""
+    const attempts = API_CONFIG.RETRY.ATTEMPTS || 1
+    const baseDelay = API_CONFIG.RETRY.DELAY || 0
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
       try {
-        if (response && response.headers && typeof (response.headers as any).get === 'function') {
-          contentType = (response.headers as any).get("content-type") || ""
-        } else if (response && response.headers) {
-          // Some test mocks set headers as a plain object; tolerate that shape
-          const h: any = response.headers
-          contentType = h['content-type'] || h['Content-Type'] || ""
-        } else {
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : undefined
+        let timeoutId: any = null
+        if (controller && API_CONFIG.TIMEOUT > 0) {
+          timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
+        }
+        const response = await fetch(url, {
+          ...options,
+          headers,
+          signal: controller ? (controller as AbortController).signal : undefined,
+        })
+        if (timeoutId) clearTimeout(timeoutId)
+
+        let contentType = ""
+        try {
+          if (response && response.headers && typeof (response.headers as any).get === 'function') {
+            contentType = (response.headers as any).get("content-type") || ""
+          } else if (response && response.headers) {
+            const h: any = response.headers
+            contentType = h['content-type'] || h['Content-Type'] || ""
+          } else {
+            contentType = ""
+          }
+        } catch (err) {
           contentType = ""
         }
-      } catch (err) {
-        contentType = ""
-      }
 
-      let parsed: any = null
+        let parsed: any = null
 
-      // Prefer JSON parsing when response.json exists (mocks often omit headers)
-      if (response && typeof (response as any).json === 'function') {
-        try {
-          parsed = await (response as any).json()
-        } catch (err) {
-          // If JSON parsing fails, try text as a fallback
+        if (response && typeof (response as any).json === 'function') {
+          try {
+            parsed = await (response as any).json()
+          } catch (err) {
+            try {
+              const text = await (response as any).text()
+              parsed = { error: `Invalid JSON response`, raw: text }
+            } catch (err2) {
+              parsed = { error: `Invalid JSON response and no text available` }
+            }
+          }
+        } else {
           try {
             const text = await (response as any).text()
-            parsed = { error: `Invalid JSON response`, raw: text }
-          } catch (err2) {
-            parsed = { error: `Invalid JSON response and no text available` }
+            parsed = { error: `Non-JSON response`, raw: text }
+          } catch (err) {
+            parsed = { error: `Non-JSON response and no text available` }
           }
         }
-      } else {
-        // Non-JSON response (HTML or plain text). Capture text for diagnostics if available.
-        try {
-          const text = await (response as any).text()
-          parsed = { error: `Non-JSON response`, raw: text }
-        } catch (err) {
-          parsed = { error: `Non-JSON response and no text available` }
-        }
-      }
 
-      if (!response.ok) {
-        const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
-        const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
-        if (response.status === 401 && typeof window !== 'undefined') {
-          try {
-            const ret = `${window.location.pathname}${window.location.search}${window.location.hash}`
-            localStorage.setItem('return_to', ret)
-          } catch {}
-          this.clearToken()
-          try {
-            window.location.href = '/onboarding'
-          } catch {}
+        if (!response.ok) {
+          const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
+          const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
+          if (response.status === 401 && typeof window !== 'undefined') {
+            try {
+              const ret = `${window.location.pathname}${window.location.search}${window.location.hash}`
+              localStorage.setItem('return_to', ret)
+            } catch {}
+            this.clearToken()
+            try {
+              window.location.href = '/onboarding'
+            } catch {}
+          }
+          const retriable = response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504 || (typeof safeMsg === "string" && /timeout/i.test(safeMsg as string))
+          if (retriable && attempt < attempts - 1) {
+            const delay = baseDelay * Math.pow(2, attempt)
+            if (delay > 0) await new Promise(r => setTimeout(r, delay))
+            continue
+          }
+          return {
+            success: false,
+            error: safeMsg || `HTTP ${response.status}`,
+          }
+        }
+
+        return {
+          success: true,
+          data: parsed,
+        }
+      } catch (error) {
+        if (attempt < attempts - 1) {
+          const delay = baseDelay * Math.pow(2, attempt)
+          if (delay > 0) await new Promise(r => setTimeout(r, delay))
+          continue
         }
         return {
           success: false,
-          error: safeMsg || `HTTP ${response.status}`,
+          error: error instanceof Error ? error.message : "Network error",
         }
       }
+    }
 
-      // Success: return parsed JSON if available, otherwise return raw text under data
-      return {
-        success: true,
-        data: parsed,
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Network error",
-      }
+    return {
+      success: false,
+      error: "Network error",
     }
   }
 

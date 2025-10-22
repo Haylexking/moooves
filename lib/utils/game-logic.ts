@@ -39,6 +39,12 @@ export function checkWinConditions(
       const beginsAtEdgeOrInterruption = !isValidPosition(beforeR, beforeC) || board[beforeR][beforeC] !== player
 
       if (beginsAtEdgeOrInterruption) {
+        // If any position in the contiguous run has previously been part of a scored sequence,
+        // do NOT award again. This blocks scoring when a run gets extended (6, 7, ...).
+        const runIntersectsUsed = sequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
+        if (runIntersectsUsed) {
+          continue
+        }
         // Always consider only the first 5 cells of the contiguous run as the unique identifier
         const fiveSequence = sequence.slice(0, 5)
         const canonicalKey = canonicalSeqKey(fiveSequence)
