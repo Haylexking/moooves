@@ -7,6 +7,7 @@ import { GameButton } from "./game-button"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { toast } from "@/hooks/use-toast"
+import { apiClient } from "@/lib/api/client"
 
 export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const router = useRouter()
@@ -53,13 +54,33 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const handleJoinGame = async () => {
     if (!roomCode) {
-      toast({ title: "Missing code", description: "Enter a room code", variant: "destructive" })
+      toast({ title: "Missing code", description: "Enter a room code or token", variant: "destructive" })
       return
     }
     setLoading(true)
     try {
-      await matchRoom.joinRoom(roomCode, "")
-      toast({ title: "Joined", description: `Joined ${roomCode}`, variant: "default" })
+      const code = roomCode.trim()
+      // Try to resolve the provided code/token to a backend room and handshake token
+      const rooms = await apiClient.getAllMatchRooms()
+      const target = rooms.data?.find((r: any) => {
+        const id = r.id || r._id || r.roomId
+        const rc = r.roomCode || r.code || id
+        const bt = r.bluetoothToken || r.handshakeToken || ""
+        return (
+          String(id) === code ||
+          String(rc).toUpperCase() === code.toUpperCase() ||
+          (bt && String(bt).toUpperCase().includes(code.toUpperCase()))
+        )
+      })
+
+      if (!target) {
+        throw new Error("No matching room found for the provided code/token")
+      }
+
+      const resolvedRoomId = target.id || target._id || target.roomId
+      const handshakeToken = target.handshakeToken || target.bluetoothToken || ""
+      await matchRoom.joinRoom(resolvedRoomId, handshakeToken)
+      toast({ title: "Joined", description: `Joined ${resolvedRoomId}`, variant: "default" })
       handleClose(false)
       router.push("/game?mode=p2p&role=guest")
     } catch (err) {
@@ -175,12 +196,12 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
           {flow === "guest-connecting" && (
             <div className="space-y-4">
               <div className="bg-green-200/50 rounded-xl p-4">
-                <label className="text-sm font-bold text-green-900 mb-2 block">Room Code</label>
+                <label className="text-sm font-bold text-green-900 mb-2 block">Room Code or Token</label>
                 <input
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  placeholder="Enter 6-digit code"
-                  maxLength={12}
+                  placeholder="Enter room code or token"
+                  maxLength={64}
                   className="w-full px-4 py-3 rounded-lg border-2 border-green-400 bg-white text-green-900 font-bold text-center text-lg tracking-wider focus:outline-none focus:ring-2 focus:ring-green-600"
                 />
               </div>

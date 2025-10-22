@@ -134,7 +134,8 @@ export function OfflineGameSetup() {
       if (bluetooth.isConnected && bluetooth.connectedDevice) {
         // Create room on backend; backend returns a bluetoothToken which we should share with peer
         const created = await matchRoom.createRoom()
-        const tokenToShare = created?.bluetoothToken || created?.roomCode || created?.roomId
+        // Prefer short roomCode for BLE to avoid JSON chunking; fallback to roomId, then bluetoothToken
+        const tokenToShare = created?.roomCode || created?.roomId || created?.bluetoothToken
         if (tokenToShare) {
           // Send token over Bluetooth to peer so they can call joinMatchRoom with handshakeToken
           try {
@@ -168,26 +169,36 @@ export function OfflineGameSetup() {
   }
 
   const handleWiFiJoin = async () => {
-    if (!roomCode.trim()) return
+    const code = roomCode.trim()
+    if (!code) return
 
     try {
       setRetryCount(0)
-      await wifi.joinGame(roomCode.trim().toUpperCase())
+      const upper = code.toUpperCase()
+      const isLocalShortCode = /^[A-Z0-9]{6}$/.test(upper)
+
+      if (isLocalShortCode) {
+        // Local WiFi signalling flow
+        await wifi.joinGame(upper)
+      }
+
+      // Try to resolve against backend rooms as well
       const rooms = await apiClient.getAllMatchRooms()
-      // Backend may store a token under bluetoothToken or handshakeToken or simply expose a roomCode
       const targetRoom = rooms.data?.find((room: any) => {
-        const code = room.roomCode || room.code || room.roomId || room._id || room.id
+        const id = room.id || room._id || room.roomId
+        const rc = room.roomCode || room.code || id
         const bt = room.bluetoothToken || room.handshakeToken
         return (
-          code === roomCode.trim().toUpperCase() ||
-          (bt && String(bt).includes(roomCode.trim().toUpperCase()))
+          String(id) === code ||
+          String(rc).toUpperCase() === upper ||
+          (bt && String(bt).toUpperCase().includes(upper))
         )
       })
       if (targetRoom) {
-        // If backend requires handshakeToken, we expect the host to have shared it over the local channel.
-        // For WiFi join flow using localStorage signalling, there may be no handshake token; pass empty string if unknown.
         const handshakeToken = targetRoom.handshakeToken || targetRoom.bluetoothToken || ""
         await matchRoom.joinRoom(targetRoom.id || targetRoom._id || targetRoom.roomId, handshakeToken)
+      } else if (!isLocalShortCode) {
+        throw new Error('No matching backend room found for the provided token')
       }
     } catch (error) {
       console.error("Failed to join game:", error)
@@ -304,13 +315,13 @@ export function OfflineGameSetup() {
                     Join Game
                   </h3>
                   <div className="space-y-2">
-                    <Label htmlFor="roomCode">Room Code</Label>
+                    <Label htmlFor="roomCode">Room Code or Token</Label>
                     <Input
                       id="roomCode"
                       value={roomCode}
                       onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                      placeholder="Enter 6-digit code"
-                      maxLength={6}
+                      placeholder="Enter code or token"
+                      maxLength={64}
                       disabled={wifi.isConnected}
                     />
                   </div>

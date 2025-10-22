@@ -22,6 +22,9 @@ export function checkWinConditions(
   const newUsedPositions: Position[] = []
   let scoreIncrease = 0
   const awardedKeys = new Set<string>()
+  // Track positions that are already used OR awarded earlier in this call to avoid
+  // overlapping sequences across different directions in the same move.
+  const usedOrNew = new Set<string>(usedPositions)
 
   // Build a quick lookup of already-used sequences using a canonical string key
   const usedSequenceKeys = new Set<string>(usedSequences.map((s) => canonicalSeqKey(s)))
@@ -44,7 +47,7 @@ export function checkWinConditions(
         // been used before and do not contain any used positions.
         for (let i = 0; i <= sequence.length - 5; i += 5) {
           const block = sequence.slice(i, i + 5)
-          const hasUsed = block.some(([r, c]) => usedPositions.has(`${r},${c}`))
+          const hasUsed = block.some(([r, c]) => usedOrNew.has(`${r},${c}`))
           if (hasUsed) continue
 
           const blockKey = canonicalSeqKey(block)
@@ -54,6 +57,8 @@ export function checkWinConditions(
             newUsedPositions.push(...canonicalSeq)
             awardedKeys.add(blockKey)
             scoreIncrease++
+            // Mark these positions as used for the remainder of this call
+            for (const [r, c] of canonicalSeq) usedOrNew.add(`${r},${c}`)
           }
         }
       }
