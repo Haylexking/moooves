@@ -39,22 +39,22 @@ export function checkWinConditions(
       const beginsAtEdgeOrInterruption = !isValidPosition(beforeR, beforeC) || board[beforeR][beforeC] !== player
 
       if (beginsAtEdgeOrInterruption) {
-        // If any position in the contiguous run has previously been part of a scored sequence,
-        // do NOT award again. This blocks scoring when a run gets extended (6, 7, ...).
-        const runIntersectsUsed = sequence.some(([r, c]) => usedPositions.has(`${r},${c}`))
-        if (runIntersectsUsed) {
-          continue
-        }
-        // Always consider only the first 5 cells of the contiguous run as the unique identifier
-        const fiveSequence = sequence.slice(0, 5)
-        const canonicalKey = canonicalSeqKey(fiveSequence)
+        // Award one point per NON-OVERLAPPING 5-block within this contiguous run.
+        // Blocks: [0..4], [5..9], [10..14], ... Only award blocks that have not
+        // been used before and do not contain any used positions.
+        for (let i = 0; i <= sequence.length - 5; i += 5) {
+          const block = sequence.slice(i, i + 5)
+          const hasUsed = block.some(([r, c]) => usedPositions.has(`${r},${c}`))
+          if (hasUsed) continue
 
-        if (!usedSequenceKeys.has(canonicalKey) && !awardedKeys.has(canonicalKey)) {
-          const canonicalSeq = canonicalSeqFromKey(canonicalKey)
-          newSequences.push(canonicalSeq)
-          newUsedPositions.push(...canonicalSeq)
-          awardedKeys.add(canonicalKey)
-          scoreIncrease++
+          const blockKey = canonicalSeqKey(block)
+          if (!usedSequenceKeys.has(blockKey) && !awardedKeys.has(blockKey)) {
+            const canonicalSeq = canonicalSeqFromKey(blockKey)
+            newSequences.push(canonicalSeq)
+            newUsedPositions.push(...canonicalSeq)
+            awardedKeys.add(blockKey)
+            scoreIncrease++
+          }
         }
       }
     }
