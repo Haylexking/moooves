@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Users, DollarSign, Clock, Trophy } from "lucide-react"
 import { useState } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiClient } from "@/lib/api/client"
 
 interface JoinTournamentFlowProps {
   tournament: Tournament;
@@ -23,57 +24,27 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
     setError(null);
     try {
       // 1. Initiate payment for tournament entry fee
-      const paymentRes = await fetch(`/api/v1/initial`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({
-          tournamentId: tournament.id,
-          amount: tournament.entryFee,
-          method: "card", // or "bank_transfer" if supported
-          redirectUrl: window.location.href,
-        }),
-      });
-      const paymentData = await paymentRes.json();
-      if (!paymentRes.ok || !paymentData.success) {
-        throw new Error(paymentData.error || "Payment initiation failed");
-      }
+      const init = await apiClient.initWalletTransaction({ amount: tournament.entryFee, method: "card", redirectUrl: window.location.href })
+      if (!init.success) throw new Error(init.error || "Payment initiation failed")
+      const paymentData: any = init.data || {}
 
       // 2. (Optional) Redirect to payment gateway if required
       // If paymentData contains a paymentUrl, redirect user
-      if (paymentData.data?.paymentUrl) {
+      if (paymentData?.data?.paymentUrl) {
         window.location.href = paymentData.data.paymentUrl;
         return;
       }
 
-      // 3. Verify payment (simulate immediate success for demo)
-      // In production, use webhook/callback for verification
-      const verifyRes = await fetch(`/api/v1/verify?transaction_id=${paymentData.data?.transactionId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-      });
-      const verifyData = await verifyRes.json();
-      if (!verifyRes.ok || !verifyData.success) {
-        throw new Error(verifyData.error || "Payment verification failed");
+      // 3. Verify payment (if transactionId present)
+      if (paymentData?.data?.transactionId) {
+        const ver = await apiClient.verifyWalletTransaction({ transactionId: paymentData.data.transactionId })
+        if (!ver.success) throw new Error(ver.error || "Payment verification failed")
       }
 
       // 4. Join tournament after successful payment
-      const joinRes = await fetch(`/api/v1/tournaments/join/${inviteCode}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({ paymentMethod: "card" }),
-      });
-      const joinData = await joinRes.json();
-      if (!joinRes.ok || !joinData.success) {
-        throw new Error(joinData.error || "Failed to join tournament");
-      }
+      if (!user?.id) throw new Error("You must be signed in to join the tournament")
+      const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
+      if (!join.success) throw new Error(join.error || "Failed to join tournament")
 
       alert("Successfully joined tournament!");
       // Optionally, redirect or update UI

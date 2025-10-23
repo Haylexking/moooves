@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { GameButton } from "@/components/ui/game-button";
-import { authFetch } from "@/lib/utils/auth-fetch";
+import { apiClient } from "@/lib/api/client";
 
 export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
   const { user } = useAuthStore();
@@ -19,10 +19,10 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
     let mounted = true
     const loadBanks = async () => {
       try {
-        const res = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/banks`)
-        const data = await res.json().catch(() => null)
+        const res = await apiClient.listBanks()
         if (!mounted) return
-        const list = (data?.banks || []) as Array<{ name: string; code: string }>
+        const data: any = res.data || {}
+        const list = (data?.banks || data) as Array<{ name: string; code: string }>
         if (Array.isArray(list)) setBanks(list)
       } catch {}
     }
@@ -40,42 +40,14 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
       let resolvedBankCode = bankCode
       if (!resolvedBankCode && bankName) {
         try {
-          const r = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/banks/find`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ name: bankName }),
-          })
-          const j = await r.json().catch(() => null)
+          const r = await apiClient.findBankByName(bankName)
+          const j: any = r.data || {}
           const found = Array.isArray(j?.banks) ? j.banks[0] : null
           if (found?.code) resolvedBankCode = String(found.code)
         } catch {}
       }
-
-      const res = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/bank/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({
-          account_number: accountNumber,
-          bank_code: resolvedBankCode || bankCode,
-        }),
-      });
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        setError("Invalid response from server. Please check your details and try again.");
-        return;
-      }
-      if (!res.ok || !data.account_name) {
-        setError(data.message || "Verification failed");
-        return;
-      }
-      setAccountName(data.account_name);
+      // No dedicated verify endpoint in Swagger. We'll confirm on save (add), which returns accountName.
+      setBankCode(resolvedBankCode || bankCode)
     } catch (err: any) {
       setError(err.message || "Verification error");
     } finally {
@@ -89,30 +61,20 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await authFetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/bank/add`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({
-          accountNumber,
-          bankCode: bankCode || (banks.find(b => b.name === bankName)?.code ?? ""),
-          role,
-          userId: user?.id,
-        }),
-      });
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        setError("Invalid response from server. Please check your details and try again.");
-        return;
+      const payload = {
+        accountNumber,
+        bankCode: bankCode || (banks.find(b => b.name === bankName)?.code ?? ""),
+        role,
+        userId: user?.id,
       }
-      if (!res.ok || !data.accountName) {
-        setError(data.message || "Failed to save bank details");
-        return;
+      const ar = await apiClient.addBank(payload)
+      const data: any = ar.data || {}
+      if (!ar.success) {
+        setError((ar.error || data?.message) || "Failed to save bank details")
+        return
       }
+      // If backend returns accountName (per Swagger), reflect it
+      if (data.accountName) setAccountName(data.accountName)
       if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.message || "Save error");

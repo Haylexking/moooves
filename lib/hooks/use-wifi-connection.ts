@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { logDebug } from '@/lib/hooks/use-debug-logger'
 import type { Move } from "@/lib/types"
+import { API_CONFIG } from "@/lib/config/api-config"
 
 interface WiFiConnectionState {
   isSupported: boolean
@@ -50,6 +51,10 @@ export function useWiFiConnection() {
     iceServers,
     iceCandidatePoolSize: 10,
   }
+
+  // Prefer backend signaling if API base is configured; fallback to local Next.js API
+  const SIGNALING_BASE = API_CONFIG.BASE_URL ? `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}` : ""
+  const sig = (path: string) => (SIGNALING_BASE ? `${SIGNALING_BASE}${path}` : `/api${path}`)
 
   // Handle incoming messages
   const handleDataChannelMessage = useCallback((event: MessageEvent) => {
@@ -174,7 +179,7 @@ export function useWiFiConnection() {
       const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
       // Send offer to backend signaling
       try {
-        await fetch("/api/webrtc/offer", {
+        await fetch(sig("/webrtc/offer"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomId: roomCode, sdp: offer }),
@@ -196,7 +201,7 @@ export function useWiFiConnection() {
       // Flush buffered ICE to server
       try {
         for (const cand of pendingCandidatesRef.current.splice(0)) {
-          await fetch("/api/webrtc/ice", {
+          await fetch(sig("/webrtc/ice"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ roomId: roomCode, candidate: cand, from: "host" }),
@@ -229,12 +234,28 @@ export function useWiFiConnection() {
     }
   }, [initializePeerConnection, setupDataChannel])
 
+  // Process pending ICE candidates (localStorage fallback) — declared before use
+  const processPendingCandidates = useCallback(() => {
+    const candidatesData = localStorage.getItem("moooves_ice_candidates")
+    if (candidatesData && peerConnectionRef.current) {
+      try {
+        const candidates = JSON.parse(candidatesData)
+        const relevantCandidates = candidates.filter((item: any) => item.from !== (state.isHosting ? "host" : "guest"))
+        relevantCandidates.forEach((item: any) => {
+          peerConnectionRef.current?.addIceCandidate(new RTCIceCandidate(item.candidate))
+        })
+      } catch (error) {
+        logDebug('WiFi', { event: 'process-ice-error', error: String(error) })
+      }
+    }
+  }, [state.isHosting])
+
   // Poll for answer from guest
   const pollForAnswer = useCallback((roomCode: string) => {
     const pollInterval = setInterval(async () => {
       try {
         // Try server
-        const res = await fetch(`/api/webrtc/answer?roomId=${encodeURIComponent(roomCode)}`)
+        const res = await fetch(`${sig("/webrtc/answer")}?roomId=${encodeURIComponent(roomCode)}`)
         if (res.ok) {
           const json = await res.json()
           if (json?.found && json?.sdp && peerConnectionRef.current) {
@@ -275,7 +296,7 @@ export function useWiFiConnection() {
         // Try to fetch offer from backend
         let offer: any | null = null
         try {
-          const res = await fetch(`/api/webrtc/offer?roomId=${encodeURIComponent(roomCode.toUpperCase())}`)
+          const res = await fetch(`${sig("/webrtc/offer")}?roomId=${encodeURIComponent(roomCode.toUpperCase())}`)
           if (res.ok) {
             const json = await res.json()
             if (json?.found && json?.sdp) offer = json.sdp
@@ -302,7 +323,7 @@ export function useWiFiConnection() {
 
         // Send answer to backend and fallback to localStorage
         try {
-          await fetch("/api/webrtc/answer", {
+          await fetch(sig("/webrtc/answer"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ roomId: roomCode.toUpperCase(), sdp: answer }),
@@ -323,7 +344,7 @@ export function useWiFiConnection() {
         // Flush buffered ICE to server
         try {
           for (const cand of pendingCandidatesRef.current.splice(0)) {
-            await fetch("/api/webrtc/ice", {
+            await fetch(sig("/webrtc/ice"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ roomId: roomCode.toUpperCase(), candidate: cand, from: "guest" }),
@@ -352,26 +373,12 @@ export function useWiFiConnection() {
     [initializePeerConnection],
   )
 
-  // Process pending ICE candidates
-  const processPendingCandidates = useCallback(() => {
-    const candidatesData = localStorage.getItem("moooves_ice_candidates")
-    if (candidatesData && peerConnectionRef.current) {
-      try {
-        const candidates = JSON.parse(candidatesData)
-        const relevantCandidates = candidates.filter((item: any) => item.from !== (state.isHosting ? "host" : "guest"))
-        relevantCandidates.forEach((item: any) => {
-          peerConnectionRef.current?.addIceCandidate(new RTCIceCandidate(item.candidate))
-        })
-      } catch (error) {
-        logDebug('WiFi', { event: 'process-ice-error', error: String(error) })
-      }
-    }
-  }, [state.isHosting])
+  // (moved above)
 
   const pollServerCandidates = useCallback((roomId: string) => {
     const loop = async () => {
       try {
-        const res = await fetch(`/api/webrtc/ice?roomId=${encodeURIComponent(roomId)}&after=${lastIceTimestampRef.current}`)
+        const res = await fetch(`${sig("/webrtc/ice")}?roomId=${encodeURIComponent(roomId)}&after=${lastIceTimestampRef.current}`)
         if (res.ok) {
           const json = await res.json()
           const candidates = json?.candidates || []

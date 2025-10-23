@@ -1,8 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { authFetch } from "@/lib/utils/auth-fetch"
-import { GameButton } from "@/components/ui/game-button"
+import { apiClient } from "@/lib/api/client"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 export interface SavedBank {
@@ -43,22 +42,14 @@ export function SavedBanksModal({
           setLoading(false)
           return
         }
-        const roleParam = user.role === 'player' ? 'user' : user.role
-        const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/${roleParam}/${user.id}`
-        const res = await authFetch(url, {
-          headers: {
-            Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem("auth_token") : ""}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) {
+        const res = await apiClient.getSavedBanks(user.id, user.role)
+        if (!res.success) {
           setBanks([])
-          try { console.debug('SavedBanks', { method: 'GET', url, status: res.status }) } catch {}
-          setError(`Failed to load banks`)
+          setError(res.error || 'Failed to load banks')
           setLoading(false)
           return
         }
-        const payload = await res.json().catch(() => null)
+        const payload: any = res.data
         const raw = Array.isArray(payload?.data)
           ? payload.data
           : payload?.data

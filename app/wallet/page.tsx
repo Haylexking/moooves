@@ -7,7 +7,7 @@ import type { SavedBank } from "@/components/ui/saved-banks-modal"
 import { GameButton } from "@/components/ui/game-button"
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { authFetch } from "@/lib/utils/auth-fetch"
+import { apiClient } from "@/lib/api/client"
 
 interface Transaction {
   id: string
@@ -40,22 +40,18 @@ export default function WalletPage() {
     // Fetch wallet data from backend
     const fetchWalletData = async () => {
       try {
-        // @deprecated Temporary placeholder until Swagger wallet balance endpoint is confirmed
-        const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet`
-        const response = await authFetch(url, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-            "Content-Type": "application/json",
-          },
-        })
-        console.debug("Wallet", { method: "GET", url, status: response.status })
-        if (response.ok) {
-          const data = await response.json()
-          setBalance(data.balance || 0)
-          setTransactions(data.transactions || [])
+        const res = await apiClient.getWalletSummary()
+        if (res.success) {
+          const d: any = res.data || {}
+          const bal = d.balance ?? d.data?.balance ?? 0
+          const tx = Array.isArray(d.transactions) ? d.transactions : (Array.isArray(d.data?.transactions) ? d.data.transactions : [])
+          setBalance(Number(bal) || 0)
+          setTransactions(tx as any)
+        } else {
+          console.debug("Wallet", { method: "GET", error: res.error })
         }
       } catch (error) {
-        console.debug("Wallet", { method: "GET", url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/wallet`, error: String(error) })
+        console.debug("Wallet", { method: "GET", error: String(error) })
       }
     }
     fetchWalletData()
@@ -75,32 +71,16 @@ export default function WalletPage() {
     }
     setIsLoading(true)
     try {
-      // @deprecated Temporary placeholder until Swagger payment init endpoint is confirmed
-      const initUrl = `/api/v1/initial`
-      const res = await authFetch(initUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({
-          amount: Number.parseFloat(amount),
-          method: "bank_transfer",
-          redirectUrl: window.location.href,
-        }),
-      })
-      console.debug("Wallet", { method: "POST", url: initUrl, status: res.status })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
+      const res = await apiClient.initWalletTransaction({ amount: Number.parseFloat(amount), method: "bank_transfer", redirectUrl: window.location.href })
+      if (!res.success) {
         setActiveModal("failed")
-        throw new Error(data.error || "Wallet top-up failed")
+        throw new Error(res.error || res.message || "Wallet top-up failed")
       }
-      // Optionally, redirect to payment gateway if required
+      const data: any = res.data || {}
       if (data.data?.paymentUrl) {
         window.location.href = data.data.paymentUrl
         return
       }
-      // Simulate success for demo
       setBalance((prev) => prev + Number.parseFloat(amount))
       setActiveModal("success")
       setAmount("")
@@ -122,8 +102,8 @@ export default function WalletPage() {
     }
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const res = await apiClient.withdrawWallet({ amount: Number.parseFloat(amount), beneficiaryId: String(selectedBank.id || ""), narration: reason })
+      if (!res.success) throw new Error(res.error || "Withdraw request failed")
       setActiveModal("requestSuccess")
       setAmount("")
     } catch (error) {
@@ -140,32 +120,16 @@ export default function WalletPage() {
     }
     setIsLoading(true)
     try {
-      // @deprecated Temporary placeholder until Swagger payment init endpoint is confirmed
-      const initUrl = `/api/v1/initial`
-      const res = await authFetch(initUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify({
-          amount: Number.parseFloat(amount),
-          method: "card",
-          redirectUrl: window.location.href,
-        }),
-      })
-      console.debug("Wallet", { method: "POST", url: initUrl, status: res.status })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
+      const res = await apiClient.initWalletTransaction({ amount: Number.parseFloat(amount), method: "card", redirectUrl: window.location.href })
+      if (!res.success) {
         setActiveModal("failed")
-        throw new Error(data.error || "Card payment failed")
+        throw new Error(res.error || res.message || "Card payment failed")
       }
-      // Optionally, redirect to payment gateway if required
+      const data: any = res.data || {}
       if (data.data?.paymentUrl) {
         window.location.href = data.data.paymentUrl
         return
       }
-      // Simulate success for demo
       setBalance((prev) => prev + Number.parseFloat(amount))
       setActiveModal("success")
       setAmount("")
