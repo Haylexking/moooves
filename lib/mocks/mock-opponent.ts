@@ -16,27 +16,44 @@ export function mockOpponentMove(
     return null
   }
 
-  // 1. First priority: Block opponent immediate win
+  // 1. First priority: Try to win immediately
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
-  const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
-  if (blockingMove) return blockingMove
-
-  // 2. Second priority: Aggressively block emerging threats (length >= 2 with openness)
-  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, currentPlayer, movesToConsider)
-  if (threatBlockingMove) return threatBlockingMove
-
-  // 3. Third priority: Try to win immediately
   const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
   if (winningMove) return winningMove
 
+  // 2. Second priority: Block opponent immediate win
+  const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
+  if (blockingMove) return blockingMove
+
+  // 3. Third priority: Aggressively block emerging threats (length >= 2 with openness)
+  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, currentPlayer, movesToConsider)
+  if (threatBlockingMove) return threatBlockingMove
+
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
   const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
-  if (strategicMove) return strategicMove
+  if (strategicMove) {
+    // One-ply safety: avoid moves that hand opponent an immediate win
+    if (!wouldGiveOpponentImmediateWin(board, strategicMove[0], strategicMove[1], currentPlayer, usedSequences, currentScores)) {
+      return strategicMove
+    }
+    // Try to find the best safe strategic alternative
+    let bestSafe: { pos: Position; score: number } | null = null
+    for (const [r, c] of movesToConsider) {
+      if (wouldGiveOpponentImmediateWin(board, r, c, currentPlayer, usedSequences, currentScores)) continue
+      const s = evaluateSelfStrategic(board, currentPlayer, r, c)
+      if (!bestSafe || s > bestSafe.score) bestSafe = { pos: [r, c], score: s }
+    }
+    if (bestSafe) return bestSafe.pos
+  }
 
   // 5. Fifth priority: Move near existing pieces
   // If pruning was used, try to pick from candidateMoves; as a fallback use the existing nearby heuristic
   const nearbyMove = findNearbyMove(board, movesToConsider)
-  if (nearbyMove) return nearbyMove
+  if (nearbyMove) {
+    if (!wouldGiveOpponentImmediateWin(board, nearbyMove[0], nearbyMove[1], currentPlayer, usedSequences, currentScores)) {
+      return nearbyMove
+    }
+  }
 
   // 6. Fallback: Random move (prefer center area)
   const randomMove = getRandomMove(availableMoves)
@@ -101,6 +118,50 @@ function findWinningMove(
     if (newSequences.length > 0) return [row, col]
   }
   return null
+}
+
+function evaluateSelfStrategic(board: GameBoard, player: Player, row: number, col: number): number {
+  // Score a candidate move for offensive potential without mutating state
+  let score = 0
+  let forkDirs = 0
+  const directions: Position[] = [
+    [-1, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, -1],
+    [0, 1],
+    [1, -1],
+    [1, 0],
+    [1, 1],
+  ]
+  for (const [dr, dc] of directions) {
+    const { length, openEnds } = measureLine(board, player, row, col, dr, dc)
+    if (length > 0 && openEnds > 0) {
+      const base = length * length * (openEnds === 2 ? 2 : 1)
+      const fourBoost = length >= 3 ? 3 : 1
+      score += base * fourBoost
+      if (length >= 2) forkDirs++
+    }
+  }
+  if (forkDirs >= 2) score += forkDirs * forkDirs * 10
+  return score
+}
+
+function wouldGiveOpponentImmediateWin(
+  board: GameBoard,
+  row: number,
+  col: number,
+  self: Player,
+  usedSequences: Sequence[],
+  currentScores: Record<Player, number>,
+): boolean {
+  if (board[row][col] !== null) return true
+  const opponent: Player = self === 'X' ? 'O' : 'X'
+  const testBoard = board.map((r) => [...r])
+  testBoard[row][col] = self
+  const avail = getAvailableMoves(testBoard)
+  const threat = findWinningMove(testBoard, opponent, avail, usedSequences, currentScores)
+  return !!threat
 }
 
 // Threat detection: aggressively block opponent patterns of length >= 2 with openness
@@ -225,6 +286,7 @@ function findStrategicMove(
 
   for (const [row, col] of availableMoves) {
     let score = 0
+    let forkDirs = 0
 
     // Check all 8 directions for existing sequences to extend
     const directions = [
@@ -248,8 +310,14 @@ function findStrategicMove(
           const base = length * length * (openEnds === 2 ? 2 : 1)
           const fourBoost = length >= 3 ? 3 : 1
           score += base * fourBoost
+          if (length >= 2 && openEnds > 0) forkDirs++
         }
       }
+    }
+
+    // Fork bonus: creating threats in multiple directions in one move (double-threat)
+    if (forkDirs >= 2) {
+      score += forkDirs * forkDirs * 10
     }
 
     if (score > 0) {

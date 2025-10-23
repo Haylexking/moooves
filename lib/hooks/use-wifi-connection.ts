@@ -31,15 +31,23 @@ export function useWiFiConnection() {
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const messageHandlersRef = useRef<Map<string, (data: any) => void>>(new Map())
   const pendingCandidatesRef = useRef<RTCIceCandidate[]>([])
+  const lastIceTimestampRef = useRef<number>(0)
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // WebRTC configuration with free STUN servers
+  // WebRTC configuration with STUN and optional TURN from env
+  const TURN_URL = process.env.NEXT_PUBLIC_TURN_URL
+  const TURN_USERNAME = process.env.NEXT_PUBLIC_TURN_USERNAME || (process as any).env?.TURN_USERNAME
+  const TURN_CREDENTIAL = process.env.NEXT_PUBLIC_TURN_CREDENTIAL || (process as any).env?.TURN_CREDENTIAL
+  const iceServers: RTCIceServer[] = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+  ]
+  if (TURN_URL) {
+    iceServers.push({ urls: TURN_URL, username: TURN_USERNAME, credential: TURN_CREDENTIAL } as any)
+  }
   const rtcConfig: RTCConfiguration = {
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
-    ],
+    iceServers,
     iceCandidatePoolSize: 10,
   }
 
@@ -68,15 +76,18 @@ export function useWiFiConnection() {
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        // In production, send this to signaling server
-        // For local play, we'll use localStorage as simple signaling
-        const candidates = JSON.parse(localStorage.getItem("moooves_ice_candidates") || "[]")
-        candidates.push({
-          candidate: event.candidate,
-          timestamp: Date.now(),
-          from: state.isHosting ? "host" : "guest",
-        })
-        localStorage.setItem("moooves_ice_candidates", JSON.stringify(candidates))
+        // Buffer until we know roomCode, then flush to server
+        pendingCandidatesRef.current.push(event.candidate)
+        // Also update localStorage for same-device demo fallback
+        try {
+          const candidates = JSON.parse(localStorage.getItem("moooves_ice_candidates") || "[]")
+          candidates.push({
+            candidate: event.candidate,
+            timestamp: Date.now(),
+            from: state.isHosting ? "host" : "guest",
+          })
+          localStorage.setItem("moooves_ice_candidates", JSON.stringify(candidates))
+        } catch {}
       }
     }
 
@@ -161,22 +172,41 @@ export function useWiFiConnection() {
 
       // Generate room code and store offer
       const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-      localStorage.setItem(
-        "moooves_offer",
-        JSON.stringify({
-          offer: offer,
-          roomCode: roomCode,
-          timestamp: Date.now(),
-        }),
-      )
+      // Send offer to backend signaling
+      try {
+        await fetch("/api/webrtc/offer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId: roomCode, sdp: offer }),
+        })
+      } catch {}
+      // Fallback for same-device demo
+      try {
+        localStorage.setItem(
+          "moooves_offer",
+          JSON.stringify({ offer, roomCode, timestamp: Date.now() }),
+        )
+      } catch {}
 
       setState((prev) => ({
         ...prev,
         roomCode,
       }))
 
-      // Start polling for answer
+      // Flush buffered ICE to server
+      try {
+        for (const cand of pendingCandidatesRef.current.splice(0)) {
+          await fetch("/api/webrtc/ice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomId: roomCode, candidate: cand, from: "host" }),
+          })
+        }
+      } catch {}
+
+      // Start polling for answer (server first, localStorage fallback)
       pollForAnswer(roomCode)
+      pollServerCandidates(roomCode)
 
       connectionTimeoutRef.current = setTimeout(
         () => {
@@ -201,7 +231,22 @@ export function useWiFiConnection() {
 
   // Poll for answer from guest
   const pollForAnswer = useCallback((roomCode: string) => {
-    const pollInterval = setInterval(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        // Try server
+        const res = await fetch(`/api/webrtc/answer?roomId=${encodeURIComponent(roomCode)}`)
+        if (res.ok) {
+          const json = await res.json()
+          if (json?.found && json?.sdp && peerConnectionRef.current) {
+            await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(json.sdp))
+            clearInterval(pollInterval)
+            processPendingCandidates()
+            return
+          }
+        }
+      } catch {}
+
+      // Fallback: localStorage
       const answerData = localStorage.getItem("moooves_answer")
       if (answerData) {
         try {
@@ -209,8 +254,6 @@ export function useWiFiConnection() {
           if (forRoomCode === roomCode && peerConnectionRef.current) {
             peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer))
             clearInterval(pollInterval)
-
-            // Process any pending ICE candidates
             processPendingCandidates()
           }
         } catch (error) {
@@ -221,7 +264,7 @@ export function useWiFiConnection() {
 
     // Stop polling after 5 minutes
     setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000)
-  }, [])
+  }, [processPendingCandidates])
 
   // Join a game room
   const joinGame = useCallback(
@@ -229,21 +272,23 @@ export function useWiFiConnection() {
       setState((prev) => ({ ...prev, error: null, isHosting: false }))
 
       try {
-        // Look for offer with matching room code
-        const offerData = localStorage.getItem("moooves_offer")
-        if (!offerData) {
-          throw new Error("Room not found - make sure the host created a room first")
-        }
-
-        const { offer, roomCode: storedRoomCode, timestamp } = JSON.parse(offerData)
-
-        if (Date.now() - timestamp > 10 * 60 * 1000) {
-          // 10 minutes
-          throw new Error("Room code expired - ask the host to create a new room")
-        }
-
-        if (storedRoomCode !== roomCode.toUpperCase()) {
-          throw new Error("Invalid room code - please check and try again")
+        // Try to fetch offer from backend
+        let offer: any | null = null
+        try {
+          const res = await fetch(`/api/webrtc/offer?roomId=${encodeURIComponent(roomCode.toUpperCase())}`)
+          if (res.ok) {
+            const json = await res.json()
+            if (json?.found && json?.sdp) offer = json.sdp
+          }
+        } catch {}
+        // Fallback to same-device localStorage
+        if (!offer) {
+          const offerData = localStorage.getItem("moooves_offer")
+          if (!offerData) throw new Error("Room not found - make sure the host created a room first")
+          const parsed = JSON.parse(offerData)
+          if (parsed.roomCode !== roomCode.toUpperCase()) throw new Error("Invalid room code - please check and try again")
+          if (Date.now() - parsed.timestamp > 10 * 60 * 1000) throw new Error("Room code expired - ask the host to create a new room")
+          offer = parsed.offer
         }
 
         const peerConnection = initializePeerConnection()
@@ -255,23 +300,40 @@ export function useWiFiConnection() {
         const answer = await peerConnection.createAnswer()
         await peerConnection.setLocalDescription(answer)
 
-        // Store answer
-        localStorage.setItem(
-          "moooves_answer",
-          JSON.stringify({
-            answer: answer,
-            forRoomCode: roomCode.toUpperCase(),
-            timestamp: Date.now(),
-          }),
-        )
+        // Send answer to backend and fallback to localStorage
+        try {
+          await fetch("/api/webrtc/answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomId: roomCode.toUpperCase(), sdp: answer }),
+          })
+        } catch {}
+        try {
+          localStorage.setItem(
+            "moooves_answer",
+            JSON.stringify({ answer, forRoomCode: roomCode.toUpperCase(), timestamp: Date.now() }),
+          )
+        } catch {}
 
         setState((prev) => ({
           ...prev,
           roomCode: roomCode.toUpperCase(),
         }))
 
-        // Process any pending ICE candidates
+        // Flush buffered ICE to server
+        try {
+          for (const cand of pendingCandidatesRef.current.splice(0)) {
+            await fetch("/api/webrtc/ice", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ roomId: roomCode.toUpperCase(), candidate: cand, from: "guest" }),
+            })
+          }
+        } catch {}
+
+        // Process any pending ICE candidates from server/local
         processPendingCandidates()
+        pollServerCandidates(roomCode.toUpperCase())
 
         connectionTimeoutRef.current = setTimeout(() => {
           setState((prev) => ({
@@ -297,7 +359,6 @@ export function useWiFiConnection() {
       try {
         const candidates = JSON.parse(candidatesData)
         const relevantCandidates = candidates.filter((item: any) => item.from !== (state.isHosting ? "host" : "guest"))
-
         relevantCandidates.forEach((item: any) => {
           peerConnectionRef.current?.addIceCandidate(new RTCIceCandidate(item.candidate))
         })
@@ -306,6 +367,29 @@ export function useWiFiConnection() {
       }
     }
   }, [state.isHosting])
+
+  const pollServerCandidates = useCallback((roomId: string) => {
+    const loop = async () => {
+      try {
+        const res = await fetch(`/api/webrtc/ice?roomId=${encodeURIComponent(roomId)}&after=${lastIceTimestampRef.current}`)
+        if (res.ok) {
+          const json = await res.json()
+          const candidates = json?.candidates || []
+          for (const item of candidates) {
+            lastIceTimestampRef.current = Math.max(lastIceTimestampRef.current, item.timestamp || 0)
+            if (item?.candidate && peerConnectionRef.current) {
+              await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(item.candidate))
+            }
+          }
+        }
+      } catch {}
+      // continue polling until connected or component unmounted
+      if (peerConnectionRef.current && peerConnectionRef.current.connectionState !== 'connected') {
+        setTimeout(loop, 1000)
+      }
+    }
+    loop()
+  }, [])
 
   // Send message to opponent
   const sendMessage = useCallback(async (type: WiFiMessage["type"], data: any) => {

@@ -140,13 +140,6 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
                     >
                       {loading && connectionType === "wifi" ? "Connecting..." : "Wi-Fi"}
                     </GameButton>
-                    <GameButton
-                      onClick={() => handleHostGame("bluetooth")}
-                      disabled={loading}
-                      className="flex-1 text-sm py-3"
-                    >
-                      {loading && connectionType === "bluetooth" ? "Connecting..." : "Bluetooth"}
-                    </GameButton>
                   </div>
                 </div>
                 <div className="border-t-2 border-green-300 pt-3">
@@ -172,9 +165,7 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
               <div className="bg-green-200 rounded-xl p-4 text-center break-words overflow-hidden">
                 <p className="text-xs text-green-700 mb-2 font-semibold">Share this code:</p>
                 <div className="text-xl sm:text-2xl font-black text-green-900 tracking-wider mb-2 break-all">{roomCode}</div>
-                <p className="text-xs text-green-600">
-                  Connected via {connectionType === "wifi" ? "Wi-Fi" : "Bluetooth"}
-                </p>
+                <p className="text-xs text-green-600">Connected via Wi‑Fi</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <GameButton

@@ -227,18 +227,14 @@ export function OfflineGameSetup() {
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Offline Play</h1>
-        <p className="text-gray-600">Play with friends nearby via Bluetooth or WiFi</p>
+        <p className="text-gray-600">Play with friends nearby via WiFi</p>
       </div>
 
       <Tabs defaultValue="wifi" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="wifi" className="flex items-center gap-2">
             <Wifi className="w-4 h-4" />
             WiFi
-          </TabsTrigger>
-          <TabsTrigger value="bluetooth" className="flex items-center gap-2">
-            <Bluetooth className="w-4 h-4" />
-            Bluetooth
           </TabsTrigger>
         </TabsList>
 
@@ -338,92 +334,11 @@ export function OfflineGameSetup() {
           </Card>
         </TabsContent>
 
-        {/* Bluetooth Connection */}
-        <TabsContent value="bluetooth" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bluetooth className="w-5 h-5" />
-                Bluetooth Connection
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!bluetooth.isSupported && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Bluetooth not supported. Use Chrome on Android or enable experimental Web Bluetooth.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {bluetooth.error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>{bluetooth.error}</span>
-                    {retryCount < 3 && (
-                      <Button size="sm" variant="outline" onClick={handleRetry} className="ml-2 bg-transparent">
-                        <RefreshCw className="w-4 h-4 mr-1" />
-                        Retry
-                      </Button>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="space-y-4">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Make sure both players have MOOOVES open and Bluetooth enabled
-                  </p>
-                  <Button
-                    onClick={handleBluetoothScan}
-                    disabled={!bluetooth.isSupported || bluetooth.isScanning || bluetooth.isConnected}
-                    className="w-full"
-                  >
-                    {bluetooth.isScanning ? "Scanning..." : bluetooth.isConnected ? "Connected" : "Find Opponent"}
-                  </Button>
-                </div>
-
-                {bluetooth.availableDevices.length > 0 && !bluetooth.isConnected && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold">Available Players</h3>
-                    {bluetooth.availableDevices.map((device) => (
-                      <div key={device.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <span>{device.name}</span>
-                        <Button size="sm" onClick={() => bluetooth.connectToDevice(device)} disabled={device.connected}>
-                          {device.connected ? "Connected" : "Connect"}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {bluetooth.connectedDevice && (
-                  <Alert>
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">Connected to: {bluetooth.connectedDevice.name}</p>
-                          <p className="text-sm">Ready to play!</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={bluetooth.disconnect} className="bg-transparent">
-                          Disconnect
-                        </Button>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Bluetooth UI hidden intentionally: web Bluetooth P2P not viable. */}
       </Tabs>
 
       {/* Connection Status & Game Start */}
-      {(wifi.isConnected || bluetooth.isConnected) && (
+      {wifi.isConnected && (
         <Card className="mt-6">
           <CardContent className="p-6 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -431,7 +346,7 @@ export function OfflineGameSetup() {
             </div>
             <h3 className="text-lg font-semibold text-green-800 mb-2">Connected!</h3>
             <p className="text-green-700 mb-4">
-              Connected via {wifi.isConnected ? "WiFi" : "Bluetooth"}.
+              Connected via WiFi.
               {matchRoom.roomId && ` Match room: ${matchRoom.roomId.slice(-6)}`}
             </p>
             <Button className="w-full" size="lg" onClick={() => (window.location.href = "/offline/play")}>

@@ -26,25 +26,27 @@ export function PasswordInput({ className, showStrength = false, ...props }: Pas
   }, [checks])
 
   return (
-    <div className="relative">
-      <input
-        {...props}
-        type={visible ? "text" : "password"}
-        className={cn(
-          // ensure generous right padding so the eye icon doesn't overlap text across browsers
-          "w-full pl-3 pr-12 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]",
-          className
-        )}
-      />
+    <div>
+      <div className="relative">
+        <input
+          {...props}
+          type={visible ? "text" : "password"}
+          className={cn(
+            // ensure generous right padding so the eye icon doesn't overlap text across browsers
+            "w-full pl-3 pr-12 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]",
+            className
+          )}
+        />
 
-      <button
-        type="button"
-        aria-label={visible ? "Hide password" : "Show password"}
-        onClick={() => setVisible((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 text-[#002B03] bg-transparent rounded-full z-10 focus:outline-none"
-      >
-        {visible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-      </button>
+        <button
+          type="button"
+          aria-label={visible ? "Hide password" : "Show password"}
+          onClick={() => setVisible((v) => !v)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 text-[#002B03] bg-transparent rounded-full z-10 focus:outline-none"
+        >
+          {visible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+      </div>
 
       {showStrength && (
         <div className="mt-2">
