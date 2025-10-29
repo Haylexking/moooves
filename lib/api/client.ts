@@ -566,65 +566,23 @@ class ApiClient {
     throw new Error("Use makeGameMove instead")
   }
 
-  // Wallet methods
-  async getWalletSummary(userId?: string): Promise<ApiResponse<any>> {
-    const e = API_CONFIG.ENDPOINTS.WALLET
-    const endpoint = userId ? e.SUMMARY_BY_ID.replace(':userId', userId) : e.SUMMARY
-    const res = await this.request(endpoint)
-    if (res.success) return res
-    try {
-      const url = `${API_CONFIG.BASE_URL}/api/wallet`
-      const r = await fetch(url, { headers: { 'Authorization': this.token ? `Bearer ${this.token}` : '' } as any })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) return { success: false, error: data?.message || data?.error || `HTTP ${r.status}` }
-      return { success: true, data }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Network error' }
-    }
-  }
-
-  async getWalletTransactions(params?: Record<string, any>): Promise<ApiResponse<any>> {
-    const qs = params ? `?${new URLSearchParams(Object.entries(params).map(([k,v]) => [k, String(v ?? '')])).toString()}` : ''
-    return this.request(`${API_CONFIG.ENDPOINTS.WALLET.TRANSACTIONS}${qs}`)
-  }
-
-  async initWalletTransaction(payload: { amount: number; method: string; redirectUrl?: string }): Promise<ApiResponse<any>> {
-    const res = await this.request(API_CONFIG.ENDPOINTS.WALLET.INIT_TRANSACTION, {
+  async initWalletTransaction(payload: { amount: number; method: string; redirectUrl?: string; tournamentId?: string }): Promise<ApiResponse<any>> {
+    // Swagger: POST /api/v1/initial — returns { message, payment_link }
+    return this.request(`/initial`, {
       method: 'POST',
-      body: JSON.stringify(payload),
-    })
-    if (res.success) return res
-    try {
-      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}/initial`
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) },
-        body: JSON.stringify({ amount: payload.amount, method: payload.method, redirectUrl: payload.redirectUrl }),
-      })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) return { success: false, error: data?.message || data?.error || `HTTP ${r.status}` }
-      return { success: true, data }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Network error' }
-    }
-  }
-
-  async verifyWalletTransaction(payload: { reference?: string; transactionId?: string }): Promise<ApiResponse<any>> {
-    return this.request(API_CONFIG.ENDPOINTS.WALLET.VERIFY_TRANSACTION, {
-      method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        amount: payload.amount,
+        method: payload.method,
+        redirectUrl: payload.redirectUrl,
+        ...(payload.tournamentId ? { tournamentId: payload.tournamentId } : {}),
+      }),
     })
   }
 
-  async withdrawWallet(payload: { amount: number; beneficiaryId: string; narration?: string }): Promise<ApiResponse<any>> {
-    return this.request(API_CONFIG.ENDPOINTS.WALLET.WITHDRAW, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-  }
-
-  async getWithdrawals(): Promise<ApiResponse<any>> {
-    return this.request(API_CONFIG.ENDPOINTS.WALLET.WITHDRAWALS)
+  async verifyWalletTransaction(payload: { transactionId: string }): Promise<ApiResponse<any>> {
+    // Swagger: GET /api/v1/verify?transaction_id=...
+    const qs = `?transaction_id=${encodeURIComponent(payload.transactionId)}`
+    return this.request(`/verify${qs}`)
   }
 
   // Bank methods
@@ -636,13 +594,6 @@ class ApiClient {
     return this.request(API_CONFIG.ENDPOINTS.BANK.BANKS_FIND, {
       method: 'POST',
       body: JSON.stringify({ name }),
-    })
-  }
-
-  async verifyBank(account_number: string, bank_code: string): Promise<ApiResponse<any>> {
-    return this.request(API_CONFIG.ENDPOINTS.BANK.VERIFY, {
-      method: 'POST',
-      body: JSON.stringify({ account_number, bank_code }),
     })
   }
 
@@ -668,12 +619,6 @@ class ApiClient {
         })
         return { success: true, data: filtered }
       }
-    } catch {}
-
-    // Fallbacks (older shapes)
-    try {
-      const res = await this.request(API_CONFIG.ENDPOINTS.BANK.SAVED)
-      if (res.success) return res
     } catch {}
 
     const roleParam = role === 'player' ? 'user' : role

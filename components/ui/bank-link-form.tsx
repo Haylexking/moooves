@@ -57,7 +57,6 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
 
   // Step 2: Save verified bank details
   const handleSave = async () => {
-    if (!accountName) return;
     setLoading(true);
     setError(null);
     try {

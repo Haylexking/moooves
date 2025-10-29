@@ -40,7 +40,7 @@ export const API_CONFIG = {
       LIST: "/tournaments", // GET /api/v1/tournaments
       GET_BY_ID: "/tournaments/:id", // GET /api/v1/tournaments/:id
       CREATE: "/tournaments", // POST /api/v1/tournaments
-      JOIN: "/tournaments/:id/join", // POST /api/v1/tournaments/:id/join
+      JOIN: "/tournaments/join/:inviteCode", // POST /api/v1/tournaments/join/{inviteCode}
       USER_TOURNAMENTS: "/users/:id/tournaments", // GET /api/v1/users/:id/tournaments
     },
 
@@ -68,24 +68,11 @@ export const API_CONFIG = {
       SEND: "/send", // POST /api/v1/send
     },
 
-    // Wallet & Transactions
-    WALLET: {
-      SUMMARY: "/wallet/me", // GET /api/v1/wallet/me (fallback to /wallet/{userId} if needed)
-      SUMMARY_BY_ID: "/wallet/:userId", // GET /api/v1/wallet/{userId}
-      TRANSACTIONS: "/wallet/transactions", // GET
-      INIT_TRANSACTION: "/wallet/transaction/initialize", // POST
-      VERIFY_TRANSACTION: "/wallet/transaction/verify", // POST
-      WITHDRAW: "/wallet/withdraw", // POST
-      WITHDRAWALS: "/wallet/withdrawals", // GET
-    },
-
     // Bank linking & beneficiaries
     BANK: {
       BANKS: "/banks", // GET
       BANKS_FIND: "/banks/find", // POST
-      VERIFY: "/bank/verify", // POST
       ADD: "/bank/add", // POST
-      SAVED: "/bank/saved", // GET (not in Swagger; placeholder)
       SAVED_ALL: "/all", // GET /api/v1/all (Swagger: list all saved bank records)
       DELETE: "/bank/:beneficiaryId", // DELETE
     },

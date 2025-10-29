@@ -24,14 +24,15 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
     setError(null);
     try {
       // 1. Initiate payment for tournament entry fee
-      const init = await apiClient.initWalletTransaction({ amount: tournament.entryFee, method: "card", redirectUrl: window.location.href })
+      const init = await apiClient.initWalletTransaction({ amount: tournament.entryFee, method: "card", redirectUrl: window.location.href, tournamentId: tournament.id })
       if (!init.success) throw new Error(init.error || "Payment initiation failed")
       const paymentData: any = init.data || {}
 
       // 2. (Optional) Redirect to payment gateway if required
       // If paymentData contains a paymentUrl, redirect user
-      if (paymentData?.data?.paymentUrl) {
-        window.location.href = paymentData.data.paymentUrl;
+      const link = paymentData?.payment_link || paymentData?.data?.paymentUrl
+      if (link) {
+        window.location.href = link;
         return;
       }
 

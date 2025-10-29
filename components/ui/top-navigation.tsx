@@ -10,7 +10,7 @@ interface TopNavigationProps {
   username?: string
 }
 
-export function TopNavigation({ balance = 0, username }: TopNavigationProps) {
+export function TopNavigation({ balance, username }: TopNavigationProps) {
   const { user } = useAuthStore()
 
   // Use props or fallback to user data
@@ -19,12 +19,14 @@ export function TopNavigation({ balance = 0, username }: TopNavigationProps) {
 
   return (
     <div className="fixed top-6 right-6 z-40 flex gap-4">
-      <div className="flex items-center gap-2 bg-white rounded-lg px-4 py-2 font-bold text-green-800 shadow">
-        <Wallet className="w-5 h-5 mr-1" />
-        {displayBalance.toLocaleString()}
-        <span className="ml-1 text-green-800 font-bold">₦</span>
-        <span className="ml-2 text-green-600 font-bold">+</span>
-      </div>
+      {typeof displayBalance === 'number' && (
+        <div className="flex items-center gap-2 bg-white rounded-lg px-4 py-2 font-bold text-green-800 shadow">
+          <Wallet className="w-5 h-5 mr-1" />
+          {displayBalance.toLocaleString()}
+          <span className="ml-1 text-green-800 font-bold">₦</span>
+          <span className="ml-2 text-green-600 font-bold">+</span>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 bg-white rounded-lg px-4 py-2 font-bold text-green-800 shadow">
         <User className="w-5 h-5 mr-1" />
