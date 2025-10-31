@@ -45,10 +45,21 @@ export function checkWinConditions(
         // Award one point per NON-OVERLAPPING 5-block within this contiguous run.
         // Blocks: [0..4], [5..9], [10..14], ... Only award blocks that have not
         // been used before and do not contain any used positions.
-        for (let i = 0; i <= sequence.length - 5; i += 5) {
+        for (let i = 0; i <= sequence.length - 5; i += 1) {
           const block = sequence.slice(i, i + 5)
           const hasUsed = block.some(([r, c]) => usedOrNew.has(`${r},${c}`))
           if (hasUsed) continue
+
+          const opponent: Player = player === 'X' ? 'O' : 'X'
+          const [bsr, bsc] = block[0]
+          const [ber, bec] = block[4]
+          const beforeR = bsr - dr
+          const beforeC = bsc - dc
+          const afterR = ber + dr
+          const afterC = bec + dc
+          const startBlocked = isValidPosition(beforeR, beforeC) && board[beforeR][beforeC] === opponent
+          const endBlocked = isValidPosition(afterR, afterC) && board[afterR][afterC] === opponent
+          if (startBlocked || endBlocked) continue
 
           const blockKey = canonicalSeqKey(block)
           if (!usedSequenceKeys.has(blockKey) && !awardedKeys.has(blockKey)) {

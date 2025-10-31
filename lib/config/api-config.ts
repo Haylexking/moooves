@@ -87,8 +87,8 @@ export const API_CONFIG = {
     ADMIN: {},
   },
 
-  // Request timeout
-  TIMEOUT: 60000, // 60 seconds
+  // Request timeout (0 disables abort). Registration and some long-running operations need no client abort.
+  TIMEOUT: 0,
 
   // Retry configuration
   RETRY: {

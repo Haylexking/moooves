@@ -45,7 +45,7 @@ export default function TournamentDashboard() {
   const [joinCode, setJoinCode] = useState("")
   const [joinLoading, setJoinLoading] = useState(false)
 
-  const { user } = useAuthStore()
+  const { user, refreshUser } = useAuthStore()
   const currentUserId = user?.id || ""
   const currentUserName = user?.fullName || "Player"
 
@@ -213,6 +213,8 @@ export default function TournamentDashboard() {
             setTournaments(userTournaments)
           }
         })
+        // Refresh user to pick up potential auto host upgrade after 3 tournaments
+        try { await refreshUser() } catch {}
         setJoinCode("")
         alert("Joined tournament!")
       } else {

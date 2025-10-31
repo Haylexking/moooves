@@ -22,6 +22,7 @@ export interface AuthSlice {
   setUser: (user: User) => void
   setIsAuthenticated: (isAuthenticated: boolean) => void
   setRehydrated?: (v: boolean) => void
+  refreshUser: () => Promise<void>
 }
 
 const parseApiError = (error: string): string => {
@@ -54,22 +55,26 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   error: null,
 
   login: async (email: string, password: string) => {
-    set({ isLoading: true, error: null })
+    // Clear any previous session to avoid redirecting with stale isAuthenticated
+    apiClient.clearToken()
+    set({ isLoading: true, error: null, isAuthenticated: false, user: null })
     try {
       const response = await apiClient.login(email, password)
       if (response.success && response.data) {
         const token = response.data.token
         const userData = response.data.data
         if (token) apiClient.setToken(token)
+        const serverRole = (userData as any)?.role || ((userData as any)?.canHost ? "host" : "player")
+        const canHost = typeof (userData as any)?.canHost === "boolean" ? (userData as any).canHost : serverRole === "host"
         set({
           user: {
             id: userData._id,
             email: userData.email,
             fullName: (userData as any)?.fullName ?? (userData as any)?.name ?? "",
             emailVerified: (userData as any)?.emailVerified ?? false,
-            role: "player" as UserRole,
+            role: (serverRole as UserRole),
             gamesPlayed: typeof (userData as any)?.gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
-            canHost: typeof (userData as any)?.canHost === "boolean" ? (userData as any).canHost : false,
+            canHost,
             createdAt: new Date(userData.createdAt || new Date()).getTime(),
             lastActive: new Date(userData.updatedAt || new Date()).getTime(),
           },
@@ -100,7 +105,8 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   },
 
   hostLogin: async (email: string, password: string) => {
-    set({ isLoading: true, error: null })
+    apiClient.clearToken()
+    set({ isLoading: true, error: null, isAuthenticated: false, user: null })
     try {
       const response = await apiClient.hostLogin(email, password)
       if (response.success) {
@@ -110,15 +116,17 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         const userData = (payload.host || payload.data || payload.user || payload) as any
 
         if (token) apiClient.setToken(token)
+        const serverRole = (userData as any)?.role || "host"
+        const canHost = typeof userData?.canHost === "boolean" ? userData.canHost : serverRole === "host"
         set({
           user: {
             id: userData?._id ?? userData?.id ?? null,
             email: userData?.email ?? "",
             fullName: userData?.fullName ?? userData?.name ?? "",
             emailVerified: userData?.emailVerified ?? false,
-            role: "host" as UserRole,
+            role: (serverRole as UserRole),
             gamesPlayed: typeof userData?.gamesPlayed === "number" ? userData.gamesPlayed : 0,
-            canHost: true,
+            canHost,
             createdAt: new Date(userData?.createdAt || new Date()).getTime(),
             lastActive: new Date(userData?.updatedAt || new Date()).getTime(),
           },
@@ -140,22 +148,25 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   },
 
   register: async (fullName: string, email: string, password: string) => {
-    set({ isLoading: true, error: null })
+    apiClient.clearToken()
+    set({ isLoading: true, error: null, isAuthenticated: false, user: null })
     try {
       const response = await apiClient.register(fullName, email, password)
       if (response.success && response.data) {
         const token = response.data.token
         const userData = response.data.data
         if (token) apiClient.setToken(token)
+        const serverRole = (userData as any)?.role || ((userData as any)?.canHost ? "host" : "player")
+        const canHost = typeof (userData as any)?.canHost === "boolean" ? (userData as any).canHost : serverRole === "host"
         set({
           user: {
             id: userData._id,
             email: userData.email,
             fullName: (userData as any)?.fullName ?? (userData as any)?.name ?? "",
             emailVerified: (userData as any)?.emailVerified ?? false,
-            role: "player" as UserRole,
+            role: (serverRole as UserRole),
             gamesPlayed: 0,
-            canHost: false,
+            canHost,
             createdAt: new Date(userData.createdAt || new Date()).getTime(),
             lastActive: new Date(userData.updatedAt || new Date()).getTime(),
           },
@@ -177,7 +188,8 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   },
 
   hostRegister: async (fullName: string, email: string, password: string) => {
-    set({ isLoading: true, error: null })
+    apiClient.clearToken()
+    set({ isLoading: true, error: null, isAuthenticated: false, user: null })
     try {
       const response = await apiClient.createHost(fullName, email, password)
       if (response.success) {
@@ -187,15 +199,17 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         const hostData = (payload.host || payload.data || payload.user || payload) as any
 
         if (token) apiClient.setToken(token)
+        const serverRole = (hostData as any)?.role || "host"
+        const canHost = typeof hostData?.canHost === "boolean" ? hostData.canHost : serverRole === "host"
         set({
           user: {
             id: hostData?._id ?? hostData?.id ?? null,
             email: hostData?.email ?? "",
             fullName: hostData?.fullName ?? hostData?.name ?? "",
             emailVerified: hostData?.emailVerified ?? false,
-            role: "host" as UserRole,
+            role: (serverRole as UserRole),
             gamesPlayed: 0,
-            canHost: true,
+            canHost,
             createdAt: new Date(hostData?.createdAt || new Date()).getTime(),
             lastActive: new Date(hostData?.updatedAt || new Date()).getTime(),
           },
@@ -281,5 +295,34 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
 
   setIsAuthenticated: (isAuthenticated: boolean) => {
     set({ isAuthenticated })
+  },
+  async refreshUser() {
+    const current = get().user
+    if (!current?.id) return
+    set({ isLoading: true })
+    try {
+      const res = await apiClient.getUserById(current.id)
+      if (res.success && res.data) {
+        const u: any = res.data
+        const serverRole = u.role || (u.canHost ? "host" : current.role)
+        const canHost = typeof u.canHost === "boolean" ? u.canHost : serverRole === "host"
+        const updated: User = {
+          id: u._id ?? current.id,
+          email: u.email ?? current.email,
+          fullName: u.fullName ?? u.name ?? current.fullName,
+          emailVerified: typeof u.emailVerified === 'boolean' ? u.emailVerified : current.emailVerified,
+          role: serverRole as UserRole,
+          gamesPlayed: typeof u.gamesPlayed === 'number' ? u.gamesPlayed : current.gamesPlayed,
+          canHost,
+          createdAt: current.createdAt,
+          lastActive: Date.now(),
+        }
+        set({ user: updated, isLoading: false })
+      } else {
+        set({ isLoading: false })
+      }
+    } catch {
+      set({ isLoading: false })
+    }
   },
 })

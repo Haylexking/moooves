@@ -25,9 +25,9 @@ export function mockOpponentMove(
   const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
   if (blockingMove) return blockingMove
 
-  // 3. Third priority: Aggressively block emerging threats (length >= 2 with openness)
-  const threatBlockingMove = findThreatBlockingMove(board, opponentPlayer, currentPlayer, movesToConsider)
-  if (threatBlockingMove) return threatBlockingMove
+  // 3. Third priority: Block emerging threats (2+ in a row with open ends)
+  const emerging = findEmergingThreatMove(board, opponentPlayer, movesToConsider, currentPlayer)
+  if (emerging) return emerging
 
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
   const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
@@ -237,6 +237,15 @@ function evaluateThreatBlockedByMove(
   return total;
 }
 
+function findEmergingThreatMove(
+  board: GameBoard,
+  opponent: Player,
+  availableMoves: Position[],
+  self: Player,
+): Position | null {
+  return findThreatBlockingMove(board, opponent, self, availableMoves)
+}
+
 function measureLine(
   board: GameBoard,
   player: Player,
@@ -283,8 +292,12 @@ function findStrategicMove(
   usedSequences: Sequence[],
 ): Position | null {
   const strategicMoves: { position: Position; score: number }[] = []
+  const forbidden = buildForbiddenExtensions(board, usedSequences)
 
   for (const [row, col] of availableMoves) {
+    if (forbidden.has(`${row},${col}`)) {
+      continue
+    }
     let score = 0
     let forkDirs = 0
 
@@ -375,6 +388,32 @@ function isSequencePartiallyUsed(sequence: Position[], usedSequences: Sequence[]
     }
   }
   return false
+}
+
+function buildForbiddenExtensions(
+  board: GameBoard,
+  usedSequences: Sequence[],
+): Set<string> {
+  const forbidden = new Set<string>()
+  for (const seq of usedSequences) {
+    if (!seq || seq.length < 2) continue
+    const [sr, sc] = seq[0]
+    const [er, ec] = seq[seq.length - 1]
+    const dr = Math.sign(er - sr)
+    const dc = Math.sign(ec - sc)
+    // If direction cannot be determined (all same cell), skip
+    if (dr === 0 && dc === 0) continue
+    // Positions just beyond both ends of the scored line
+    const before: Position = [sr - dr, sc - dc]
+    const after: Position = [er + dr, ec + dc]
+    const candidates: Position[] = [before, after]
+    for (const [r, c] of candidates) {
+      if (r >= 0 && r < 30 && c >= 0 && c < 30 && board[r][c] === null) {
+        forbidden.add(`${r},${c}`)
+      }
+    }
+  }
+  return forbidden
 }
 
 function getSequenceLength(board: GameBoard, player: Player, row: number, col: number, dr: number, dc: number): number {

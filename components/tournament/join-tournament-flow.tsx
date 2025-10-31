@@ -17,7 +17,7 @@ interface JoinTournamentFlowProps {
 export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlowProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuthStore();
+  const { user, refreshUser } = useAuthStore();
 
   const handleJoin = async () => {
     setLoading(true);
@@ -46,6 +46,9 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       if (!user?.id) throw new Error("You must be signed in to join the tournament")
       const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
       if (!join.success) throw new Error(join.error || "Failed to join tournament")
+
+      // 5. Refresh user to pick up potential role upgrade (auto host after 3 tournaments)
+      try { await refreshUser() } catch {}
 
       alert("Successfully joined tournament!");
       // Optionally, redirect or update UI
