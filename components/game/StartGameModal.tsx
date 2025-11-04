@@ -52,7 +52,6 @@ export default function StartGameModal({ open, onOpenChange }: { open: boolean; 
             {view === 'main' && (
               <motion.div key="main" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                 <div className="flex flex-col gap-3">
-                  <GameButton onClick={() => setView('p2p')}>Play 1v1</GameButton>
                   <GameButton onClick={launchAi}>Play vs Computer</GameButton>
                   <GameButton onClick={openTournament}>Join Tournament</GameButton>
                 </div>

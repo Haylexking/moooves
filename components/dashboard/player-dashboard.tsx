@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { GameButton } from "../ui/game-button";
 import { GlobalSidebar } from "../ui/global-sidebar";
 import { useGameRules } from "../game/GameRulesProvider";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function PlayerDashboard() {
   const router = useRouter();
   const { openRules } = useGameRules();
+  const { user } = useAuthStore();
 
   const handleStartGame = () => {
     router.push("/start-game-options");
@@ -17,6 +19,10 @@ export function PlayerDashboard() {
 
   const handleGameRules = () => {
     openRules();
+  };
+
+  const handleCreateTournament = () => {
+    router.push("/tournaments/create");
   };
 
   return (
@@ -27,6 +33,14 @@ export function PlayerDashboard() {
           <GameButton onClick={handleStartGame} className="w-full text-lg font-semibold py-6">
             Start Game
           </GameButton>
+          {user?.canHost && (
+            <GameButton 
+              onClick={handleCreateTournament} 
+              className="w-full text-lg font-semibold py-6 bg-yellow-500 hover:bg-yellow-600 text-white"
+            >
+              Create Tournament
+            </GameButton>
+          )}
           <GameButton onClick={handleGameRules} className="w-full text-lg font-semibold py-6">
             Game Rules
           </GameButton>

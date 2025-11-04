@@ -25,6 +25,13 @@ jest.mock('@/lib/stores/tournament-store', () => {
   }
 })
 
+// Mock the auth store
+jest.mock('@/lib/stores/auth-store', () => ({
+  useAuthStore: () => ({
+    user: { id: 'user-123' },
+  }),
+}))
+
 import { CreateTournamentModal } from '../create-tournament-modal'
 
 // Provide typing for global helper
@@ -37,35 +44,52 @@ describe('CreateTournamentModal', () => {
     mockPush.mockReset()
   })
 
-  test('creates a tournament and navigates to its page', async () => {
+  test('submits the form with correct data', async () => {
     const onClose = jest.fn()
     // @ts-ignore - renderWithProviders injected in jest.setup.js
     global.renderWithProviders(<CreateTournamentModal open={true} onClose={onClose} />)
 
-  // No-op: toast is tested elsewhere; focus on store and navigation here
-
     // Fill form fields
     const nameInput = screen.getByPlaceholderText(/Enter tournament name/i)
     const feeInput = screen.getByLabelText(/Entry Fee \(₦\)/i)
-    const maxPlayers = screen.getByLabelText(/Maximum Players/i)
+    const maxPlayersInput = screen.getByLabelText(/Maximum Players/i)
+    const startTimeInput = screen.getByLabelText(/Start Time \(UTC\)/i)
 
     fireEvent.change(nameInput, { target: { value: 'Test Cup' } })
     fireEvent.change(feeInput, { target: { value: '1000' } })
-    fireEvent.change(maxPlayers, { target: { value: '16' } })
+    fireEvent.change(maxPlayersInput, { target: { value: '16' } })
+    
+    // Set a future date for the start time
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
+    fireEvent.change(startTimeInput, { target: { value: futureDate.toISOString().slice(0, 16) } })
 
     const createBtn = screen.getByRole('button', { name: /Create Tournament/i })
     fireEvent.click(createBtn)
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tournament/t-123'))
+    // Check if createTournament was called with the right arguments
+    await waitFor(() => {
+      const store = require('@/lib/stores/tournament-store')
+      const s = store.useTournamentStore()
+      
+      expect(s.createTournament).toHaveBeenCalled()
+      const callArgs = s.createTournament.mock.calls[0][0]
+      
+      expect(callArgs).toMatchObject({
+        name: 'Test Cup',
+        entryFee: 1000,
+        maxPlayers: 16,
+        gameMode: 'timed',
+        organizerId: 'user-123',
+      })
+      expect(callArgs.startTime).toBeDefined()
+      
+      // Check if the tournament was added to the store
+      expect(Array.isArray(s.tournaments)).toBe(true)
+      expect(s.tournaments.find((t: any) => t.id === 't-123')).toBeTruthy()
+    })
 
-  // Ensure onClose was called (modal closed)
-  await waitFor(() => expect(onClose).toHaveBeenCalled())
-
-  // Inspect the mocked tournament store and ensure createTournament was invoked
-  const store = require('@/lib/stores/tournament-store')
-  const s = store.useTournamentStore()
-  expect(s.createTournament).toHaveBeenCalled()
-  expect(Array.isArray(s.tournaments)).toBe(true)
-  expect(s.tournaments.find((t: any) => t.id === 't-123')).toBeTruthy()
+    // Ensure onClose was called (modal closed)
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
   })
 })

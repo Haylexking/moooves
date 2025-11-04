@@ -26,9 +26,8 @@ describe('StartGameModal', () => {
     const onOpenChange = jest.fn()
     render(<StartGameModal open={true} onOpenChange={onOpenChange} />)
 
-  expect(screen.getByRole('button', { name: /Play 1v1/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /Play vs Computer/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /Join Tournament/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Play vs Computer/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Join Tournament/i })).toBeInTheDocument()
   })
 
   test('play vs computer launches AI and closes modal', () => {
@@ -39,53 +38,6 @@ describe('StartGameModal', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
     expect(mockPush).toHaveBeenCalledWith('/game?mode=ai')
-  })
-
-  test('play 1v1 submenu and back button', () => {
-    const onOpenChange = jest.fn()
-    render(<StartGameModal open={true} onOpenChange={onOpenChange} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /Play 1v1/i }))
-    expect(screen.getByRole('button', { name: /^Nearby$/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Back$/i })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }))
-    // main view restored
-    expect(screen.getByRole('button', { name: /Play 1v1/i })).toBeInTheDocument()
-  })
-
-  test('play 1v1 nearby connects and navigates, sets serverAuthoritative false', async () => {
-    const onOpenChange = jest.fn()
-  // const user = userEvent.setup()
-    // Use fake timers for the connect delay only
-    jest.useFakeTimers()
-    try {
-      render(<StartGameModal open={true} onOpenChange={onOpenChange} />)
-
-      // Set initial to true so we can confirm it becomes false
-      useGameStore.setState({ serverAuthoritative: true })
-
-  fireEvent.click(screen.getByRole('button', { name: /Play 1v1/i }))
-  fireEvent.click(screen.getByRole('button', { name: /^Nearby$/i }))
-
-      // Should show connecting immediately
-      expect(screen.getByText(/Connecting/i)).toBeInTheDocument()
-
-      // serverAuthoritative should have been set to false immediately
-      expect(useGameStore.getState().serverAuthoritative).toBe(false)
-
-  // Advance timers to simulate 2s connect
-  jest.advanceTimersByTime(2000)
-
-  // Wait for navigation to have been called (component closes)
-  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/game?mode=p2p&connection=local'))
-
-      // Should have navigated to p2p route
-      expect(mockPush).toHaveBeenCalledWith('/game?mode=p2p&connection=local')
-      expect(onOpenChange).toHaveBeenCalledWith(false)
-    } finally {
-      jest.useRealTimers()
-    }
   })
 
   test('join tournament routes to tournaments', async () => {

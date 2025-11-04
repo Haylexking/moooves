@@ -33,45 +33,28 @@ export function checkWinConditions(
   for (const [dr, dc] of DIRECTIONS) {
     const sequence = findSequenceInDirection(board, player, row, col, dr, dc)
 
+    // For sequences of 5 or more, check for valid 5-in-a-row
     if (sequence.length >= 5) {
-      // Rule: Only one point per contiguous run of 5+ cells.
-      // The run must start at an edge or after an interruption to avoid partial duplicates.
-      const [sr, sc] = sequence[0]
-      const beforeR = sr - dr
-      const beforeC = sc - dc
-      const beginsAtEdgeOrInterruption = !isValidPosition(beforeR, beforeC) || board[beforeR][beforeC] !== player
+      // Only check the first valid 5-in-a-row in this direction
+      // to avoid multiple points for overlapping sequences
+      const block = sequence.slice(0, 5)
+      
+      // Check if any position in this block is already used
+      const hasUsed = block.some(([r, c]) => usedOrNew.has(`${r},${c}`))
+      if (hasUsed) continue
+      
+      // Any 5-in-a-row sequence is valid, regardless of being boxed in by opponent
+      // We only need to check if the sequence is already used
 
-      if (beginsAtEdgeOrInterruption) {
-        // Award one point per NON-OVERLAPPING 5-block within this contiguous run.
-        // Blocks: [0..4], [5..9], [10..14], ... Only award blocks that have not
-        // been used before and do not contain any used positions.
-        for (let i = 0; i <= sequence.length - 5; i += 1) {
-          const block = sequence.slice(i, i + 5)
-          const hasUsed = block.some(([r, c]) => usedOrNew.has(`${r},${c}`))
-          if (hasUsed) continue
-
-          const opponent: Player = player === 'X' ? 'O' : 'X'
-          const [bsr, bsc] = block[0]
-          const [ber, bec] = block[4]
-          const beforeR = bsr - dr
-          const beforeC = bsc - dc
-          const afterR = ber + dr
-          const afterC = bec + dc
-          const startBlocked = isValidPosition(beforeR, beforeC) && board[beforeR][beforeC] === opponent
-          const endBlocked = isValidPosition(afterR, afterC) && board[afterR][afterC] === opponent
-          if (startBlocked || endBlocked) continue
-
-          const blockKey = canonicalSeqKey(block)
-          if (!usedSequenceKeys.has(blockKey) && !awardedKeys.has(blockKey)) {
-            const canonicalSeq = canonicalSeqFromKey(blockKey)
-            newSequences.push(canonicalSeq)
-            newUsedPositions.push(...canonicalSeq)
-            awardedKeys.add(blockKey)
-            scoreIncrease++
-            // Mark these positions as used for the remainder of this call
-            for (const [r, c] of canonicalSeq) usedOrNew.add(`${r},${c}`)
-          }
-        }
+      const blockKey = canonicalSeqKey(block)
+      if (!usedSequenceKeys.has(blockKey) && !awardedKeys.has(blockKey)) {
+        const canonicalSeq = canonicalSeqFromKey(blockKey)
+        newSequences.push(canonicalSeq)
+        newUsedPositions.push(...canonicalSeq)
+        awardedKeys.add(blockKey)
+        scoreIncrease++
+        // Mark these positions as used for the remainder of this call
+        for (const [r, c] of canonicalSeq) usedOrNew.add(`${r},${c}`)
       }
     }
   }
@@ -83,6 +66,7 @@ export function checkWinConditions(
 
   return { newSequences, updatedScores, newUsedPositions }
 }
+
 
 // Utility function to check if a position is valid
 export function isValidPosition(row: number, col: number): boolean {

@@ -417,15 +417,15 @@ class ApiClient {
     })
   }
 
-  // Tournament methods
   async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number; gameMode?: string }): Promise<ApiResponse<any>> {
-    // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryFee
+    // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryfee
     const body: any = {
       organizerId: payload.organizerId,
+      createdBy: payload.organizerId, // Add createdBy field for Swagger
       name: payload.name,
       startTime: payload.startTime,
       ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
-      ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
+      ...(typeof payload.entryFee !== 'undefined' ? { entryfee: payload.entryFee } : {}), // Use 'entryfee' to match API spec
       ...(payload.gameMode ? { gameMode: payload.gameMode } : {}),
     }
 

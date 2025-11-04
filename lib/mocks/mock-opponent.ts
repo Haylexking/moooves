@@ -291,60 +291,69 @@ function findStrategicMove(
   availableMoves: Position[],
   usedSequences: Sequence[],
 ): Position | null {
+  let bestScore = -Infinity
+  let bestMove: Position | null = null
+  const forbiddenExtensions = buildForbiddenExtensions(board, usedSequences)
+  const opponent: Player = player === 'X' ? 'O' : 'X'
   const strategicMoves: { position: Position; score: number }[] = []
-  const forbidden = buildForbiddenExtensions(board, usedSequences)
 
+  // First pass: evaluate all available moves
   for (const [row, col] of availableMoves) {
-    if (forbidden.has(`${row},${col}`)) {
+    // Skip moves that would extend an already-scored sequence
+    if (forbiddenExtensions.has(`${row},${col}`)) {
       continue
     }
+
     let score = 0
-    let forkDirs = 0
+    
+    // Check all 8 directions
+    for (const [dr, dc] of [
+      [0, 1], [1, 0], [1, 1], [1, -1],  // horizontal, vertical, diagonals
+      [0, -1], [-1, 0], [-1, -1], [-1, 1]
+    ]) {
+      // Evaluate offensive potential (our sequences)
+      const ourSequence = buildPotentialSequence(board, player, row, col, dr, dc)
+      if (ourSequence.length >= 2) {
+        // Prefer longer sequences with open ends
+        const { openEnds } = measureLine(board, player, row, col, dr, dc)
+        score += Math.pow(ourSequence.length, 2) * (1 + openEnds * 0.5)
+      }
 
-    // Check all 8 directions for existing sequences to extend
-    const directions = [
-      [-1, -1],
-      [-1, 0],
-      [-1, 1],
-      [0, -1],
-      [0, 1],
-      [1, -1],
-      [1, 0],
-      [1, 1],
-    ]
-
-    for (const [dr, dc] of directions) {
-      const { length, openEnds } = measureLine(board, player, row, col, dr, dc)
-      if (length > 0) {
-        const potentialSequence = buildPotentialSequence(board, player, row, col, dr, dc)
-        // Prefer extensions that are not overlapping with used sequences
-        if (potentialSequence.length >= 2 && !isSequencePartiallyUsed(potentialSequence, usedSequences)) {
-          // Heuristic: value longer and more open shapes, boost for creating 4
-          const base = length * length * (openEnds === 2 ? 2 : 1)
-          const fourBoost = length >= 3 ? 3 : 1
-          score += base * fourBoost
-          if (length >= 2 && openEnds > 0) forkDirs++
-        }
+      // Evaluate defensive potential (opponent's sequences)
+      const theirSequence = buildPotentialSequence(board, opponent, row, col, dr, dc)
+      if (theirSequence.length >= 2) {
+        // More urgent to block longer opponent sequences
+        const { openEnds } = measureLine(board, opponent, row, col, dr, dc)
+        score += Math.pow(theirSequence.length, 3) * (1 + openEnds * 0.5)
       }
     }
 
-    // Fork bonus: creating threats in multiple directions in one move (double-threat)
-    if (forkDirs >= 2) {
-      score += forkDirs * forkDirs * 10
-    }
+    // Center control bonus (decreases as game progresses)
+    const centerDist = Math.sqrt(Math.pow(row - 14.5, 2) + Math.pow(col - 14.5, 2))
+    const centerBonus = 15 - centerDist * 0.5
+    score += centerBonus
 
-    if (score > 0) {
-      strategicMoves.push({ position: [row, col], score })
-    }
+    // Slight random factor to avoid predictable moves
+    score += Math.random() * 2 - 1
+
+    strategicMoves.push({ position: [row, col], score })
   }
 
+  // Find the best move among strategic moves
   if (strategicMoves.length > 0) {
-    // Sort by score and return the best move
     strategicMoves.sort((a, b) => b.score - a.score)
     return strategicMoves[0].position
   }
 
-  return null
+  // Fallback: find any non-forbidden move
+  for (const move of availableMoves) {
+    if (!forbiddenExtensions.has(`${move[0]},${move[1]}`)) {
+      return move
+    }
+  }
+
+  // If all moves are forbidden (shouldn't happen), just pick the first available
+  return availableMoves[0] || null
 }
 
 function buildPotentialSequence(

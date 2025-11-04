@@ -34,16 +34,10 @@ export default function StartGameOptions() {
 
           <div className="bg-green-800/40 backdrop-blur-sm rounded-2xl border-2 border-green-600/50 p-6 md:p-8 shadow-2xl space-y-4">
             <GameButton
-              onClick={() => router.push("/game")}
-              className="w-full text-lg md:text-xl font-bold py-6 md:py-7"
-            >
-              Play 1v1
-            </GameButton>
-            <GameButton
               onClick={() => router.push("/game?mode=ai")}
               className="w-full text-lg md:text-xl font-bold py-6 md:py-7"
             >
-              Player vs Computer
+              Play vs Computer
             </GameButton>
             <GameButton
               onClick={() => router.push("/tournaments")}
