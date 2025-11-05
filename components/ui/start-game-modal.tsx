@@ -39,13 +39,22 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
                 onOpenChange(false)
               }}
               className="w-full text-lg font-bold py-6"
-              disabled={!user || user.gamesPlayed < 3}
             >
               Join Tournament
             </GameButton>
+            <GameButton
+              onClick={() => {
+                router.push("/tournaments/create")
+                onOpenChange(false)
+              }}
+              className={`w-full text-lg font-bold py-6 ${(!user || user.gamesPlayed < 3) ? 'opacity-70 cursor-not-allowed' : ''}`}
+              disabled={!user || user.gamesPlayed < 3}
+            >
+              Create Tournament
+            </GameButton>
             {(!user || user.gamesPlayed < 3) && (
               <div className="text-sm text-red-300 text-center bg-red-900/30 rounded-lg p-3 border border-red-500/30">
-                <p>You need to participate in at least 3 tournaments to join one.</p>
+                <p>You need to participate in at least 3 games to create a tournament.</p>
               </div>
             )}
           </div>
