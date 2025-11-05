@@ -26,24 +26,59 @@ export function PlayerDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
       <GlobalSidebar />
-      <main className="flex-1 flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-6 w-full max-w-xs">
-          <GameButton onClick={handleStartGame} className="w-full text-lg font-semibold py-6">
-            Start Game
-          </GameButton>
-          {user?.canHost && (
-            <GameButton 
-              onClick={handleCreateTournament} 
-              className="w-full text-lg font-semibold py-6 bg-yellow-500 hover:bg-yellow-600 text-white"
-            >
-              Create Tournament
-            </GameButton>
-          )}
-          <GameButton onClick={handleGameRules} className="w-full text-lg font-semibold py-6">
-            Game Rules
-          </GameButton>
+      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 w-full">
+        <div className="w-full max-w-md mx-auto">
+          <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8 space-y-6 w-full">
+            <div className="text-center mb-6">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Welcome Back, {user?.name || 'Player'}!</h1>
+              {user?.gamesPlayed !== undefined && (
+                <p className="text-gray-600 mt-2">
+                  Games Played: <span className="font-semibold">{user.gamesPlayed}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-4 w-full">
+              <GameButton 
+                onClick={handleStartGame} 
+                className="w-full text-lg font-semibold py-5 md:py-6 hover:scale-[1.02] transition-transform"
+              >
+                🎮 Start Game
+              </GameButton>
+              
+              {user?.canHost && (
+                <GameButton 
+                  onClick={handleCreateTournament} 
+                  className="w-full text-lg font-semibold py-5 md:py-6 bg-yellow-500 hover:bg-yellow-600 text-white hover:scale-[1.02] transition-transform"
+                >
+                  🏆 Create Tournament
+                </GameButton>
+              )}
+              
+              <GameButton 
+                onClick={handleGameRules} 
+                className="w-full text-lg font-semibold py-5 md:py-6 bg-gray-100 hover:bg-gray-200 text-gray-800 hover:scale-[1.02] transition-transform"
+              >
+                📖 Game Rules
+              </GameButton>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-800 mb-3">Quick Stats</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-3 rounded-lg text-center">
+                  <p className="text-sm text-blue-600">Wins</p>
+                  <p className="text-2xl font-bold text-blue-700">{user?.wins || 0}</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg text-center">
+                  <p className="text-sm text-green-600">Tournaments</p>
+                  <p className="text-2xl font-bold text-green-700">{user?.tournamentsPlayed || 0}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

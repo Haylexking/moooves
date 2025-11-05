@@ -336,6 +336,7 @@ export interface CellProps {
   row: number
   col: number
   isHighlighted?: boolean
+  isMobile?: boolean
 }
 
 export interface GameHeaderProps {
