@@ -39,11 +39,11 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
                 onOpenChange(false)
               }}
               className="w-full text-lg font-bold py-6"
-              disabled={user.tournamentsParticipated < 3}
+              disabled={!user || user.gamesPlayed < 3}
             >
               Join Tournament
             </GameButton>
-            {user.tournamentsParticipated < 3 && (
+            {(!user || user.gamesPlayed < 3) && (
               <div className="text-sm text-red-300 text-center bg-red-900/30 rounded-lg p-3 border border-red-500/30">
                 <p>You need to participate in at least 3 tournaments to join one.</p>
               </div>
