@@ -6,6 +6,7 @@ import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { Gamepad2, Trophy, User } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { apiClient } from "@/lib/api/client"
 
 interface UserStats {
   matchesPlayed: number
@@ -35,17 +36,19 @@ export default function StatsPage() {
     const fetchUserStats = async () => {
       try {
         setIsLoading(true)
-        // This would be the actual API call to your backend
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/stats`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("authToken")}`, // or however you handle auth
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (response.ok) {
-          const stats = await response.json()
-          setUserStats(stats)
+        const res = await apiClient.getUserStats()
+        if (res.success && res.data) {
+          const stats = res.data as Partial<UserStats>
+          setUserStats((prev) => ({
+            matchesPlayed: stats.matchesPlayed ?? prev.matchesPlayed,
+            tournamentsPlayed: stats.tournamentsPlayed ?? prev.tournamentsPlayed,
+            winPercentage: stats.winPercentage ?? prev.winPercentage,
+            tournamentsHosted: stats.tournamentsHosted ?? prev.tournamentsHosted,
+            highestRank: stats.highestRank ?? prev.highestRank,
+            lowestRank: stats.lowestRank ?? prev.lowestRank,
+            matchEarnings: stats.matchEarnings ?? prev.matchEarnings,
+            hostEarnings: stats.hostEarnings ?? prev.hostEarnings,
+          }))
         }
       } catch (error) {
         console.error("Failed to fetch user stats:", error)

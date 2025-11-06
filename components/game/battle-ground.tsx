@@ -300,7 +300,7 @@ export function BattleGround({
         </div>
       )}
       <GlobalSidebar />
-      <TopNavigation username={displayUsername} balance={0} />
+      <TopNavigation username={displayUsername} />
       {/* Match Result Modal */}
   <GameResultModal
     open={resultModalOpen}

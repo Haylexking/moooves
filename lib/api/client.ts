@@ -306,6 +306,12 @@ class ApiClient {
     return this.request(`/users/${id}`)
   }
 
+  // User stats (authenticated)
+  async getUserStats(): Promise<ApiResponse<any>> {
+    // Backend commonly exposes /api/v1/users/stats
+    return this.request(`/users/stats`)
+  }
+
   async deleteUser(id: string): Promise<ApiResponse<any>> {
     return this.request(`/users/${id}`, {
       method: "DELETE",
