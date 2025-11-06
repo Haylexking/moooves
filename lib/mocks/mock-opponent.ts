@@ -9,8 +9,9 @@ export function mockOpponentMove(
 ): Position | null {
   const availableMoves = getAvailableMoves(board)
 
-  // Final-boss mode: consider all moves so we don't miss distant blocks
-  const movesToConsider = availableMoves
+  // Candidate pruning for efficiency: for strategic steps, consider only moves near activity
+  const nearbyCandidates = getNearbyCandidates(board, 2)
+  const strategicCandidates = nearbyCandidates.length > 0 ? nearbyCandidates : availableMoves
 
   if (availableMoves.length === 0) {
     return null
@@ -18,19 +19,23 @@ export function mockOpponentMove(
 
   // 1. First priority: Try to win immediately
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
-  const winningMove = findWinningMove(board, currentPlayer, movesToConsider, usedSequences, currentScores)
+  const winningMove = findWinningMove(board, currentPlayer, availableMoves, usedSequences, currentScores)
   if (winningMove) return winningMove
 
   // 2. Second priority: Block opponent immediate win
-  const blockingMove = findWinningMove(board, opponentPlayer, movesToConsider, usedSequences, currentScores)
+  const blockingMove = findWinningMove(board, opponentPlayer, availableMoves, usedSequences, currentScores)
   if (blockingMove) return blockingMove
 
   // 3. Third priority: Block emerging threats (2+ in a row with open ends)
-  const emerging = findEmergingThreatMove(board, opponentPlayer, movesToConsider, currentPlayer)
+  const emerging = findEmergingThreatMove(board, opponentPlayer, availableMoves, currentPlayer)
   if (emerging) return emerging
 
+  // 3.5. If no threats to block, try to create a fork (two simultaneous strong threats)
+  const forkMove = findForkWinningSetupMove(board, currentPlayer, strategicCandidates)
+  if (forkMove) return forkMove
+
   // 4. Fourth priority: Make strategic moves (extend existing sequences) with stronger heuristics
-  const strategicMove = findStrategicMove(board, currentPlayer, movesToConsider, usedSequences)
+  const strategicMove = findStrategicMove(board, currentPlayer, strategicCandidates, usedSequences)
   if (strategicMove) {
     // One-ply safety: avoid moves that hand opponent an immediate win
     if (!wouldGiveOpponentImmediateWin(board, strategicMove[0], strategicMove[1], currentPlayer, usedSequences, currentScores)) {
@@ -38,7 +43,7 @@ export function mockOpponentMove(
     }
     // Try to find the best safe strategic alternative
     let bestSafe: { pos: Position; score: number } | null = null
-    for (const [r, c] of movesToConsider) {
+    for (const [r, c] of strategicCandidates) {
       if (wouldGiveOpponentImmediateWin(board, r, c, currentPlayer, usedSequences, currentScores)) continue
       const s = evaluateSelfStrategic(board, currentPlayer, r, c)
       if (!bestSafe || s > bestSafe.score) bestSafe = { pos: [r, c], score: s }
@@ -48,7 +53,7 @@ export function mockOpponentMove(
 
   // 5. Fifth priority: Move near existing pieces
   // If pruning was used, try to pick from candidateMoves; as a fallback use the existing nearby heuristic
-  const nearbyMove = findNearbyMove(board, movesToConsider)
+  const nearbyMove = findNearbyMove(board, strategicCandidates)
   if (nearbyMove) {
     if (!wouldGiveOpponentImmediateWin(board, nearbyMove[0], nearbyMove[1], currentPlayer, usedSequences, currentScores)) {
       return nearbyMove
@@ -145,6 +150,46 @@ function evaluateSelfStrategic(board: GameBoard, player: Player, row: number, co
   }
   if (forkDirs >= 2) score += forkDirs * forkDirs * 10
   return score
+}
+
+// Try to create a fork: placing a stone that forms two separate strong threats.
+// We consider a fork move if, after placing, there are at least two axes where
+// the combined line length would be >= 3 and has open ends.
+function findForkWinningSetupMove(
+  board: GameBoard,
+  player: Player,
+  candidateMoves: Position[],
+): Position | null {
+  let best: { pos: Position; forkCount: number; sumLen: number } | null = null
+
+  // Use the 4 principal axes (each measureLine counts both sides)
+  const axes: Position[] = [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1],
+  ]
+
+  for (const [row, col] of candidateMoves) {
+    if (board[row][col] !== null) continue
+    let forkCount = 0
+    let sumLen = 0
+    for (const [dr, dc] of axes) {
+      const { length, openEnds } = measureLine(board, player, row, col, dr, dc)
+      // If we place here, the combined line would be (length + 1). Consider it a threat when >= 3 with open ends.
+      if (openEnds > 0 && length + 1 >= 3) {
+        forkCount++
+        sumLen += length
+      }
+    }
+    if (forkCount >= 2) {
+      if (!best || forkCount > best.forkCount || (forkCount === best.forkCount && sumLen > best.sumLen)) {
+        best = { pos: [row, col], forkCount, sumLen }
+      }
+    }
+  }
+
+  return best ? best.pos : null
 }
 
 function wouldGiveOpponentImmediateWin(
@@ -412,13 +457,52 @@ function buildForbiddenExtensions(
     const dc = Math.sign(ec - sc)
     // If direction cannot be determined (all same cell), skip
     if (dr === 0 && dc === 0) continue
-    // Positions just beyond both ends of the scored line
-    const before: Position = [sr - dr, sc - dc]
-    const after: Position = [er + dr, ec + dc]
-    const candidates: Position[] = [before, after]
-    for (const [r, c] of candidates) {
+
+    // 1) Mark immediate cells beyond both ends as forbidden
+    const ends: Position[] = [
+      [sr - dr, sc - dc],
+      [er + dr, ec + dc],
+    ]
+    for (const [r, c] of ends) {
       if (r >= 0 && r < 30 && c >= 0 && c < 30 && board[r][c] === null) {
         forbidden.add(`${r},${c}`)
+      }
+    }
+
+    // 2) Extend the forbidden line outward further from both ends while cells are empty
+    //    This prevents the AI from continuing to push the already-scored line at a distance.
+    //    Stop when hitting a non-empty cell or the board edge.
+    let rF = er + dr
+    let cF = ec + dc
+    while (rF >= 0 && rF < 30 && cF >= 0 && cF < 30 && board[rF][cF] === null) {
+      forbidden.add(`${rF},${cF}`)
+      rF += dr
+      cF += dc
+    }
+
+    let rB = sr - dr
+    let cB = sc - dc
+    while (rB >= 0 && rB < 30 && cB >= 0 && cB < 30 && board[rB][cB] === null) {
+      forbidden.add(`${rB},${cB}`)
+      rB -= dr
+      cB -= dc
+    }
+
+    // 3) Light “buffer” around the five: also avoid the two orthogonal side-cells adjacent to the ends
+    //    to discourage diagonal sidestepping that still piggybacks the scored line.
+    const orthogonals: Position[] = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+    for (const [erow, ecol] of [seq[0], seq[seq.length - 1]]) {
+      for (const [odr, odc] of orthogonals) {
+        const rr = erow + odr
+        const cc = ecol + odc
+        if (rr >= 0 && rr < 30 && cc >= 0 && cc < 30 && board[rr][cc] === null) {
+          forbidden.add(`${rr},${cc}`)
+        }
       }
     }
   }

@@ -7,6 +7,7 @@ import { GameButton } from "../ui/game-button";
 import { GlobalSidebar } from "../ui/global-sidebar";
 import { useGameRules } from "../game/GameRulesProvider";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { getUserDisplayName } from "@/lib/utils/display-name";
 
 export function PlayerDashboard() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export function PlayerDashboard() {
         <div className="w-full max-w-md mx-auto">
           <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8 space-y-6 w-full">
             <div className="text-center mb-6">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Welcome Back, {user?.name || 'Player'}!</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Welcome Back, {getUserDisplayName(user) || 'Player'}!</h1>
               {user?.gamesPlayed !== undefined && (
                 <p className="text-gray-600 mt-2">
                   Games Played: <span className="font-semibold">{user.gamesPlayed}</span>
