@@ -6,13 +6,14 @@ import { SavedBanksModal } from "@/components/ui/saved-banks-modal"
 import { GameButton } from "@/components/ui/game-button"
 import { useState } from "react"
 import Image from "next/image"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 export default function WalletPage() {
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [showSavedBanks, setShowSavedBanks] = useState(false)
   const [banksReloadToken, setBanksReloadToken] = useState(0)
   return (
-    <>
+    <ProtectedRoute>
       <GlobalSidebar />
       <TopNavigation />
 
@@ -61,6 +62,6 @@ export default function WalletPage() {
           </div>
         </div>
       </div>
-    </>
+    </ProtectedRoute>
   )
 }

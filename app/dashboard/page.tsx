@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useGameRules } from "@/components/game/GameRulesProvider"
 import { StartGameModal } from "@/components/ui/start-game-modal"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 export default function DashboardPage() {
   const { user, isAuthenticated } = useAuthStore()
@@ -78,7 +79,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
+    <ProtectedRoute>
       <GlobalSidebar />
       <TopNavigation />
       <StartGameModal open={showStartModal} onOpenChange={setShowStartModal} />
@@ -102,6 +103,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </>
+    </ProtectedRoute>
   )
 }

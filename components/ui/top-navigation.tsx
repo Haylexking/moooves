@@ -14,7 +14,7 @@ export function TopNavigation({ balance, username }: TopNavigationProps) {
   const { user } = useAuthStore()
 
   // Use props or fallback to user data
-  const displayUsername = username || (user ? getUserDisplayName(user) : "Unknown User")
+  const displayUsername = username ?? getUserDisplayName(user ?? undefined)
   const displayBalance = balance
 
   return (

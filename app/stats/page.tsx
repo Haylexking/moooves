@@ -5,6 +5,7 @@ import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { Gamepad2, Trophy, User } from "lucide-react"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 interface UserStats {
   matchesPlayed: number
@@ -62,6 +63,7 @@ export default function StatsPage() {
   }
 
   return (
+    <ProtectedRoute>
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Dashboard Background */}
       <div className="absolute inset-0">
@@ -188,5 +190,6 @@ export default function StatsPage() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }

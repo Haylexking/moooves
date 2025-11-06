@@ -5,6 +5,7 @@ import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 import Image from "next/image"
 import { ChevronDown, ChevronUp } from "lucide-react"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 type TabType = "faqs" | "support"
 
@@ -55,6 +56,7 @@ export default function HelpPage() {
   }
 
   return (
+    <ProtectedRoute>
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Dashboard Background */}
       <Image
@@ -149,5 +151,6 @@ export default function HelpPage() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   )
 }
