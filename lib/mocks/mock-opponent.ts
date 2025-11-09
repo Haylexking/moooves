@@ -252,8 +252,9 @@ function evaluateThreatBlockedByMove(
   col: number,
 ): number {
   // Block threats by occupying the empty that would extend or keep open an opponent line
-  // Score higher for blocking longer, more open lines (e.g., open-4, open-3, open-2)
-  // Use an aggressive weighting to prioritize defense over offense
+  // Score higher for blocking longer lines. Consider ANY line length >= 2 regardless of openness.
+  // Still weight lines with open ends higher, but do NOT require them.
+  // Use an aggressive weighting to prioritize defense over offense.
   let total = 0
   const directions: Position[] = [
     [-1, -1],
@@ -267,13 +268,13 @@ function evaluateThreatBlockedByMove(
   ];
 
   for (const [dr, dc] of directions) {
-    const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc);
-    // Consider any emerging threat length >= 2 with at least one open end
-    if (length >= 2 && openEnds > 0) {
-      // Heuristic: cubic growth by length, and strong bias for two open ends
-      const endsMultiplier = openEnds === 2 ? 3 : 1.5
+    const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc)
+    // Consider any emerging threat length >= 2 (even if closed at both ends)
+    if (length >= 2) {
+      // Heuristic: cubic growth by length; weight open ends stronger but include closed as 1x
+      const endsMultiplier = openEnds === 2 ? 3.0 : openEnds === 1 ? 2.0 : 1.0
       // Boost for very long lines (>=4) to ensure we always block them
-      const longBoost = length >= 4 ? 2 : 1
+      const longBoost = length >= 4 ? 2.5 : length === 3 ? 1.5 : 1.0
       const threatScore = Math.pow(length, 3) * endsMultiplier * longBoost
       total += threatScore
     }

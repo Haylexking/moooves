@@ -151,22 +151,13 @@ export function BattleGround({
     }
   }, [timeLeft, gameStatus])
 
-  // Computer opponent logic - NOW PASSES USED SEQUENCES
+  // Computer opponent logic - immediate response (no artificial buffering)
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
-      const computerMoveTimer = setTimeout(() => {
-        // Pass used sequences and current scores to prevent reusing sequences
-        const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
-        if (computerMove) {
-          // Use structured debug logger
-          // eslint-disable-next-line no-console
-          // Import at top of file
-          // ...existing code...
-          makeMove(computerMove[0], computerMove[1])
-        }
-      }, 1000) // 1 second delay for better UX
-
-      return () => clearTimeout(computerMoveTimer)
+      const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
+      if (computerMove) {
+        makeMove(computerMove[0], computerMove[1])
+      }
     }
   }, [currentPlayer, gameStatus, gameMode, board, makeMove, usedSequences, scores])
 
