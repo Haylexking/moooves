@@ -6,7 +6,9 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 export default function TournamentsPage() {
   return (
     <ProtectedRoute>
-      <TournamentDashboard />
+      <div className="pt-24 sm:pt-28">
+        <TournamentDashboard />
+      </div>
     </ProtectedRoute>
   )
 }

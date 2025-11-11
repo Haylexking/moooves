@@ -151,13 +151,16 @@ export function BattleGround({
     }
   }, [timeLeft, gameStatus])
 
-  // Computer opponent logic - immediate response (no artificial buffering)
+  // Computer opponent logic - delayed response (UX realism) without UI overlay/blink
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
-      const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
-      if (computerMove) {
-        makeMove(computerMove[0], computerMove[1])
-      }
+      const timer = setTimeout(() => {
+        const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
+        if (computerMove) {
+          makeMove(computerMove[0], computerMove[1])
+        }
+      }, 2000) // ~2s delay for natural pacing
+      return () => clearTimeout(timer)
     }
   }, [currentPlayer, gameStatus, gameMode, board, makeMove, usedSequences, scores])
 
@@ -266,7 +269,7 @@ export function BattleGround({
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
+    <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24">
       {/* Heads-up alert about known scoring bug fix in progress */}
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
       <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />

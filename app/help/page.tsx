@@ -71,16 +71,16 @@ export default function HelpPage() {
       <TopNavigation />
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-100px)] p-4 pt-24">
+      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-100px)] p-4 sm:p-6 pt-24">
         <div className="w-full max-w-4xl">
           {/* Help Panel */}
-          <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl">
+          <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-4 sm:p-6 shadow-2xl">
             {/* Tab Navigation */}
             <div className="flex justify-center mb-6">
-              <div className="flex bg-green-200/50 rounded-lg p-1">
+              <div className="flex bg-green-200/50 rounded-lg p-1 overflow-x-auto">
                 <button
                   onClick={() => setActiveTab("faqs")}
-                  className={`px-6 py-2 rounded-md font-semibold transition-colors ${
+                  className={`px-4 sm:px-6 py-2 rounded-md font-semibold transition-colors ${
                     activeTab === "faqs" ? "bg-green-600 text-white shadow-md" : "text-green-800 hover:bg-green-300/50"
                   }`}
                 >
@@ -88,7 +88,7 @@ export default function HelpPage() {
                 </button>
                 <button
                   onClick={() => setActiveTab("support")}
-                  className={`px-6 py-2 rounded-md font-semibold transition-colors ${
+                  className={`px-4 sm:px-6 py-2 rounded-md font-semibold transition-colors ${
                     activeTab === "support"
                       ? "bg-green-600 text-white shadow-md"
                       : "text-green-800 hover:bg-green-300/50"
@@ -107,7 +107,7 @@ export default function HelpPage() {
                     <div key={index} className="bg-green-100/50 rounded-lg border border-green-300/50">
                       <button
                         onClick={() => toggleFaq(index)}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-green-200/30 transition-colors"
+                        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-green-200/30 transition-colors"
                       >
                         <span className="font-semibold text-green-800">{faq.question}</span>
                         {expandedFaq === index ? (
@@ -117,7 +117,7 @@ export default function HelpPage() {
                         )}
                       </button>
                       {expandedFaq === index && (
-                        <div className="px-4 pb-4">
+                        <div className="px-4 sm:px-5 pb-4">
                           <div className="text-green-700 text-sm whitespace-pre-line">{faq.answer}</div>
                         </div>
                       )}

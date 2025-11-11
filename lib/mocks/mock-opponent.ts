@@ -8,10 +8,13 @@ export function mockOpponentMove(
   currentScores: Record<Player, number> = { X: 0, O: 0 },
 ): Position | null {
   const availableMoves = getAvailableMoves(board)
+  // Build a global forbidden set so AI avoids extending any already-scored sequences
+  const forbidden = buildForbiddenExtensions(board, usedSequences)
 
   // Candidate pruning for efficiency: for strategic steps, consider only moves near activity
   const nearbyCandidates = getNearbyCandidates(board, 2)
-  const strategicCandidates = nearbyCandidates.length > 0 ? nearbyCandidates : availableMoves
+  const strategicCandidatesRaw = nearbyCandidates.length > 0 ? nearbyCandidates : availableMoves
+  const strategicCandidates = strategicCandidatesRaw.filter(([r, c]) => !forbidden.has(`${r},${c}`))
 
   if (availableMoves.length === 0) {
     return null
@@ -19,7 +22,14 @@ export function mockOpponentMove(
 
   // 1. First priority: Try to win immediately
   const opponentPlayer: Player = currentPlayer === "X" ? "O" : "X"
-  const winningMove = findWinningMove(board, currentPlayer, availableMoves, usedSequences, currentScores)
+  // Do not attempt to win by pushing into forbidden extensions of already-scored lines
+  const winningMove = findWinningMove(
+    board,
+    currentPlayer,
+    availableMoves.filter(([r, c]) => !forbidden.has(`${r},${c}`)),
+    usedSequences,
+    currentScores,
+  )
   if (winningMove) return winningMove
 
   // 2. Second priority: Block opponent immediate win

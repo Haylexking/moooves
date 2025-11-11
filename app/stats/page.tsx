@@ -81,10 +81,10 @@ export default function StatsPage() {
       <TopNavigation />
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-100px)] p-4 pt-24">
+      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-100px)] p-4 sm:p-6 pt-24">
         <div className="w-full max-w-2xl">
           {/* Statistics Panel */}
-          <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl">
+          <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-4 sm:p-6 shadow-2xl">
             <h2 className="text-2xl font-bold text-green-800 text-center mb-6">Statistics</h2>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -93,11 +93,11 @@ export default function StatsPage() {
             ) : (
               <>
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
                   {/* Matches played */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
-                      <Gamepad2 className="w-6 h-6 text-white" />
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-800 rounded-lg flex items-center justify-center">
+                      <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-green-700 text-sm font-medium">Matches played</p>
@@ -107,9 +107,9 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Tournament played */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-800 rounded-lg flex items-center justify-center">
+                      <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-green-700 text-sm font-medium">Tournament played</p>
@@ -119,9 +119,9 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Win percentage */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-800 rounded-lg flex items-center justify-center">
+                      <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-green-700 text-sm font-medium">Win percentage</p>
@@ -129,9 +129,9 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Tournament Hosted */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-800 rounded-lg flex items-center justify-center">
+                      <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-green-700 text-sm font-medium">Tournament Hosted</p>
@@ -141,9 +141,9 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Highest rank */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-800 rounded-lg flex items-center justify-center">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-green-700 text-sm font-medium">Highest rank</p>
@@ -151,9 +151,9 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Lowest rank */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-800 rounded-lg flex items-center justify-center">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-green-700 text-sm font-medium">Lowest rank</p>
@@ -161,7 +161,7 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Match Earnings */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
                     <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
                       <span className="text-white font-bold">₦</span>
                     </div>
@@ -171,7 +171,7 @@ export default function StatsPage() {
                     </div>
                   </div>
                   {/* Host earnings */}
-                  <div className="bg-green-200/50 rounded-lg p-4 flex items-center gap-3">
+                  <div className="bg-green-200/50 rounded-lg p-4 sm:p-5 flex items-center gap-3">
                     <div className="w-12 h-12 bg-green-800 rounded-lg flex items-center justify-center">
                       <span className="text-white font-bold">₦</span>
                     </div>
@@ -183,7 +183,7 @@ export default function StatsPage() {
                 </div>
                 {/* Start Game Button */}
                 <div className="flex flex-col items-center gap-4">
-                  <GameButton onClick={handleStartGame} className="w-32">
+                  <GameButton onClick={handleStartGame} className="w-full sm:w-40 min-h-12">
                     Start a game
                   </GameButton>
                 </div>
