@@ -159,7 +159,7 @@ export function BattleGround({
         if (computerMove) {
           makeMove(computerMove[0], computerMove[1])
         }
-      }, 2000) // ~2s delay for natural pacing
+      }, 1000) // ~1s delay for better UX
       return () => clearTimeout(timer)
     }
   }, [currentPlayer, gameStatus, gameMode, board, makeMove, usedSequences, scores])
