@@ -12,11 +12,9 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
       className={cn(
         "game-cell transition-all duration-200 active:scale-95",
         isUsed && "game-cell--used opacity-70",
-        value === "X" && "game-cell--x hover:bg-blue-50 active:bg-blue-100",
-        value === "O" && "game-cell--o hover:bg-red-50 active:bg-red-100",
+        // Remove color-changing hovers to keep board green background consistent
         isHighlighted && "ring-2 ring-yellow-400 z-10",
         value && "animate-bounce-in",
-        !value && !disabled && "hover:bg-gray-50 active:bg-gray-100",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
         isMobile ? "min-w-[24px] min-h-[24px]" : "min-w-[10px] min-h-[10px]"
       )}
@@ -25,7 +23,7 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "white",
+        background: "transparent",
         border: "1px solid rgba(0,0,0,0.06)",
         color: value === "X" ? "#1e40af" : value === "O" ? "#dc2626" : "transparent",
         fontWeight: 700,

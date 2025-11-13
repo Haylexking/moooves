@@ -272,7 +272,9 @@ export function BattleGround({
     <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24">
       {/* Heads-up alert about known scoring bug fix in progress */}
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
-      <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
+      {localMode !== 'ai' && (
+        <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
+      )}
       {/* Pending move overlay */}
       {pendingMove && serverAuthoritative && (
         <div
