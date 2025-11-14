@@ -23,7 +23,7 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
+        background: "white",
         border: "1px solid rgba(0,0,0,0.06)",
         color: value === "X" ? "#1e40af" : value === "O" ? "#dc2626" : "transparent",
         fontWeight: 700,

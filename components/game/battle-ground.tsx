@@ -272,7 +272,7 @@ export function BattleGround({
     <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24">
       {/* Heads-up alert about known scoring bug fix in progress */}
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
-      {localMode !== 'ai' && (
+      {localMode && localMode !== 'ai' && (
         <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
       )}
       {/* Pending move overlay */}
@@ -358,7 +358,7 @@ export function BattleGround({
         <div className="relative">
           {/* 30x30 Grid Container */}
           <div
-            className={`bg-green-200/80 border-4 border-green-800 rounded-lg overflow-auto ${expanded
+            className={`bg-white border-4 border-green-800 rounded-lg overflow-auto ${expanded
                 ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
                 : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
               } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""} ${showGameStartAlert ? "pointer-events-none opacity-60" : ""}`}
