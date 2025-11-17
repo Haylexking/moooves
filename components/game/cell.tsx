@@ -15,7 +15,7 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
         // Remove color-changing hovers to keep board green background consistent
         isHighlighted && "ring-2 ring-yellow-400 z-10",
         value && "animate-bounce-in",
-        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        disabled ? "opacity-50" : "cursor-pointer",
         isMobile ? "min-w-[24px] min-h-[24px]" : "min-w-[10px] min-h-[10px]"
       )}
       style={{

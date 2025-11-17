@@ -151,15 +151,24 @@ export function BattleGround({
     }
   }, [timeLeft, gameStatus])
 
-  // Computer opponent logic - delayed response (UX realism) without UI overlay/blink
+  // Computer opponent logic - short delay for realism without UI overlay
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
       const timer = setTimeout(() => {
-        const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
-        if (computerMove) {
-          makeMove(computerMove[0], computerMove[1])
+        const runComputation = () => {
+          const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
+          if (computerMove) {
+            makeMove(computerMove[0], computerMove[1])
+          }
         }
-      }, 1000) // ~1s delay for better UX
+
+        if (typeof window !== "undefined" && (window as any).requestIdleCallback) {
+          (window as any).requestIdleCallback(runComputation, { timeout: 300 })
+        } else {
+          requestAnimationFrame(runComputation)
+        }
+      }, 600) // ~0.6s delay feels responsive but natural
+
       return () => clearTimeout(timer)
     }
   }, [currentPlayer, gameStatus, gameMode, board, makeMove, usedSequences, scores])
