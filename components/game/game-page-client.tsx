@@ -7,7 +7,6 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { GameResultModal } from "@/components/game/game-result-modal"
 import { useGameStore } from "@/lib/stores/game-store"
 import { ProtectedRoute } from "@/components/auth/protected-route"
-import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { useRouter } from 'next/navigation'
 
 export default function GamePageClient() {
@@ -56,7 +55,6 @@ export default function GamePageClient() {
 
   return (
     <ProtectedRoute>
-      <GlobalSidebar />
       <BattleGround player1={user?.fullName || "User"} localMode={localMode} connectionType={connectionType} />
       <GameResultModal
         open={gameStatus === "completed"}

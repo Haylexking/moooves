@@ -36,9 +36,9 @@ export function PlayerDashboard() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
-      <GlobalSidebar />
-      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 w-full">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pt-24 sm:pt-28">
+      <GlobalSidebar showTrigger={false} />
+      <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-8 w-full">
         <div className="w-full max-w-md mx-auto">
           <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 sm:p-8 space-y-6 w-full">
             <div className="text-center mb-6">

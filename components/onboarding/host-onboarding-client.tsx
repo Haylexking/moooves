@@ -158,9 +158,9 @@ export default function HostOnboardingClient() {
   }
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center bg-black overflow-hidden">
+    <div className="relative min-h-screen w-full flex items-center justify-center bg-black overflow-hidden px-4 sm:px-6 py-10 sm:py-12">
       <Image src="/images/background.png" alt="Background" fill className="object-cover object-center z-0 opacity-90" priority />
-      <div className="relative z-10 w-full max-w-md mx-auto mt-12 rounded-[24px] bg-[#E6FFE6]/90 border-4 border-[#6AC56E] shadow-2xl flex flex-col items-center px-6 py-8">
+      <div className="relative z-10 w-full max-w-md mx-auto mt-8 sm:mt-12 rounded-[24px] bg-[#E6FFE6]/90 border-4 border-[#6AC56E] shadow-2xl flex flex-col items-center px-5 sm:px-8 py-8">
         <div className="-mt-16 mb-2 flex justify-center w-full">
           <Image src="/images/XO.png" alt="XO Logo" width={120} height={60} className="drop-shadow-xl" />
         </div>

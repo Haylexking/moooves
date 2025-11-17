@@ -128,7 +128,12 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
           </div>
 
 
-          <Button onClick={handleJoin} className="w-full" size="lg" disabled={loading}>
+          <Button
+            onClick={handleJoin}
+            className="w-full text-base sm:text-lg whitespace-normal break-words text-center py-4"
+            size="lg"
+            disabled={loading}
+          >
             {loading ? "Processing..." : `Join Tournament - ₦${tournament.entryFee.toLocaleString()}`}
           </Button>
           {error && <div className="text-red-500 text-sm text-center mt-2">{error}</div>}
