@@ -14,10 +14,10 @@ export default function WalletPage() {
   const [banksReloadToken, setBanksReloadToken] = useState(0)
   return (
     <ProtectedRoute>
-      <GlobalSidebar />
+      <GlobalSidebar showTrigger={false} />
       <TopNavigation />
 
-      <div className="relative min-h-screen w-full overflow-hidden pt-16 sm:pt-20">
+      <div className="relative min-h-screen w-full overflow-hidden pt-24 sm:pt-28">
         {/* Dashboard Background */}
         <Image
           src="/images/dashboard-background.png"

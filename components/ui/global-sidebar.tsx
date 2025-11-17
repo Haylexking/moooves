@@ -6,6 +6,7 @@ import { Menu, X, Gamepad2, Trophy, BarChart3, Wallet, HelpCircle, LogOut } from
 import { GameButton } from "./game-button"
 import { useGameStore } from "@/lib/stores/game-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useGlobalSidebarStore } from "@/lib/stores/global-sidebar-store"
 
 const menuItems = [
   { icon: Gamepad2, label: "Play game", href: "/dashboard" },
@@ -15,8 +16,13 @@ const menuItems = [
   { icon: HelpCircle, label: "Need help", href: "/help" },
 ]
 
-export function GlobalSidebar() {
-  const [open, setOpen] = useState(false)
+interface GlobalSidebarProps {
+  showTrigger?: boolean
+}
+
+export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
+  const open = useGlobalSidebarStore((state) => state.open)
+  const setOpen = useGlobalSidebarStore((state) => state.setOpen)
   const [showExitModal, setShowExitModal] = useState(false)
   const router = useRouter()
   const gameStatus = useGameStore((state) => state.gameStatus)
@@ -55,7 +61,7 @@ export function GlobalSidebar() {
 
   return (
     <>
-      {!open && (
+      {showTrigger && !open && (
         <button
           className="fixed top-4 sm:top-6 left-4 sm:left-6 z-50 bg-white/90 rounded-lg shadow-lg flex items-center gap-2 px-3 sm:px-4 py-2 font-semibold text-sm sm:text-base text-gray-800 hover:bg-white transition-colors"
           onClick={() => setOpen(true)}

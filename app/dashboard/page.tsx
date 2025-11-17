@@ -80,7 +80,7 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <GlobalSidebar />
+      <GlobalSidebar showTrigger={false} />
       <TopNavigation />
       <StartGameModal open={showStartModal} onOpenChange={setShowStartModal} />
 

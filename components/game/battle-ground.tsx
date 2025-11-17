@@ -304,7 +304,7 @@ export function BattleGround({
           </div>
         </div>
       )}
-      <GlobalSidebar />
+      <GlobalSidebar showTrigger={false} />
       <TopNavigation username={displayUsername} />
       {/* Match Result Modal */}
   <GameResultModal

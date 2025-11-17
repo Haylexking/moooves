@@ -17,10 +17,10 @@ export function ProtectedRoute({ children, redirectTo = "/onboarding" }: Protect
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && rehydrated && !isAuthenticated) {
       router.replace(redirectTo)
     }
-  }, [isAuthenticated, isLoading, router, redirectTo])
+  }, [isAuthenticated, isLoading, rehydrated, router, redirectTo])
 
   // If the persisted store hasn't rehydrated, show a splash to avoid blank screens
   if (!rehydrated || isLoading) {

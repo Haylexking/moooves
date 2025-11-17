@@ -77,7 +77,7 @@ export default function StatsPage() {
         />
       </div>
 
-      <GlobalSidebar />
+      <GlobalSidebar showTrigger={false} />
       <TopNavigation />
 
       {/* Main Content Area */}

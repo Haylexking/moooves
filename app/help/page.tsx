@@ -67,7 +67,7 @@ export default function HelpPage() {
         priority
       />
 
-      <GlobalSidebar />
+      <GlobalSidebar showTrigger={false} />
       <TopNavigation />
 
       {/* Main Content Area */}

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
 import type { Tournament } from "@/lib/types"
-import Image from "next/image"
 import { Check, ChevronRight, User, X } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { logDebug } from "@/lib/hooks/use-debug-logger"
@@ -379,15 +378,8 @@ export default function TournamentDashboard() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
-      <Image
-        src="/images/dashboard-background.png"
-        alt="Dashboard Background"
-        fill
-        className="object-cover object-center z-0"
-        priority
-      />
-      <GlobalSidebar />
+    <div className="relative min-h-screen w-full overflow-hidden pt-24 sm:pt-28 px-4 sm:px-6">
+      <GlobalSidebar showTrigger={false} />
       <div className="relative z-20">
         <TopNavigation />
       </div>
