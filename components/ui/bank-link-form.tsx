@@ -9,9 +9,11 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
   const [bankCode, setBankCode] = useState("");
   const [bankName, setBankName] = useState("");
   const [role, setRole] = useState("user");
-  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountName, setAccountName] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([]);
 
   // Load bank list from Swagger endpoint to allow name selection
@@ -30,39 +32,77 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
     return () => { mounted = false }
   }, [])
 
-  // Step 1: Verify account number and bank code
+  const resolveBankCode = async () => {
+    if (bankCode) return bankCode
+    if (!bankName) return ""
+    try {
+      const r = await apiClient.findBankByName(bankName)
+      const data: any = r.data || {}
+      const found = Array.isArray(data?.banks) ? data.banks[0] : null
+      return found?.code ? String(found.code) : ""
+    } catch {
+      return ""
+    }
+  }
+
   const handleVerify = async () => {
-    setLoading(true);
+    if (!accountNumber) {
+      setError("Enter your account number to verify.")
+      return
+    }
+    setVerifying(true);
     setError(null);
     setAccountName(null);
+    setSuccessMessage(null);
     try {
-      // If bankCode is not known, try to find by name via Swagger endpoint
-      let resolvedBankCode = bankCode
-      if (!resolvedBankCode && bankName) {
-        try {
-          const r = await apiClient.findBankByName(bankName)
-          const j: any = r.data || {}
-          const found = Array.isArray(j?.banks) ? j.banks[0] : null
-          if (found?.code) resolvedBankCode = String(found.code)
-        } catch {}
+      let code = bankCode
+      if (!code) {
+        code = await resolveBankCode()
+        if (!code) {
+          setError("Select a bank to verify.")
+          return
+        }
+        setBankCode(code)
       }
-      // No dedicated verify endpoint in Swagger. We'll confirm on save (add), which returns accountName.
-      setBankCode(resolvedBankCode || bankCode)
+      const res = await apiClient.verifyBankAccount({ accountNumber, bankCode: code })
+      if (!res.success) {
+        const data: any = res.data || {}
+        setError(res.error || data?.message || "Verification failed. Please check your details.")
+        return
+      }
+      const payload: any = res.data || {}
+      const name = payload.account_name || payload.accountName || null
+      if (name) {
+        setAccountName(name)
+        setSuccessMessage("Account verified successfully.")
+      } else {
+        setError("Bank verified but account name was not returned.")
+      }
     } catch (err: any) {
       setError(err.message || "Verification error");
     } finally {
-      setLoading(false);
+      setVerifying(false);
     }
   };
 
   // Step 2: Save verified bank details
   const handleSave = async () => {
-    setLoading(true);
+    if (!accountName) {
+      setError("Verify your account before saving.")
+      return
+    }
+    setSaving(true);
     setError(null);
+    setSuccessMessage(null);
     try {
+      const code = bankCode || (await resolveBankCode())
+      if (!code) {
+        setError("Select a bank to save.")
+        return
+      }
       const payload = {
         accountNumber,
-        bankCode: bankCode || (banks.find(b => b.name === bankName)?.code ?? ""),
+        bankCode: code,
         role,
         userId: user?.id,
       }
@@ -72,13 +112,13 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
         setError((ar.error || data?.message) || "Failed to save bank details")
         return
       }
-      // If backend returns accountName (per Swagger), reflect it
       if (data.accountName) setAccountName(data.accountName)
+      setSuccessMessage("Bank details saved successfully.")
       if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.message || "Save error");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -115,15 +155,16 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
           <option value="user">User</option>
           <option value="host">Host</option>
         </select>
-        <GameButton disabled={loading || !accountNumber || !(bankCode || bankName)} onClick={handleVerify} className="w-full">
-          {loading ? "Verifying..." : "Verify Account"}
+        <GameButton disabled={verifying || !accountNumber || !(bankCode || bankName)} onClick={handleVerify} className="w-full">
+          {verifying ? "Verifying..." : "Verify Account"}
         </GameButton>
         {accountName && (
           <div className="text-green-700 font-semibold">Account Name: {accountName}</div>
         )}
-        {error && <div className="text-red-600">{error}</div>}
-        <GameButton disabled={loading || !accountName} onClick={handleSave} className="w-full">
-          {loading ? "Saving..." : "Save Bank Details"}
+        {successMessage && <div className="text-green-700 text-sm">{successMessage}</div>}
+        {error && <div className="text-red-600 text-sm">{error}</div>}
+        <GameButton disabled={saving || !accountName} onClick={handleSave} className="w-full">
+          {saving ? "Saving..." : "Save Bank Details"}
         </GameButton>
       </div>
     </div>
