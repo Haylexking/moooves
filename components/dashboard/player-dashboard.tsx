@@ -50,7 +50,7 @@ export function PlayerDashboard() {
               )}
             </div>
 
-            <div className="space-y-4 w-full">
+            <div className="space-y-4 w-full px-1 sm:px-0">
               <GameButton 
                 onClick={handleStartGame} 
                 className="w-full text-lg font-semibold py-5 md:py-6 hover:scale-[1.02] transition-transform"
