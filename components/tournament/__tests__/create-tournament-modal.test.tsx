@@ -36,6 +36,7 @@ import { CreateTournamentModal } from '../create-tournament-modal'
 
 // Provide typing for global helper
 declare global {
+  // eslint-disable-next-line no-var
   var renderWithProviders: (ui: any, opts?: any) => any
 }
 
@@ -51,14 +52,14 @@ describe('CreateTournamentModal', () => {
 
     // Fill form fields
     const nameInput = screen.getByPlaceholderText(/Enter tournament name/i)
-    const feeInput = screen.getByLabelText(/Entry Fee \(₦\)/i)
+    const feeInput = screen.getByLabelText(/Entry Fee \(NGN\)/i)
     const maxPlayersInput = screen.getByLabelText(/Maximum Players/i)
-    const startTimeInput = screen.getByLabelText(/Start Time \(UTC\)/i)
+    const startTimeInput = screen.getByLabelText(/Scheduled Start \(local time\)/i)
 
     fireEvent.change(nameInput, { target: { value: 'Test Cup' } })
     fireEvent.change(feeInput, { target: { value: '1000' } })
     fireEvent.change(maxPlayersInput, { target: { value: '16' } })
-    
+
     // Set a future date for the start time
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
@@ -71,10 +72,10 @@ describe('CreateTournamentModal', () => {
     await waitFor(() => {
       const store = require('@/lib/stores/tournament-store')
       const s = store.useTournamentStore()
-      
+
       expect(s.createTournament).toHaveBeenCalled()
       const callArgs = s.createTournament.mock.calls[0][0]
-      
+
       expect(callArgs).toMatchObject({
         name: 'Test Cup',
         entryFee: 1000,
@@ -83,7 +84,7 @@ describe('CreateTournamentModal', () => {
         organizerId: 'user-123',
       })
       expect(callArgs.startTime).toBeDefined()
-      
+
       // Check if the tournament was added to the store
       expect(Array.isArray(s.tournaments)).toBe(true)
       expect(s.tournaments.find((t: any) => t.id === 't-123')).toBeTruthy()

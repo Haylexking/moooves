@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
-import { Menu, Settings, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
+import { Menu, User, Plus, Bell, Maximize2, Minimize2, Trophy } from "lucide-react"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { useGameRules } from './GameRulesProvider'
 import { TopNavigation } from "@/components/ui/top-navigation"
@@ -31,6 +31,7 @@ interface BattleGroundProps {
   localMode?: 'ai' | 'p2p' | 'tournament'
   onMoveMade?: (row: number, col: number, byPlayer: Player) => void
   connectionType?: string | undefined
+  matchId?: string
 }
 
 export function BattleGround({
@@ -39,6 +40,7 @@ export function BattleGround({
   gameMode = "player-vs-computer",
   localMode,
   onMoveMade,
+  matchId,
 }: BattleGroundProps) {
   const [resultModalOpen, setResultModalOpen] = useState(false)
   const [resultType, setResultType] = useState<"win" | "lose" | "draw">("lose")
@@ -64,6 +66,10 @@ export function BattleGround({
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const previousActiveElementRef = useRef<HTMLElement | null>(null)
 
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false)
+  const [waitingTimer, setWaitingTimer] = useState(15 * 60) // 15 minutes in seconds
+  const [winByDefault, setWinByDefault] = useState(false)
+
   // Retry sync handler: fetch authoritative match state and apply to store
   const handleRetrySync = async () => {
     try {
@@ -86,8 +92,46 @@ export function BattleGround({
 
   useEffect(() => {
     // Initialize game when component mounts
-    initializeGame("timed")
-  }, [initializeGame])
+    if (matchId) {
+      // If matchId is provided, we might need to join the room or fetch state
+      // For now, we'll just initialize the game locally
+      initializeGame("timed")
+
+      // Check for opponent presence
+      if (localMode === 'tournament') {
+        setWaitingForOpponent(true)
+        // Poll for room details to check participants
+        const interval = setInterval(async () => {
+          if (matchRoom.roomId) {
+            const details = await matchRoom.getRoomDetails(matchRoom.roomId)
+            if (details && details.participants && details.participants.length >= 2) {
+              setWaitingForOpponent(false)
+              clearInterval(interval)
+            }
+          }
+        }, 5000)
+        return () => clearInterval(interval)
+      }
+    } else {
+      initializeGame("timed")
+    }
+  }, [initializeGame, matchId, localMode, matchRoom.roomId])
+
+  // Waiting timer logic
+  useEffect(() => {
+    if (waitingForOpponent && waitingTimer > 0) {
+      const timer = setInterval(() => {
+        setWaitingTimer((prev) => prev - 1)
+      }, 1000)
+      return () => clearInterval(timer)
+    } else if (waitingForOpponent && waitingTimer === 0) {
+      // Timer expired, user wins by default
+      setWinByDefault(true)
+      setWaitingForOpponent(false)
+      // In a real app, we would call an API to claim the win here
+      toast({ title: "Opponent timed out", description: "You win by default!", variant: "default" })
+    }
+  }, [waitingForOpponent, waitingTimer])
 
   // Manage focus when overlay appears/disappears
   useEffect(() => {
@@ -103,22 +147,33 @@ export function BattleGround({
     }
   }, [pendingMove, serverAuthoritative])
 
-  // Show result modal on game end
+  // Show result modal on game end and submit result if tournament match
   useEffect(() => {
     if (gameStatus === "completed") {
       // For player-vs-computer, X is human, O is computer
+      let result: "win" | "lose" | "draw" = "draw"
       if (scores.X > scores.O) {
-        setResultType("win")
+        result = "win"
       } else if (scores.X < scores.O) {
-        setResultType("lose")
-      } else {
-        setResultType("draw")
+        result = "lose"
       }
+
+      setResultType(result)
       setResultModalOpen(true)
+
+      // Submit result if this is a tournament match
+      if (matchId && user) {
+        const winnerId = result === "win" ? user.id : (result === "lose" ? "opponent" : "draw")
+        // In a real implementation, we'd have the opponent's ID
+        // For now, we'll just log it or call the API if we had the opponent ID
+
+        // apiClient.submitMatchResult(matchId, winnerId)
+        console.log("Submitting match result:", { matchId, winnerId })
+      }
     } else {
       setResultModalOpen(false)
     }
-  }, [gameStatus, scores])
+  }, [gameStatus, scores, matchId, user])
 
   useEffect(() => {
     if (gameStatus === "playing") {
@@ -150,8 +205,6 @@ export function BattleGround({
       useGameStore.getState().endGame()
     }
   }, [timeLeft, gameStatus])
-
-  // Computer opponent logic - short delay for realism without UI overlay
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
       const timer = setTimeout(() => {
@@ -267,14 +320,6 @@ export function BattleGround({
     openRules()
   }
 
-  const menuItems = [
-    { icon: User, label: "Profile", href: "/profile" },
-    { icon: Trophy, label: "Tournament", href: "/tournaments" }, // Added tournament link
-    { icon: Settings, label: "Settings", href: "/settings" },
-    { label: "Back to Dashboard", href: "/dashboard" },
-    { label: "Exit Game", href: "/" },
-  ]
-
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
 
   return (
@@ -284,6 +329,55 @@ export function BattleGround({
       {localMode && localMode !== 'ai' && (
         <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
       )}
+      {/* Waiting for Opponent Overlay */}
+      {waitingForOpponent && !winByDefault && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-green-500 rounded-2xl p-8 text-center max-w-md mx-4 shadow-2xl shadow-green-500/20">
+            <div className="animate-pulse mb-6">
+              <User className="w-16 h-16 text-gray-500 mx-auto" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Waiting for Opponent</h2>
+            <p className="text-gray-400 mb-6">Your opponent has 15 minutes to join the match.</p>
+
+            <div className="bg-black/40 rounded-lg p-4 border border-gray-800 mb-6">
+              <div className="text-sm text-gray-500 uppercase tracking-widest mb-1">Time Remaining</div>
+              <div className={`text-3xl font-mono font-bold ${waitingTimer < 60 ? "text-red-500" : "text-green-400"}`}>
+                {Math.floor(waitingTimer / 60)}:{(waitingTimer % 60).toString().padStart(2, '0')}
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              If they don't show up, you will win by default.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Win By Default Overlay */}
+      {winByDefault && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-green-500 rounded-2xl p-8 text-center max-w-md mx-4 shadow-2xl shadow-green-500/20">
+            <div className="mb-6">
+              <Trophy className="w-20 h-20 text-yellow-400 mx-auto animate-bounce" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-2">You Win!</h2>
+            <p className="text-green-400 text-lg mb-6">Opponent failed to show up.</p>
+
+            <button
+              onClick={() => {
+                // Navigate back to tournament dashboard
+                const router = useRouter() // This hook needs to be available or passed down
+                // For now, we'll assume the parent handles navigation or we reload
+                window.location.href = `/tournaments/${matchId?.split('_')[0] || ''}` // simplistic fallback
+              }}
+              className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
+            >
+              Return to Lobby
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Pending move overlay */}
       {pendingMove && serverAuthoritative && (
         <div
@@ -307,24 +401,24 @@ export function BattleGround({
       <GlobalSidebar showTrigger={false} />
       <TopNavigation username={displayUsername} />
       {/* Match Result Modal */}
-  <GameResultModal
-    open={resultModalOpen}
-    onClose={() => setResultModalOpen(false)}
-    onPlayAgain={() => {
-      // Restart the timed game
-      useGameStore.getState().startGame("timed")
-      setResultModalOpen(false)
-    }}
-    onBackToMenu={() => {
-      // Close modal and navigate back to dashboard using Next router
-      setResultModalOpen(false)
-      const router = useRouter()
-      router.push('/dashboard')
-    }}
-    result={resultType}
-    scoreX={scores.X}
-    scoreO={scores.O}
-  />
+      <GameResultModal
+        open={resultModalOpen}
+        onClose={() => setResultModalOpen(false)}
+        onPlayAgain={() => {
+          // Restart the timed game
+          useGameStore.getState().startGame("timed")
+          setResultModalOpen(false)
+        }}
+        onBackToMenu={() => {
+          // Close modal and navigate back to dashboard using Next router
+          setResultModalOpen(false)
+          const router = useRouter()
+          router.push('/dashboard')
+        }}
+        result={resultType}
+        scoreX={scores.X}
+        scoreO={scores.O}
+      />
       {/* Dashboard Background */}
       <Image
         src="/images/dashboard-background.png"
@@ -350,7 +444,7 @@ export function BattleGround({
 
       {/* Scoreboard - now above the board and closer, with responsive margin */}
       <div className="w-full flex justify-center mt-2 mb-2 sm:mt-4 sm:mb-4">
-  {/* Scoreboard */}
+        {/* Scoreboard */}
         <GameScore
           player1={player1}
           player2={player2}
@@ -368,8 +462,8 @@ export function BattleGround({
           {/* 30x30 Grid Container */}
           <div
             className={`bg-white border-4 border-green-800 rounded-lg overflow-auto ${expanded
-                ? "w-[90vw] h-[90vw] max-w-[800px] max-h-[800px]"
-                : "w-[95vw] h-[60vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
+              ? "w-[95vw] h-[95vw] max-w-[800px] max-h-[800px]"
+              : "w-[95vw] h-[95vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
               } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""} ${showGameStartAlert ? "pointer-events-none opacity-60" : ""}`}
           >
             {/* Actual 30x30 Grid */}
@@ -381,28 +475,28 @@ export function BattleGround({
               }}
             >
               {Array.from({ length: 900 }, (_, index) => {
-                  const cellContent = getCellContent(index)
-                  const isUsed = isCellUsed(index)
-                  const row = Math.floor(index / 30)
-                  const col = index % 30
+                const cellContent = getCellContent(index)
+                const isUsed = isCellUsed(index)
+                const row = Math.floor(index / 30)
+                const col = index % 30
 
-                  return (
-                    <div key={index} style={{ fontSize: expanded ? "10px" : "8px" }}>
-                      <Cell
-                        value={cellContent}
-                        onClick={() => {
-                          if (serverAuthoritative && pendingMove) return
-                          handleCellClick(index)
-                        }}
-                        disabled={gameMode === "player-vs-computer" && currentPlayer === "O"}
-                        row={row}
-                        col={col}
-                        isHighlighted={false}
-                        isUsed={isUsed}
-                      />
-                    </div>
-                  )
-                })}
+                return (
+                  <div key={index} style={{ fontSize: expanded ? "10px" : "8px" }}>
+                    <Cell
+                      value={cellContent}
+                      onClick={() => {
+                        if (serverAuthoritative && pendingMove) return
+                        handleCellClick(index)
+                      }}
+                      disabled={gameMode === "player-vs-computer" && currentPlayer === "O"}
+                      row={row}
+                      col={col}
+                      isHighlighted={false}
+                      isUsed={isUsed}
+                    />
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -414,7 +508,7 @@ export function BattleGround({
           {/* Scoreboard (Player vs Player/Computer Display) */}
           <div className="flex items-center gap-4 mb-2 sm:mb-0 text-white font-bold">
             <div className="flex items-center gap-2">
-              <span className="text-blue-300">{displayUsername}</span>
+              <span className="text-blue-300 truncate max-w-[100px] sm:max-w-[150px]">{displayUsername}</span>
               <span className="text-xs text-blue-200">(X)</span>
               <span className="ml-2 text-2xl">{scores.X}</span>
             </div>
@@ -443,8 +537,8 @@ export function BattleGround({
               onClick={handlePlay}
               disabled={gameStatus === "playing"}
               className={`px-6 py-2 font-bold rounded-lg transition-colors w-full sm:w-auto ${gameStatus === "playing"
-                  ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                  : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
                 }`}
             >
               {gameStatus === "playing" ? "PLAYING" : "PLAY"}

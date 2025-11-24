@@ -2,17 +2,19 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Menu, X, Gamepad2, Trophy, BarChart3, Wallet, HelpCircle, LogOut } from "lucide-react"
+import { Menu, X, Gamepad2, Trophy, BarChart3, Wallet, HelpCircle, LogOut, Settings } from "lucide-react"
 import { GameButton } from "./game-button"
 import { useGameStore } from "@/lib/stores/game-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useGlobalSidebarStore } from "@/lib/stores/global-sidebar-store"
+import { SettingsModal } from "@/components/settings/settings-modal"
 
 const menuItems = [
   { icon: Gamepad2, label: "Play game", href: "/dashboard" },
   { icon: Trophy, label: "Tournament", href: "/tournaments" },
   { icon: BarChart3, label: "Statistics", href: "/stats" },
   { icon: Wallet, label: "Wallet", href: "/wallet" },
+  { icon: Settings, label: "Settings", href: "#settings" },
   { icon: HelpCircle, label: "Need help", href: "/help" },
 ]
 
@@ -24,6 +26,7 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
   const open = useGlobalSidebarStore((state) => state.open)
   const setOpen = useGlobalSidebarStore((state) => state.setOpen)
   const [showExitModal, setShowExitModal] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const router = useRouter()
   const gameStatus = useGameStore((state) => state.gameStatus)
 
@@ -50,7 +53,7 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
         const state = storeApi.getState()
         if (state && typeof state.logout === 'function') state.logout()
       }
-    } catch {}
+    } catch { }
     // Navigate to onboarding
     router.push("/onboarding")
   }
@@ -63,7 +66,7 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
     <>
       {showTrigger && !open && (
         <button
-          className="fixed top-4 sm:top-6 left-4 sm:left-6 z-50 bg-white/90 rounded-lg shadow-lg flex items-center gap-2 px-3 sm:px-4 py-2 font-semibold text-sm sm:text-base text-gray-800 hover:bg-white transition-colors"
+          className="fixed top-4 left-4 z-50 bg-white/90 rounded-lg shadow-lg flex items-center gap-2 px-4 py-3 font-semibold text-base text-gray-800 hover:bg-white transition-colors active:scale-95 touch-manipulation"
           onClick={() => setOpen(true)}
         >
           <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -74,7 +77,7 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
       {open && <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />}
 
       {open && (
-        <aside className="fixed left-0 top-0 h-full w-56 sm:w-64 bg-black/40 backdrop-blur-sm z-50 transform transition-transform duration-300 translate-x-0">
+        <aside className="fixed left-0 top-0 h-full w-[85vw] sm:w-64 bg-black/40 backdrop-blur-sm z-50 transform transition-transform duration-300 translate-x-0 border-r border-white/10">
           <div className="p-3 sm:p-4 space-y-2">
             {/* Collapse Button */}
             <button
@@ -92,7 +95,11 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
                 className="flex items-center gap-2 sm:gap-3 w-full p-2 sm:p-3 rounded-lg font-semibold text-sm sm:text-base transition-colors bg-white/90 text-gray-800 hover:bg-green-100 hover:text-green-800"
                 onClick={() => {
                   setOpen(false)
-                  router.push(item.href)
+                  if (item.href === "#settings") {
+                    setShowSettings(true)
+                  } else {
+                    router.push(item.href)
+                  }
                 }}
               >
                 {item.icon && React.createElement(item.icon, { className: "w-4 h-4 sm:w-5 sm:h-5" })}
@@ -140,6 +147,8 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
           </div>
         </div>
       )}
+
+      <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
     </>
   )
 }

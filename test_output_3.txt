@@ -1,0 +1,4 @@
+﻿
+> moooves-game@0.1.0 test
+> jest --runInBand tests/platform.e2e.test.tsx components/tournament/__tests__/create-tournament-modal.test.tsx
+

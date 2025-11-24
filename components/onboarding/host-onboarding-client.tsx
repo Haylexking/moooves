@@ -20,11 +20,19 @@ export default function HostOnboardingClient() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const { hostLogin, hostRegister, isLoading, error, clearError } = useAuthStore()
+  const authStore = useAuthStore()
+  const { hostLogin, hostRegister, isLoading, error, clearError } = authStore
+
+  const getAuthSnapshot = () => {
+    const storeFn: any = useAuthStore as any
+    if (storeFn && typeof storeFn.getState === "function") return storeFn.getState()
+    if (authStore && typeof (authStore as any).getState === "function") return (authStore as any).getState()
+    return authStore || {}
+  }
 
   // Persist onboarding mode for auth redirects
   useEffect(() => {
-    try { localStorage.setItem('onboarding_mode', 'host') } catch {}
+    try { localStorage.setItem('onboarding_mode', 'host') } catch { }
   }, [])
 
   const validatePassword = (password: string): string | null => {
@@ -78,7 +86,7 @@ export default function HostOnboardingClient() {
           try {
             const { logDebug } = require("@/lib/hooks/use-debug-logger")
             logDebug("Onboarding", { event: "auth-initialized", state })
-          } catch {}
+          } catch { }
           unsub()
           resolve(state)
         }
@@ -96,14 +104,17 @@ export default function HostOnboardingClient() {
     setLoading(true)
     try {
       await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
-      const storeFn: any = useAuthStore as any
-      const authAfter = storeFn?.getState ? storeFn.getState() : {}
+      const authAfter = getAuthSnapshot()
+      if (authAfter.user && authAfter.user.emailVerified === false) {
+        router.push("/auth/verify")
+        return
+      }
       if (authAfter.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
           const token = apiClient?.getToken?.() || null
           logDebug("Onboarding", { event: "register-complete", tokenPresent: !!token })
-        } catch {}
+        } catch { }
         await waitForAuthInit(7000)
         const ret = typeof window !== "undefined" ? getReturnPath() : null
         if (ret) {
@@ -119,7 +130,7 @@ export default function HostOnboardingClient() {
         if (/email/i.test(msg)) setErrors((prev) => ({ ...prev, email: msg }))
         else if (/user(name)?/i.test(msg) || /username/i.test(msg)) setErrors((prev) => ({ ...prev, username: msg }))
       }
-    } catch {} finally {
+    } catch { } finally {
       setLoading(false)
     }
   }
@@ -130,14 +141,17 @@ export default function HostOnboardingClient() {
     setLoading(true)
     try {
       await hostLogin(loginData.email.trim(), loginData.password)
-      const storeFn: any = useAuthStore as any
-      const authAfterLogin = storeFn?.getState ? storeFn.getState() : {}
+      const authAfterLogin = getAuthSnapshot()
+      if (authAfterLogin.user && authAfterLogin.user.emailVerified === false) {
+        router.push("/auth/verify")
+        return
+      }
       if (authAfterLogin.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
           const token = apiClient?.getToken?.() || null
           logDebug("Onboarding", { event: "login-complete", tokenPresent: !!token })
-        } catch {}
+        } catch { }
         await waitForAuthInit(7000)
         const ret = typeof window !== "undefined" ? getReturnPath() : null
         if (ret) {
@@ -182,15 +196,15 @@ export default function HostOnboardingClient() {
             <label className="text-[#002B03] font-bold">Username</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 10.5a4 4 0 0 0-4 4 2 2 0 0 0 2 2h12a2 2 0 0 0 2-2 4 4 0 0 0-4-4H6Z" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 10.5a4 4 0 0 0-4 4 2 2 0 0 0 2 2h12a2 2 0 0 0 2-2 4 4 0 0 0-4-4H6Z" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
-              <input type="text" placeholder="Enter your username" value={formData.username} onChange={(e) => handleInputChange("username", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.username ? "border-red-500" : "border-[#BFC4BF]"}`} />
+              <input type="text" maxLength={12} placeholder="Enter your username" value={formData.username} onChange={(e) => handleInputChange("username", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.username ? "border-red-500" : "border-[#BFC4BF]"}`} />
             </div>
             {errors.username && <p className="text-red-500 text-sm -mt-2">{errors.username}</p>}
             <label className="text-[#002B03] font-bold">Email</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
               <input type="email" placeholder="Enter your email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.email ? "border-red-500" : "border-[#BFC4BF]"}`} />
             </div>
@@ -215,7 +229,7 @@ export default function HostOnboardingClient() {
           <form className="flex flex-col gap-4 w-full" onSubmit={handleLogin}>
             <label className="text-[#002B03] font-bold">Email</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
               <input type="email" placeholder="Enter your email" value={loginData.email} onChange={(e) => handleLoginInputChange("email", e.target.value)} className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]" />
             </div>
             <label className="text-[#002B03] font-bold">Password</label>

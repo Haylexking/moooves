@@ -1,15 +1,15 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useRouter } from 'next/navigation'
+
 // Provide typing for the global test helper injected in jest.setup.js
 declare global {
   var renderWithProviders: (ui: any, options?: any) => any
 }
 
-// Mock next/navigation before importing the component that uses useRouter
-// Use the default test router mock from jest.setup.js where possible; keep local mock harmless
+// Mock next/navigation
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
-  __esModule: true,
+  useRouter: jest.fn(),
 }))
 
 import StartGameModal from '../start-game-modal'
@@ -24,7 +24,7 @@ jest.mock('@/lib/hooks/use-match-room', () => ({
 }))
 
 jest.mock('@/lib/stores/auth-store', () => ({
-  useAuthStore: () => ({ user: { id: 'u1' } }),
+  useAuthStore: () => ({ user: { id: 'u1', gamesPlayed: 5 } }),
 }))
 
 jest.mock('@/hooks/use-toast', () => ({
@@ -32,20 +32,31 @@ jest.mock('@/hooks/use-toast', () => ({
 }))
 
 describe('StartGameModal', () => {
+  const mockPush = jest.fn()
+  const mockReplace = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+      ; (useRouter as jest.Mock).mockReturnValue({
+        push: mockPush,
+        replace: mockReplace,
+      })
+  })
+
   test('renders and allows launching AI (Play vs Computer)', async () => {
     const onOpenChange = jest.fn()
     // @ts-ignore - global helper injected by jest.setup.js
     global.renderWithProviders(<StartGameModal open={true} onOpenChange={onOpenChange} />)
 
-  // Wait for dialog to open, then find the Player vs Computer button
-  await screen.findByRole('dialog')
-  const aiBtn = await screen.findByText(/Player vs Computer/i)
+    // Wait for dialog to open, then find the Player vs Computer button
+    await screen.findByRole('dialog')
+    const aiBtn = await screen.findByText(/Player vs Computer/i)
     expect(aiBtn).toBeInTheDocument()
 
     fireEvent.click(aiBtn)
 
-    // modal should be closed when launching
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+    // Should navigate to game with replace=true
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/game?mode=ai'))
   })
 
   test('join tournament navigates to tournaments', async () => {
@@ -59,6 +70,7 @@ describe('StartGameModal', () => {
 
     fireEvent.click(joinTournament)
 
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+    // Should navigate to tournaments
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tournaments'))
   })
 })

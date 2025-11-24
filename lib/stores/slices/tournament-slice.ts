@@ -23,6 +23,7 @@ export interface TournamentSlice {
   loadTournament: (tournamentId: string) => Promise<void>
   startTournament: (tournamentId: string) => Promise<void>
   loadUserTournaments: (userId: string) => Promise<Tournament[]>
+  getActiveMatch: (userId: string) => import("@/lib/types").BracketMatch | undefined
 }
 
 export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) => ({
@@ -82,11 +83,11 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     try {
       const res = await apiClient.getAllTournaments()
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournaments')
-  const data = res.data || []
-  // API may return { tournaments: [...] } or an array directly
-  const d: any = data
-  const tournaments = Array.isArray(d) ? d : d.tournaments || []
-  set({ tournaments, isLoading: false })
+      const data = res.data || []
+      // API may return { tournaments: [...] } or an array directly
+      const d: any = data
+      const tournaments = Array.isArray(d) ? d : d.tournaments || []
+      set({ tournaments, isLoading: false })
     } catch (error) {
       set({ isLoading: false })
       throw error
@@ -154,5 +155,26 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
       set({ isLoading: false })
       throw error
     }
+  },
+
+  // ✅ GET ACTIVE MATCH FOR USER
+  getActiveMatch: (userId: string) => {
+    const { currentTournament } = get()
+    if (!currentTournament || !currentTournament.bracket) return undefined
+
+    // Search through all rounds and matches
+    for (const round of currentTournament.bracket.rounds) {
+      if (round.status === "completed") continue
+
+      const match = round.matches.find(
+        (m) =>
+          (m.player1Id === userId || m.player2Id === userId) &&
+          m.status !== "completed"
+      )
+
+      if (match) return match
+    }
+
+    return undefined
   },
 })

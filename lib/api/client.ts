@@ -449,6 +449,31 @@ class ApiClient {
     return this.request(`/tournaments/${id}`)
   }
 
+  async findTournamentByInviteCode(inviteCode: string): Promise<ApiResponse<any>> {
+    const res = await this.getAllTournaments()
+    if (!res.success) return res
+    const payload: any = res.data || []
+    const tournaments: any[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.tournaments)
+        ? payload.tournaments
+        : []
+    const match = tournaments.find((t: any) => {
+      const code = (t?.inviteCode || t?.invite_code || "").toString().toLowerCase()
+      return code === inviteCode.toLowerCase()
+    })
+    if (match) {
+      return {
+        success: true,
+        data: match,
+      }
+    }
+    return {
+      success: false,
+      error: "Tournament with this invite code was not found",
+    }
+  }
+
   async deleteTournament(id: string): Promise<ApiResponse<any>> {
     return this.request(`/tournaments/${id}`, {
       method: "DELETE",
@@ -616,6 +641,13 @@ class ApiClient {
   async addBank(payload: { accountNumber: string; bankCode: string; role?: string; userId?: string }): Promise<ApiResponse<any>> {
     return this.request(API_CONFIG.ENDPOINTS.BANK.ADD, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async removeBank(payload: { userId: string; role: "host" | "user" }): Promise<ApiResponse<any>> {
+    return this.request(API_CONFIG.ENDPOINTS.BANK.REMOVE, {
+      method: "POST",
       body: JSON.stringify(payload),
     })
   }

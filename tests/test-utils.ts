@@ -4,7 +4,11 @@ export function createEmptyBoard(size = 30): GameBoard {
   return Array(size).fill(null).map(() => Array(size).fill(null))
 }
 
-export function placeStones(board: GameBoard, stones: [number, number, Player][]) {
+export function placeStones(boardOrStones: GameBoard | [number, number, Player][], maybeStones?: [number, number, Player][]) {
+  const hasBoardArg = Array.isArray(boardOrStones) && Array.isArray((boardOrStones as any)[0]) && (boardOrStones as any)[0].length === 30
+  const board: GameBoard = hasBoardArg ? (boardOrStones as GameBoard) : createEmptyBoard()
+  const stones = hasBoardArg ? (maybeStones || []) : (boardOrStones as [number, number, Player][])
+
   const newBoard = JSON.parse(JSON.stringify(board)) as GameBoard
   if (stones && stones.length > 0) {
     stones.forEach(([row, col, player]) => {

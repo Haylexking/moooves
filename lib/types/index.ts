@@ -15,22 +15,17 @@ export type UserRole = "player" | "host" | "admin"
 export interface User {
   id: string
   email: string
-  fullName: string // Add fullName field
-  phone?: string
-  role: UserRole
-  gamesPlayed: number
-  canHost: boolean // Unlocked after 2 games
-  emailVerified?: boolean // Add email verification status
-  createdAt: number
-  lastActive: number
-}
-
-export interface RegisterRequest {
+  password?: string
+  repeatPassword?: string // Backend expects repeatPassword
   fullName: string
-  email: string
-  password: string
-  repeatPassword: string // Backend expects repeatPassword
+  emailVerified?: boolean
+  role?: UserRole
+  gamesPlayed?: number
+  canHost?: boolean
+  createdAt?: number
+  lastActive?: number
   phone?: string
+  notificationsEnabled?: boolean
 }
 
 export interface LoginRequest {
@@ -42,7 +37,7 @@ export interface LoginRequest {
 // TOURNAMENT SYSTEM
 // ============================================================================
 export type TournamentStatus = "created" | "waiting" | "active" | "completed" | "cancelled"
-export type MatchStatus = "waiting" | "active" | "completed"
+export type MatchStatus = "waiting" | "active" | "completed" | "forfeited"
 export type GameMode = "timed" | "full-grid"
 
 export interface Tournament {
@@ -52,6 +47,7 @@ export interface Tournament {
   status: TournamentStatus
   inviteCode: string
   inviteLink: string
+  startTime?: number | string
 
   // Entry & Prize Pool
   entryFee: number // Minimum ₦500

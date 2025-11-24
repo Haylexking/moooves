@@ -341,7 +341,7 @@ function measureLine(
   return { length, openEnds }
 }
 
-function findStrategicMove(
+export function findStrategicMove(
   board: GameBoard,
   player: Player,
   availableMoves: Position[],
@@ -361,7 +361,7 @@ function findStrategicMove(
     }
 
     let score = 0
-    
+
     // Check all 8 directions
     for (const [dr, dc] of [
       [0, 1], [1, 0], [1, 1], [1, -1],  // horizontal, vertical, diagonals

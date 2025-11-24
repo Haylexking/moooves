@@ -19,7 +19,7 @@ interface GameStartAlertProps {
 export function GameStartAlert({ open, onContinue }: GameStartAlertProps) {
   return (
     <AlertDialog open={open}>
-      <AlertDialogContent className="max-w-md w-[min(92vw,26rem)] mx-4 sm:mx-auto rounded-2xl p-0 shadow-2xl">
+      <AlertDialogContent className="max-w-md w-[90vw] sm:w-full mx-auto rounded-2xl p-0 shadow-2xl">
         <AlertDialogHeader className="px-6 pt-6">
           <AlertDialogTitle className="text-center text-xl font-bold">
             Heads-up, Strategist

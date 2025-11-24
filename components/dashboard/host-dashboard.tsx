@@ -31,7 +31,7 @@ export function HostDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight mb-1">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight mb-1 truncate max-w-[200px] sm:max-w-md md:max-w-xl">
               Welcome, {hostName}
             </h1>
             <p className="text-sm md:text-base text-green-100">
@@ -39,15 +39,8 @@ export function HostDashboard() {
             </p>
           </div>
           <div className="flex-shrink-0 w-full sm:w-auto flex gap-2">
-            <GameButton onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2 inline" />
-              Create Tournament
-            </GameButton>
             <GameButton onClick={() => { /* Exit to home */ window.location.href = '/' }} className="w-full sm:w-auto bg-gray-200 text-gray-800">
               Exit
-            </GameButton>
-            <GameButton onClick={() => { /* take host to player onboarding */ window.location.href = '/onboarding' }} className="w-full sm:w-auto bg-white text-green-800">
-              Log in as Player
             </GameButton>
           </div>
         </div>
@@ -142,13 +135,12 @@ export function HostDashboard() {
 
                           <div className="flex-shrink-0 text-right flex flex-col items-end gap-2 w-full sm:w-auto">
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium capitalize ${
-                                tournament.status === "active"
-                                  ? "bg-green-200 text-green-900"
-                                  : tournament.status === "waiting"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-gray-100 text-gray-800"
-                              }`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium capitalize ${tournament.status === "active"
+                                ? "bg-green-200 text-green-900"
+                                : tournament.status === "waiting"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-800"
+                                }`}
                             >
                               {tournament.status}
                             </span>
@@ -189,21 +181,19 @@ export function HostDashboard() {
               <CardContent className="space-y-3">
                 <div className="flex flex-col gap-2">
                   <GameButton onClick={() => setShowCreateModal(true)} className="justify-start text-sm py-3">
-                    <Plus className="w-4 h-4 mr-2" /> Create tournament
+                    <Plus className="w-4 h-4" /> Create tournament
                   </GameButton>
-                  <GameButton onClick={() => {}} className="justify-start text-sm py-3">
-                    <Users className="w-4 h-4 mr-2" /> View players
+                  <GameButton onClick={() => { }} className="justify-start text-sm py-3">
+                    <Users className="w-4 h-4" /> View players
                   </GameButton>
-                  <GameButton onClick={() => {}} className="justify-start text-sm py-3">
-                    <Trophy className="w-4 h-4 mr-2" /> Manage active
+                  <GameButton onClick={() => { }} className="justify-start text-sm py-3">
+                    <Trophy className="w-4 h-4" /> Manage active
                   </GameButton>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
-
-        <CreateTournamentModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
       </div>
     </div>
   )

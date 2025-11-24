@@ -10,17 +10,28 @@ import { SplashScreen } from "@/components/ui/splash-screen"
 interface ProtectedRouteProps {
   children: React.ReactNode
   redirectTo?: string
+  allowUnverified?: boolean
 }
 
-export function ProtectedRoute({ children, redirectTo = "/onboarding" }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, rehydrated } = useAuthStore()
+export function ProtectedRoute({ children, redirectTo = "/onboarding", allowUnverified = false }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, rehydrated, user } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && rehydrated && !isAuthenticated) {
-      router.replace(redirectTo)
+    if (!rehydrated || isLoading) return
+    if (isAuthenticated) {
+      if (!allowUnverified && user && user.emailVerified === false) {
+        try {
+          const target = `${window.location.pathname}${window.location.search}${window.location.hash}`
+          localStorage.setItem("return_to", target)
+        } catch {}
+        router.replace("/auth/verify")
+        return
+      }
+      return
     }
-  }, [isAuthenticated, isLoading, rehydrated, router, redirectTo])
+    router.replace(redirectTo)
+  }, [allowUnverified, isAuthenticated, isLoading, rehydrated, router, redirectTo, user])
 
   // If the persisted store hasn't rehydrated, show a splash to avoid blank screens
   if (!rehydrated || isLoading) {

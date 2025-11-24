@@ -20,12 +20,20 @@ export default function PlayerOnboardingClient() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const { login, register, isLoading, error, clearError } = useAuthStore()
+  const authStore = useAuthStore()
+  const { login, register, isLoading, error, clearError } = authStore
 
   // Persist onboarding mode for auth redirects
   useEffect(() => {
-    try { localStorage.setItem('onboarding_mode', 'player') } catch {}
+    try { localStorage.setItem('onboarding_mode', 'player') } catch { }
   }, [])
+
+  const getAuthSnapshot = () => {
+    const storeFn: any = useAuthStore as any
+    if (storeFn && typeof storeFn.getState === "function") return storeFn.getState()
+    if (authStore && typeof (authStore as any).getState === "function") return (authStore as any).getState()
+    return authStore || {}
+  }
 
   const validatePassword = (password: string): string | null => {
     if (!password) return "Password is required"
@@ -78,7 +86,7 @@ export default function PlayerOnboardingClient() {
           try {
             const { logDebug } = require("@/lib/hooks/use-debug-logger")
             logDebug("Onboarding", { event: "auth-initialized", state })
-          } catch {}
+          } catch { }
           unsub()
           resolve(state)
         }
@@ -96,14 +104,17 @@ export default function PlayerOnboardingClient() {
     setLoading(true)
     try {
       await register(formData.username.trim(), formData.email.trim(), formData.password)
-      const storeFn: any = useAuthStore as any
-      const authAfter = storeFn?.getState ? storeFn.getState() : {}
+      const authAfter = getAuthSnapshot()
+      if (authAfter.user && authAfter.user.emailVerified === false) {
+        router.push("/auth/verify")
+        return
+      }
       if (authAfter.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
           const token = apiClient?.getToken?.() || null
           logDebug("Onboarding", { event: "register-complete", tokenPresent: !!token })
-        } catch {}
+        } catch { }
         await waitForAuthInit(7000)
         const ret = typeof window !== "undefined" ? getReturnPath() : null
         if (ret) {
@@ -118,8 +129,9 @@ export default function PlayerOnboardingClient() {
         const msg: string = authAfter.error
         if (/email/i.test(msg)) setErrors((prev) => ({ ...prev, email: msg }))
         else if (/user(name)?/i.test(msg) || /username/i.test(msg)) setErrors((prev) => ({ ...prev, username: msg }))
+        else setErrors((prev) => ({ ...prev, email: msg || "Registration failed" }))
       }
-    } catch {} finally {
+    } catch { } finally {
       setLoading(false)
     }
   }
@@ -130,14 +142,17 @@ export default function PlayerOnboardingClient() {
     setLoading(true)
     try {
       await login(loginData.email.trim(), loginData.password)
-      const storeFn: any = useAuthStore as any
-      const authAfterLogin = storeFn?.getState ? storeFn.getState() : {}
+      const authAfterLogin = getAuthSnapshot()
+      if (authAfterLogin.user && authAfterLogin.user.emailVerified === false) {
+        router.push("/auth/verify")
+        return
+      }
       if (authAfterLogin.isAuthenticated) {
         try {
           const { logDebug } = require("@/lib/hooks/use-debug-logger")
           const token = apiClient?.getToken?.() || null
           logDebug("Onboarding", { event: "login-complete", tokenPresent: !!token })
-        } catch {}
+        } catch { }
         await waitForAuthInit(7000)
         const ret = typeof window !== "undefined" ? getReturnPath() : null
         if (ret) {
@@ -182,30 +197,30 @@ export default function PlayerOnboardingClient() {
             <label className="text-[#002B03] font-bold">Username</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 10.5a4 4 0 0 0-4 4 2 2 0 0 0 2 2h12a2 2 0 0 0 2-2 4 4 0 0 0-4-4H6Z" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 10.5a4 4 0 0 0-4 4 2 2 0 0 0 2 2h12a2 2 0 0 0 2-2 4 4 0 0 0-4-4H6Z" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
-              <input type="text" placeholder="Enter your username" value={formData.username} onChange={(e) => handleInputChange("username", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.username ? "border-red-500" : "border-[#BFC4BF]"}`} />
+              <input type="text" maxLength={12} placeholder="Enter your username" value={formData.username} onChange={(e) => handleInputChange("username", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-base text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.username ? "border-red-500" : "border-[#BFC4BF]"}`} />
             </div>
             {errors.username && <p className="text-red-500 text-sm -mt-2">{errors.username}</p>}
             <label className="text-[#002B03] font-bold">Email</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
-              <input type="email" placeholder="Enter your email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.email ? "border-red-500" : "border-[#BFC4BF]"}`} />
+              <input type="email" placeholder="Enter your email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} className={`w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-base text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E] ${errors.email ? "border-red-500" : "border-[#BFC4BF]"}`} />
             </div>
             {errors.email && <p className="text-red-500 text-sm -mt-2">{errors.email}</p>}
             <label className="text-[#002B03] font-bold">Password</label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-[#6AC56E] z-10"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="4" y="8" width="12" height="8" rx="2" stroke="#6AC56E" strokeWidth="1.5" /><path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
-              <PasswordInput placeholder="Enter your password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} showStrength className={`${errors.password ? "border-red-500" : "border-[#BFC4BF]"} pl-10`} />
+              <PasswordInput placeholder="Enter your password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} showStrength className={`${errors.password ? "border-red-500" : "border-[#BFC4BF]"} pl-10 text-base`} />
             </div>
             {errors.password && <p className="text-red-500 text-sm -mt-2">{errors.password}</p>}
             <div className="text-xs text-[#002B03]/70 -mt-2">Password must be at least 8 characters with uppercase, lowercase, number, and special character (!@#$%^&*)</div>
             <label className="text-[#002B03] font-bold">Confirm Password</label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-[#6AC56E] z-10"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="4" y="8" width="12" height="8" rx="2" stroke="#6AC56E" strokeWidth="1.5" /><path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
-              <PasswordInput placeholder="Confirm your password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} className={`${errors.confirmPassword ? "border-red-500" : "border-[#BFC4BF]"} pl-10`} />
+              <PasswordInput placeholder="Confirm your password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} className={`${errors.confirmPassword ? "border-red-500" : "border-[#BFC4BF]"} pl-10 text-base`} />
             </div>
             {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
             <GameButton data-testid="onboarding-register-submit" type="submit" className="mt-2" disabled={loading}>{loading ? "Loading..." : "Register as Player"}</GameButton>
@@ -215,13 +230,13 @@ export default function PlayerOnboardingClient() {
           <form className="flex flex-col gap-4 w-full" onSubmit={handleLogin}>
             <label className="text-[#002B03] font-bold">Email</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
-              <input type="email" placeholder="Enter your email" value={loginData.email} onChange={(e) => handleLoginInputChange("email", e.target.value)} className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2.5 5.833A2.5 2.5 0 0 1 5 3.333h10a2.5 2.5 0 0 1 2.5 2.5v8.334a2.5 2.5 0 0 1-2.5 2.5H5a2.5 2.5 0 0 1-2.5-2.5V5.833Zm0 0L10 11.25l7.5-5.417" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+              <input type="email" placeholder="Enter your email" value={loginData.email} onChange={(e) => handleLoginInputChange("email", e.target.value)} className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border text-base text-[#002B03] font-semibold focus:outline-none focus:ring-2 focus:ring-[#6AC56E]" />
             </div>
             <label className="text-[#002B03] font-bold">Password</label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-[#6AC56E] z-10"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="4" y="8" width="12" height="8" rx="2" stroke="#6AC56E" strokeWidth="1.5" /><path d="M10 12v2" stroke="#6AC56E" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
-              <PasswordInput placeholder="Enter your password" value={loginData.password} onChange={(e) => handleLoginInputChange("password", e.target.value)} className="pl-10" />
+              <PasswordInput placeholder="Enter your password" value={loginData.password} onChange={(e) => handleLoginInputChange("password", e.target.value)} className="pl-10 text-base" />
             </div>
             <div className="flex justify-end -mt-2">
               <button type="button" onClick={() => router.push("/auth/forgot/enter-email")} className="text-sm text-[#6AC56E] hover:text-[#5AB55E] font-semibold underline">Forgot password?</button>

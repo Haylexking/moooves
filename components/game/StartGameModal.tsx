@@ -8,14 +8,23 @@ import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '@/lib/stores/game-store'
 
-export default function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export default function StartGameModal({
+  open = true,
+  onOpenChange = () => {},
+}: {
+  open?: boolean
+  onOpenChange?: (v: boolean) => void
+}) {
   const router = useRouter()
   const [view, setView] = useState<'main'|'p2p'>('main')
   const [connecting, setConnecting] = useState(false)
   const [connected, setConnected] = useState(false)
+  const [selectedMode, setSelectedMode] = useState<'ai'|'p2p'|null>('ai')
+  const startNewGame = useGameStore((s: any) => (s.startNewGame || s.startGame || (() => {})))
   const setServerAuthoritative = (val: boolean) => useGameStore.setState({ serverAuthoritative: val })
 
   const launchAi = () => {
+    startNewGame()
     onOpenChange(false)
     router.push('/game?mode=ai')
   }
@@ -43,7 +52,7 @@ export default function StartGameModal({ open, onOpenChange }: { open: boolean; 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Start Game</DialogTitle>
+          <DialogTitle>Start New Game</DialogTitle>
           <DialogDescription>Choose how you want to play</DialogDescription>
         </DialogHeader>
 
@@ -52,8 +61,9 @@ export default function StartGameModal({ open, onOpenChange }: { open: boolean; 
             {view === 'main' && (
               <motion.div key="main" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                 <div className="flex flex-col gap-3">
-                  <GameButton onClick={launchAi}>Play vs Computer</GameButton>
-                  <GameButton onClick={openTournament}>Join Tournament</GameButton>
+                  <GameButton onClick={launchAi} aria-label="Play vs Computer">Play vs Computer</GameButton>
+                  <GameButton onClick={openTournament} aria-label="Join Tournament">Join Tournament</GameButton>
+                  <GameButton onClick={() => setView('p2p')} aria-label="Nearby Player">Nearby Player</GameButton>
                 </div>
               </motion.div>
             )}
@@ -84,3 +94,5 @@ export default function StartGameModal({ open, onOpenChange }: { open: boolean; 
     </Dialog>
   )
 }
+
+export { StartGameModal }

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,11 +16,13 @@ interface CreateTournamentModalProps {
   onClose: () => void
 }
 
+const toLocalInputValue = (date: Date) => date.toISOString().slice(0, 16)
+
 export function CreateTournamentModal({ open, onClose }: CreateTournamentModalProps) {
   const [name, setName] = useState("")
   const [entryFee, setEntryFee] = useState(500)
   const [maxPlayers, setMaxPlayers] = useState(50)
-  const [startTimeLocal, setStartTimeLocal] = useState<string>("")
+  const [startTimeLocal, setStartTimeLocal] = useState<string>(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
   const { createTournament, isLoading } = useTournamentStore()
   const { user } = useAuthStore()
   const router = useRouter()
@@ -31,39 +32,31 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
     e.preventDefault()
 
     if (entryFee < 500) {
-      alert("Minimum entry fee is ₦500")
+      toast({ title: "Entry fee too low", description: "Minimum entry fee is NGN 500.", variant: "destructive" })
       return
     }
 
     try {
-      // Require a start time; default to 24h in the future if not set
-      const selected = startTimeLocal
-        ? new Date(startTimeLocal)
-        : new Date(Date.now() + 24 * 60 * 60 * 1000)
+      const selected = startTimeLocal ? new Date(startTimeLocal) : new Date(Date.now() + 24 * 60 * 60 * 1000)
       const startTimeISO = selected.toISOString()
       const tournament = await createTournament({
         name,
         entryFee,
         maxPlayers,
         gameMode: "timed",
-        // organizerId + startTime per Swagger
         ...(user?.id ? ({ organizerId: user.id } as any) : {}),
         startTime: startTimeISO,
       })
 
-      // UX: inform the user and navigate to the tournament page
-      toast({ title: "Tournament created", description: `Tournament \"${tournament.name}\" created.` })
+      toast({ title: "Tournament created", description: `${tournament.name} scheduled successfully.` })
       onClose()
-      // Reset form
       setName("")
       setEntryFee(500)
       setMaxPlayers(50)
-
-      // Redirect to tournament view
+      setStartTimeLocal(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
       router.push(`/tournament/${tournament.id}`)
     } catch (error) {
-      console.error("Failed to create tournament:", error)
-      toast({ title: "Failed to create tournament", description: String(error) })
+      toast({ title: "Failed to create tournament", description: String(error), variant: "destructive" })
     }
   }
 
@@ -71,10 +64,9 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Setup Tournament</DialogTitle>
-          {/* Provide an accessible description for the dialog content per Radix recommendations */}
-          <DialogDescription className="sr-only">
-            Create a new tournament by providing a name, entry fee, and max players. This dialog will create a tournament and navigate to its page.
+          <DialogTitle>Schedule Tournament</DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
+            Set the name, entry fee, capacity, and start time. Players can join up until the scheduled start.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +83,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
           </div>
 
           <div>
-            <Label htmlFor="entryFee">Entry Fee (₦)</Label>
+            <Label htmlFor="entryFee">Entry Fee (NGN)</Label>
             <Input
               id="entryFee"
               type="number"
@@ -100,7 +92,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
               onChange={(e) => setEntryFee(Number(e.target.value))}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">Minimum ₦500</p>
+            <p className="text-xs text-gray-500 mt-1">Minimum NGN 500</p>
           </div>
 
           <div>
@@ -118,7 +110,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
           </div>
 
           <div>
-            <Label htmlFor="startTime">Start Time (UTC)</Label>
+            <Label htmlFor="startTime">Scheduled Start (local time)</Label>
             <Input
               id="startTime"
               type="datetime-local"
@@ -126,21 +118,19 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
               onChange={(e) => setStartTimeLocal(e.target.value)}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">Set a future date/time. Will be sent as UTC ISO.</p>
+            <p className="text-xs text-gray-500 mt-1">Sent to the backend as UTC. Hosts can reschedule later.</p>
           </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <p className="text-sm text-green-800">
-              <strong>Game Duration:</strong> 10 minutes (Timed Mode)
-            </p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+            <p><strong>Note:</strong> Hosts can start early or extend the start time if player count is low.</p>
           </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent">
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading} className="flex-1">
-              {isLoading ? "Creating..." : "Create Tournament"}
+              {isLoading ? "Scheduling..." : "Create Tournament"}
             </Button>
           </div>
         </form>

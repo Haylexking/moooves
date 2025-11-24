@@ -23,13 +23,13 @@ export function GameBoard({ disabled = false, showCoordinates = false }: GameBoa
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
-    
+
     // Set initial value
     checkIfMobile()
-    
+
     // Add event listener
     window.addEventListener('resize', checkIfMobile)
-    
+
     // Cleanup
     return () => window.removeEventListener('resize', checkIfMobile)
   }, [])
@@ -49,7 +49,7 @@ export function GameBoard({ disabled = false, showCoordinates = false }: GameBoa
           </div>
         )}
 
-        <div 
+        <div
           className="relative"
           style={{
             width: 'fit-content',
@@ -62,7 +62,7 @@ export function GameBoard({ disabled = false, showCoordinates = false }: GameBoa
               ← Scroll →
             </div>
           )}
-          
+
           <div
             className="grid gap-px bg-gray-200 p-1"
             style={{
@@ -71,19 +71,19 @@ export function GameBoard({ disabled = false, showCoordinates = false }: GameBoa
               width: 'fit-content',
             }}
           >
-          {displayBoard.map((row, rowIndex) =>
-            row.map((cell, colIndex) => (
-              <Cell
-                key={`${rowIndex}-${colIndex}`}
-                value={cell}
-                onClick={() => handleCellClick(rowIndex, colIndex)}
-                disabled={disabled || gameStatus !== "playing" || cell !== null}
-                row={rowIndex}
-                col={colIndex}
-                isMobile={isMobile}
-              />
-            )),
-          )}
+            {displayBoard.map((row, rowIndex) =>
+              row.map((cell, colIndex) => (
+                <Cell
+                  key={`${rowIndex}-${colIndex}`}
+                  value={cell}
+                  onClick={() => handleCellClick(rowIndex, colIndex)}
+                  disabled={disabled || gameStatus !== "playing" || cell !== null}
+                  row={rowIndex}
+                  col={colIndex}
+                  isMobile={isMobile}
+                />
+              )),
+            )}
           </div>
         </div>
       </div>
@@ -92,7 +92,7 @@ export function GameBoard({ disabled = false, showCoordinates = false }: GameBoa
         <div className="mt-4 text-center">
           <p className="text-lg font-semibold">
             Current Player:{" "}
-            <span className={cn("font-bold", currentPlayer === "X" ? "text-blue-600" : "text-red-600")}>
+            <span className={cn("font-bold truncate max-w-[150px] inline-block align-bottom", currentPlayer === "X" ? "text-blue-600" : "text-red-600")}>
               {currentPlayer}
             </span>
           </p>

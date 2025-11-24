@@ -33,7 +33,7 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
         ref={ref}
         disabled={disabled}
         className={[
-          "relative w-full h-[52px] px-8 flex items-center justify-center font-extrabold text-lg transition-all duration-150",
+          "relative w-full h-12 sm:h-[52px] px-4 sm:px-8 flex items-center justify-center font-extrabold text-base sm:text-lg transition-all duration-150 active:scale-95 touch-manipulation",
           "rounded-[12px] outline-none focus:outline-none",
           border,
           text,
@@ -42,16 +42,16 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
           disabled
             ? "opacity-60 cursor-not-allowed"
             : [
-                // Hover state - GREEN GRADIENT with specified colors
-                "hover:bg-gradient-to-br hover:from-[#6AC56E] hover:to-[#002B03]",
-                "hover:shadow-[0_4px_16px_rgba(0,0,0,0.25),0_2px_12px_#6AC56E]",
-                "hover:border-[#6AC56E]",
-                // Active/Pressed state - SAME GREEN GRADIENT but with scale effect
-                "active:bg-gradient-to-br active:from-[#6AC56E] active:to-[#002B03]",
-                "active:shadow-[0_4px_16px_rgba(0,0,0,0.35),0_4px_24px_#6AC56E]",
-                "active:scale-95",
-                "active:border-[#6AC56E]",
-              ].join(" "),
+              // Hover state - GREEN GRADIENT with specified colors
+              "hover:bg-gradient-to-br hover:from-[#6AC56E] hover:to-[#002B03]",
+              "hover:shadow-[0_4px_16px_rgba(0,0,0,0.25),0_2px_12px_#6AC56E]",
+              "hover:border-[#6AC56E]",
+              // Active/Pressed state - SAME GREEN GRADIENT but with scale effect
+              "active:bg-gradient-to-br active:from-[#6AC56E] active:to-[#002B03]",
+              "active:shadow-[0_4px_16px_rgba(0,0,0,0.35),0_4px_24px_#6AC56E]",
+              "active:scale-95",
+              "active:border-[#6AC56E]",
+            ].join(" "),
           className,
         ].join(" ")}
         style={{
@@ -59,7 +59,7 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
         }}
         {...props}
       >
-        <span className="relative z-10 w-full select-none whitespace-nowrap">{children}</span>
+        <span className="relative z-10 w-full select-none whitespace-nowrap flex items-center justify-center gap-2">{children}</span>
       </button>
     )
   },

@@ -22,7 +22,7 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
         try {
           router.replace(href)
           return
-        } catch {}
+        } catch { }
       }
       router.push(href)
     }, 60)
@@ -30,7 +30,7 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-[44rem] mx-4 sm:mx-auto bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600 rounded-3xl overflow-hidden p-0">
+      <DialogContent className="w-[90vw] max-w-[44rem] mx-auto bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600 rounded-2xl sm:rounded-3xl overflow-hidden p-0">
         {isRouting ? (
           <div className="flex flex-col items-center justify-center py-16 px-6">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-700" />
@@ -43,27 +43,27 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
               <DialogDescription className="text-green-700">Select how you want to play</DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4 px-6 pb-6">
+            <div className="space-y-3 sm:space-y-4 py-4 px-4 sm:px-6 pb-6">
               <GameButton
                 onClick={() => navigateWithLoader("/game?mode=ai", true)}
-                className="w-full text-lg font-bold py-5 sm:py-6 rounded-2xl"
+                className="w-full text-base sm:text-lg font-bold py-4 sm:py-6 rounded-xl sm:rounded-2xl"
               >
                 Player vs Computer
               </GameButton>
               <GameButton
                 onClick={() => navigateWithLoader("/tournaments")}
-                className="w-full text-lg font-bold py-5 sm:py-6 rounded-2xl"
+                className="w-full text-base sm:text-lg font-bold py-4 sm:py-6 rounded-xl sm:rounded-2xl"
               >
                 Join Tournament
               </GameButton>
               <GameButton
                 onClick={() => navigateWithLoader("/tournaments/create")}
-                className={`w-full text-lg font-bold py-5 sm:py-6 rounded-2xl ${(!user || user.gamesPlayed < 3) ? "opacity-70 cursor-not-allowed" : ""}`}
-                disabled={!user || user.gamesPlayed < 3}
+                className={`w-full text-base sm:text-lg font-bold py-4 sm:py-6 rounded-xl sm:rounded-2xl ${(!user || (user.gamesPlayed ?? 0) < 3) ? "opacity-70 cursor-not-allowed" : ""}`}
+                disabled={!user || (user.gamesPlayed ?? 0) < 3}
               >
                 Create Tournament
               </GameButton>
-              {(!user || user.gamesPlayed < 3) && (
+              {(!user || (user.gamesPlayed ?? 0) < 3) && (
                 <p className="text-sm text-gray-700 text-center">
                   You need to participate in at least 3 games to create a tournament.
                 </p>

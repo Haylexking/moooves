@@ -12,9 +12,16 @@ import { useTournamentStore } from "@/lib/stores/tournament-store";
 
 export function PlayerDashboard() {
   const router = useRouter();
-  const { openRules } = useGameRules();
+  let openRules: () => void = () => {};
+  try {
+    ({ openRules } = useGameRules());
+  } catch {
+    openRules = () => {};
+  }
   const { user } = useAuthStore();
-  const { userTournaments, loadUserTournaments } = useTournamentStore();
+  const tournamentStore = useTournamentStore();
+  const userTournaments = tournamentStore?.userTournaments;
+  const loadUserTournaments = tournamentStore?.loadUserTournaments;
 
   // Load actual tournaments for the logged-in user to show a real count
   useEffect(() => {
@@ -55,7 +62,7 @@ export function PlayerDashboard() {
                 onClick={handleStartGame} 
                 className="w-full text-lg font-semibold py-5 md:py-6 hover:scale-[1.02] transition-transform"
               >
-                🎮 Start Game
+                Launch Game
               </GameButton>
               
               {user?.canHost && (
@@ -63,7 +70,7 @@ export function PlayerDashboard() {
                   onClick={handleCreateTournament} 
                   className="w-full text-lg font-semibold py-5 md:py-6 bg-yellow-500 hover:bg-yellow-600 text-white hover:scale-[1.02] transition-transform"
                 >
-                  🏆 Create Tournament
+                  Create Tournament
                 </GameButton>
               )}
               
@@ -71,7 +78,7 @@ export function PlayerDashboard() {
                 onClick={handleGameRules} 
                 className="w-full text-lg font-semibold py-5 md:py-6 bg-gray-100 hover:bg-gray-200 text-gray-800 hover:scale-[1.02] transition-transform"
               >
-                📖 Game Rules
+                Game Rules
               </GameButton>
             </div>
 

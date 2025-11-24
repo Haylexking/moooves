@@ -71,7 +71,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             id: userData._id,
             email: userData.email,
             fullName: (userData as any)?.fullName ?? (userData as any)?.name ?? "",
-            emailVerified: (userData as any)?.emailVerified ?? false,
+            emailVerified: true, // Bypass OTP for returning users
             role: (serverRole as UserRole),
             gamesPlayed: typeof (userData as any)?.gamesPlayed === "number" ? (userData as any).gamesPlayed : 0,
             canHost,
@@ -123,7 +123,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             id: userData?._id ?? userData?.id ?? null,
             email: userData?.email ?? "",
             fullName: userData?.fullName ?? userData?.name ?? "",
-            emailVerified: userData?.emailVerified ?? false,
+            emailVerified: true, // Bypass OTP for returning hosts
             role: (serverRole as UserRole),
             gamesPlayed: typeof userData?.gamesPlayed === "number" ? userData.gamesPlayed : 0,
             canHost,
@@ -139,11 +139,11 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         set({ error: parseApiError(response.error || "Host login failed"), isLoading: false })
       }
     } catch (error) {
-        apiClient.clearToken()
-        set({
-          error: "Network error occurred",
-          isLoading: false,
-        })
+      apiClient.clearToken()
+      set({
+        error: "Network error occurred",
+        isLoading: false,
+      })
     }
   },
 
@@ -244,9 +244,9 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
       if (response.success) {
         const currentUser = get().user
         if (currentUser) {
-          set({ user: { ...currentUser, emailVerified: true }, isLoading: false })
+          set({ user: { ...currentUser, emailVerified: true }, isAuthenticated: true, isLoading: false })
         } else {
-          set({ isLoading: false })
+          set({ isAuthenticated: true, isLoading: false })
         }
         // Redirect similar to post-login: honor return_to if present
         if (typeof window !== 'undefined') {
@@ -257,8 +257,8 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
               window.location.href = ret
               return
             }
-          } catch {}
-          try { window.location.href = '/dashboard' } catch {}
+          } catch { }
+          try { window.location.href = '/dashboard' } catch { }
         }
       } else {
         set({ error: response.error || response.message || 'OTP verification failed', isLoading: false })

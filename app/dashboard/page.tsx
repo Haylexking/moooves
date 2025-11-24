@@ -84,7 +84,7 @@ export default function DashboardPage() {
       <TopNavigation />
       <StartGameModal open={showStartModal} onOpenChange={setShowStartModal} />
 
-      <div className="flex flex-col items-center justify-center min-h-screen pt-24 sm:pt-28">
+      <div className="flex flex-col items-center justify-center min-h-screen pt-24 sm:pt-28 px-6 sm:px-8">
         <div className="flex flex-col gap-6 mt-24 w-full max-w-md">
           <GameButton onClick={handleStartGame}>Start game</GameButton>
           <GameButton onClick={handleGameRules}>Game rules</GameButton>

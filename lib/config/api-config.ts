@@ -75,6 +75,7 @@ export const API_CONFIG = {
       ADD: "/bank/add", // POST
       VERIFY: "/bank/verify", // POST
       SAVED_ALL: "/all", // GET /api/v1/all (Swagger: list all saved bank records)
+      REMOVE: "/bank/remove", // POST - remove bank by user/role
       DELETE: "/bank/:beneficiaryId", // DELETE
     },
 

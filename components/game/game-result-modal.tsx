@@ -62,7 +62,7 @@ export function GameResultModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-green-100 border-4 border-green-700 rounded-2xl p-8 w-full max-w-xl min-w-[340px] sm:min-w-[420px] relative flex flex-col items-center shadow-xl">
+      <div className="bg-green-100 border-4 border-green-700 rounded-2xl p-6 sm:p-8 w-[95vw] max-w-xl relative flex flex-col items-center shadow-xl max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 bg-green-800 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors"
@@ -77,10 +77,10 @@ export function GameResultModal({
           <span className="text-red-700">{scoreO ?? 0}</span>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center mt-2">
-          <GameButton onClick={handlePlayAgain} className="w-full sm:w-56 text-base py-3">
+          <GameButton onClick={handlePlayAgain} className="w-full sm:w-56 text-sm sm:text-base py-3">
             Play Again
           </GameButton>
-          <GameButton onClick={handleBackToMenu} className="w-full sm:w-56 text-base py-3">
+          <GameButton onClick={handleBackToMenu} className="w-full sm:w-56 text-sm sm:text-base py-3">
             Back to Menu
           </GameButton>
         </div>

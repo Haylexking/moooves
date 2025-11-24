@@ -29,6 +29,8 @@ export function SavedBanksModal({
   const [banks, setBanks] = useState<SavedBank[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+  const [removing, setRemoving] = useState(false)
   const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export function SavedBanksModal({
           }))
           .filter((b: SavedBank) => b.accountNumber)
         setBanks(normalized)
+        setStatus(null)
       } catch (e: any) {
         setError(e?.message || "Failed to load banks")
       } finally {
@@ -76,6 +79,30 @@ export function SavedBanksModal({
     }
     fetchBanks()
   }, [open, reloadToken, user?.id, user?.role])
+
+  const handleRemoveBanks = async () => {
+    if (!user?.id || !user?.role) {
+      setError("You must be signed in to remove bank details.")
+      return
+    }
+    const role = user.role === "host" ? "host" : "user"
+    try {
+      setRemoving(true)
+      setError(null)
+      setStatus(null)
+      const res = await apiClient.removeBank({ userId: user.id, role })
+      if (!res.success) {
+        const data: any = res.data || {}
+        throw new Error(res.error || data?.message || "Failed to remove bank details")
+      }
+      setBanks([])
+      setStatus("Bank details removed successfully.")
+    } catch (err: any) {
+      setError(err?.message || "Failed to remove bank details")
+    } finally {
+      setRemoving(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,22 +113,41 @@ export function SavedBanksModal({
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
           {loading && <div className="text-green-800 text-sm">Loading...</div>}
           {error && <div className="text-red-600 text-sm">{error}</div>}
+          {status && <div className="text-green-700 text-sm">{status}</div>}
           {!loading && !error && banks.length === 0 && (
             <div className="text-green-800 text-sm">No saved banks yet.</div>
           )}
           {!loading && !error && banks.length > 0 && (
             <div className="space-y-2">
               {banks.map((b) => (
-                <button
+                <div
                   key={(b.id || b.accountNumber) as string}
-                  onClick={() => onSelect(b)}
-                  className="w-full text-left p-3 bg-green-200/60 hover:bg-green-200 rounded-lg border border-green-300"
+                  className="w-full p-3 bg-green-200/60 rounded-lg border border-green-300"
                 >
-                  <div className="font-bold text-green-900">
-                    {b.bankName || b.bankCode || "Bank"} • {b.accountNumber}
+                  <button
+                    onClick={() => onSelect(b)}
+                    className="w-full text-left focus:outline-none"
+                  >
+                    <div className="font-bold text-green-900">
+                      {b.bankName || b.bankCode || "Bank"} • {b.accountNumber}
+                    </div>
+                    {b.accountName && <div className="text-green-700 text-sm">{b.accountName}</div>}
+                  </button>
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      className="text-xs text-red-600 hover:text-red-700 underline disabled:opacity-50"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleRemoveBanks()
+                      }}
+                      disabled={removing}
+                    >
+                      {removing ? "Removing..." : "Remove bank"}
+                    </button>
                   </div>
-                  {b.accountName && <div className="text-green-700 text-sm">{b.accountName}</div>}
-                </button>
+                </div>
               ))}
             </div>
           )}

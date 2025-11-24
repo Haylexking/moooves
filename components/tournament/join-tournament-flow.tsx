@@ -4,10 +4,11 @@
 import type { Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, DollarSign, Clock, Trophy } from "lucide-react"
+import { Users, DollarSign, Clock, Trophy, CheckCircle2, Share2 } from "lucide-react"
 import { useState } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
+import { useRouter } from "next/navigation"
 
 interface JoinTournamentFlowProps {
   tournament: Tournament;
@@ -17,7 +18,9 @@ interface JoinTournamentFlowProps {
 export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlowProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ticket, setTicket] = useState<{ reference?: string; joinedAt: string } | null>(null);
   const { user, refreshUser } = useAuthStore();
+  const router = useRouter()
 
   const handleJoin = async () => {
     setLoading(true);
@@ -50,14 +53,85 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       // 5. Refresh user to pick up potential role upgrade (auto host after 3 tournaments)
       try { await refreshUser() } catch {}
 
-      alert("Successfully joined tournament!");
-      // Optionally, redirect or update UI
+      setTicket({
+        reference: paymentData?.data?.transactionId || paymentData?.reference || join.data?.paymentId,
+        joinedAt: new Date().toISOString(),
+      })
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {
       setLoading(false);
     }
   };
+
+  const formatStartTime = () => {
+    const target = tournament.startedAt || tournament.createdAt
+    return new Date(target || Date.now()).toLocaleString()
+  }
+
+  const handleShareInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteCode)
+    } catch {}
+  }
+
+  if (ticket) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-lg border-2 border-green-600 shadow-2xl">
+          <CardHeader className="text-center space-y-3">
+            <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 text-green-700" />
+            </div>
+            <CardTitle className="text-2xl text-green-900">You&apos;re in!</CardTitle>
+            <p className="text-gray-600 text-sm">Your spot in {tournament.name} is confirmed.</p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                <p className="text-xs uppercase text-green-600">Tournament starts</p>
+                <p className="font-semibold text-green-900">{formatStartTime()}</p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                <p className="text-xs uppercase text-green-600">Entry fee</p>
+                <p className="font-semibold text-green-900">₦{tournament.entryFee.toLocaleString()}</p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                <p className="text-xs uppercase text-green-600">Invite code</p>
+                <p className="font-semibold text-green-900 tracking-wider">{inviteCode}</p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                <p className="text-xs uppercase text-green-600">Reference</p>
+                <p className="font-semibold text-green-900">{ticket.reference ?? "Not provided"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                className="w-full py-6 text-base font-semibold"
+                onClick={() => router.push(`/tournament/${tournament.id}`)}
+              >
+                Enter Lobby
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2"
+                onClick={handleShareInvite}
+              >
+                <Share2 className="w-4 h-4" />
+                Copy Invite Code
+              </Button>
+            </div>
+
+            <div className="text-center text-xs text-gray-500">
+              Joined at {new Date(ticket.joinedAt).toLocaleTimeString()} • You&apos;ll be notified when your match is ready.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

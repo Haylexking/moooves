@@ -62,12 +62,12 @@ export default function VerifyEmailPage() {
           <div className="flex items-center justify-center">
             <InputOTP maxLength={6} value={otp} onChange={(value) => setOtp(value)}>
               <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
+                <InputOTPSlot index={0} className="border-gray-400" />
+                <InputOTPSlot index={1} className="border-gray-400" />
+                <InputOTPSlot index={2} className="border-gray-400" />
+                <InputOTPSlot index={3} className="border-gray-400" />
+                <InputOTPSlot index={4} className="border-gray-400" />
+                <InputOTPSlot index={5} className="border-gray-400" />
               </InputOTPGroup>
             </InputOTP>
           </div>
