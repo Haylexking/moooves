@@ -18,6 +18,9 @@ type GameStore = GameBoardSlice &
   ScoreSlice & {
     // Combined actions
     aiAutoEnabled: boolean
+    cursorPosition: [number, number] | null
+    setCursorPosition: (pos: [number, number] | null) => void
+    moveCursor: (dr: number, dc: number) => void
     serverAuthoritative?: boolean
     applyServerMatchState?: (match: any) => void
     initializeGame: (mode?: GameMode) => void
@@ -26,6 +29,8 @@ type GameStore = GameBoardSlice &
     pauseGame: () => void
     resumeGame: () => void
     getGameResult: () => GameResult
+    getSerializedUsedPositions: () => string[]
+    getSerializedUsedSequences: () => string[][]
   }
 
 export const useGameStore = create<GameStore>()(
@@ -36,23 +41,42 @@ export const useGameStore = create<GameStore>()(
       ...createGameStateSlice(set, get, api),
       ...createScoreSlice(set, get, api),
 
-      // AI auto-move toggle (disabled to avoid double-trigger with BattleGround controller)
       aiAutoEnabled: false,
+      cursorPosition: null,
+      serverAuthoritative: false,
 
-      // Combined actions
-  serverAuthoritative: false,
-      initializeGame: (mode: GameMode = "timed") => {
+      setCursorPosition: (pos) => set({ cursorPosition: pos }),
+
+      moveCursor: (dr, dc) => {
+        const { cursorPosition } = get()
+        if (!cursorPosition) {
+          set({ cursorPosition: [15, 15] })
+          return
+        }
+        const [r, c] = cursorPosition
+        const newR = Math.max(0, Math.min(29, r + dr))
+        const newC = Math.max(0, Math.min(29, c + dc))
+        set({ cursorPosition: [newR, newC] })
+      },
+
+      initializeGame: (mode: GameMode = "p2p") => {
         get().initializeBoard()
-        get().resetScores()
         get().resetGameState()
-        get().startGame(mode)
+        get().resetScores()
+        set({
+          gameMode: mode,
+          aiAutoEnabled: mode === "ai",
+          cursorPosition: null,
+          gameStatus: "playing", // Start playing immediately
+        })
       },
 
       makeMove: (row: number, col: number) => {
         const state = get()
-        if (state.gameStatus !== "playing" || state.getCellValue(row, col) !== null) {
-          return
-        }
+
+        // Validation
+        if (state.gameStatus !== "playing") return
+        if (state.board[row][col] !== null) return
 
         // Update the board
         state.updateCell(row, col, state.currentPlayer)
@@ -114,7 +138,6 @@ export const useGameStore = create<GameStore>()(
 
           // Board
           if (match.board) {
-            // Assume server sends a 2D array board of 'X' | 'O' | null
             set({ board: match.board })
           }
 
@@ -163,7 +186,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       endGame: () => {
-  get().setGameStatus("completed")
+        get().setGameStatus("completed")
       },
 
       pauseGame: () => {

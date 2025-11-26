@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { apiClient } from "@/lib/api/client"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { toast } from "sonner"
 
 export interface SavedBank {
   id?: string
@@ -55,10 +56,10 @@ export function SavedBanksModal({
         const raw = Array.isArray(payload?.data)
           ? payload.data
           : payload?.data
-          ? [payload.data]
-          : Array.isArray(payload)
-          ? payload
-          : []
+            ? [payload.data]
+            : Array.isArray(payload)
+              ? payload
+              : []
         const normalized: SavedBank[] = raw
           .map((b: any) => ({
             id: b.id || b._id,
@@ -97,12 +98,16 @@ export function SavedBanksModal({
       }
       setBanks([])
       setStatus("Bank details removed successfully.")
+      toast.success("Bank details removed successfully.")
     } catch (err: any) {
-      setError(err?.message || "Failed to remove bank details")
+      const msg = err?.message || "Failed to remove bank details"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setRemoving(false)
     }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -157,7 +162,7 @@ export function SavedBanksModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </DialogContent >
+    </Dialog >
   )
 }

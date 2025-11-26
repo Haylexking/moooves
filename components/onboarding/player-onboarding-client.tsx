@@ -10,6 +10,7 @@ import { Alert } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 import { getReturnPath, clearReturnPath } from "@/lib/utils/navigation"
+import { toast } from "sonner"
 
 export default function PlayerOnboardingClient() {
   const [tab, setTab] = useState<"register" | "login">("register")
@@ -127,11 +128,17 @@ export default function PlayerOnboardingClient() {
       }
       if (authAfter.error) {
         const msg: string = authAfter.error
-        if (/email/i.test(msg)) setErrors((prev) => ({ ...prev, email: msg }))
-        else if (/user(name)?/i.test(msg) || /username/i.test(msg)) setErrors((prev) => ({ ...prev, username: msg }))
-        else setErrors((prev) => ({ ...prev, email: msg || "Registration failed" }))
+        if (/email/i.test(msg) || /already exists/i.test(msg)) {
+          setErrors((prev) => ({ ...prev, email: "This email is already registered. Try logging in." }))
+        } else if (/user(name)?/i.test(msg) || /username/i.test(msg)) {
+          setErrors((prev) => ({ ...prev, username: "This username is already taken." }))
+        } else {
+          toast.error(msg || "Registration failed. Please try again.")
+        }
       }
-    } catch { } finally {
+    } catch (err: any) {
+      toast.error(err?.message || "An unexpected error occurred. Please check your connection.")
+    } finally {
       setLoading(false)
     }
   }
@@ -163,10 +170,23 @@ export default function PlayerOnboardingClient() {
         }
         return
       }
-      if (authAfterLogin.error) setLoginError(authAfterLogin.error)
+      if (authAfterLogin.error) {
+        const msg = authAfterLogin.error;
+        if (msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("credentials")) {
+          setLoginError("Invalid email or password. Please check your credentials.")
+        } else {
+          setLoginError(msg)
+          toast.error(msg)
+        }
+      }
     } catch (err: any) {
-      if (err?.message && err.message.toLowerCase().includes("not found")) setLoginError("Credentials not found. Would you like to register instead?")
-      else setLoginError(err?.message || "Login failed")
+      if (err?.message && err.message.toLowerCase().includes("not found")) {
+        setLoginError("Credentials not found. Would you like to register instead?")
+      } else {
+        const msg = err?.message || "Login failed";
+        setLoginError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }

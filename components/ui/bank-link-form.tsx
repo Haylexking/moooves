@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { GameButton } from "@/components/ui/game-button";
 import { apiClient } from "@/lib/api/client";
+import { toast } from "sonner";
 
 export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
   const { user } = useAuthStore();
@@ -26,7 +27,7 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
         const data: any = res.data || {}
         const list = (data?.banks || data) as Array<{ name: string; code: string }>
         if (Array.isArray(list)) setBanks(list)
-      } catch {}
+      } catch { }
     }
     loadBanks()
     return () => { mounted = false }
@@ -67,7 +68,9 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
       const res = await apiClient.verifyBankAccount({ accountNumber, bankCode: code })
       if (!res.success) {
         const data: any = res.data || {}
-        setError(res.error || data?.message || "Verification failed. Please check your details.")
+        const msg = res.error || data?.message || "Verification failed. Please check your details."
+        setError(msg)
+        toast.error(msg)
         return
       }
       const payload: any = res.data || {}
@@ -75,11 +78,15 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
       if (name) {
         setAccountName(name)
         setSuccessMessage("Account verified successfully.")
+        toast.success("Account verified successfully.")
       } else {
         setError("Bank verified but account name was not returned.")
+        toast.warning("Bank verified but account name was not returned.")
       }
     } catch (err: any) {
-      setError(err.message || "Verification error");
+      const msg = err.message || "Verification error"
+      setError(msg);
+      toast.error(msg)
     } finally {
       setVerifying(false);
     }
@@ -109,14 +116,19 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
       const ar = await apiClient.addBank(payload)
       const data: any = ar.data || {}
       if (!ar.success) {
-        setError((ar.error || data?.message) || "Failed to save bank details")
+        const msg = (ar.error || data?.message) || "Failed to save bank details"
+        setError(msg)
+        toast.error(msg)
         return
       }
       if (data.accountName) setAccountName(data.accountName)
       setSuccessMessage("Bank details saved successfully.")
+      toast.success("Bank details saved successfully.")
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setError(err.message || "Save error");
+      const msg = err.message || "Save error"
+      setError(msg);
+      toast.error(msg)
     } finally {
       setSaving(false);
     }

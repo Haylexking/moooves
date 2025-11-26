@@ -116,11 +116,11 @@ class ApiClient {
             try {
               const ret = `${window.location.pathname}${window.location.search}${window.location.hash}`
               localStorage.setItem('return_to', ret)
-            } catch {}
+            } catch { }
             this.clearToken()
             try {
               window.location.href = '/onboarding'
-            } catch {}
+            } catch { }
           }
           const retriable = response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504 || (typeof safeMsg === "string" && /timeout/i.test(safeMsg as string))
           if (retriable && attempt < attempts - 1) {
@@ -667,7 +667,7 @@ class ApiClient {
         })
         return { success: true, data: filtered }
       }
-    } catch {}
+    } catch { }
 
     const roleParam = role === 'player' ? 'user' : role
     const url = `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}/${roleParam}/${userId}`

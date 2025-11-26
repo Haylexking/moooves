@@ -45,59 +45,51 @@ export function HostDashboard() {
           </div>
         </div>
 
-        {/* Host Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <Card className="bg-green-100/95 border-2 border-green-600">
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-green-700" />
-                <CardTitle className="text-xs sm:text-sm font-medium text-green-900">Tournaments Hosted</CardTitle>
+        {/* Host Stats - Compact Design */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Card className="bg-green-100/95 border border-green-600 shadow-sm">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Hosted</p>
+                <p className="text-lg font-bold text-green-900">{hostedTournaments.length}</p>
               </div>
-            </CardHeader>
-            <CardContent className="pt-2 sm:pt-3">
-              <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-green-900">{hostedTournaments.length}</p>
+              <Calendar className="w-5 h-5 text-green-600 opacity-70" />
             </CardContent>
           </Card>
 
-          <Card className="bg-green-100/95 border-2 border-green-600">
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-green-700" />
-                <CardTitle className="text-xs sm:text-sm font-medium text-green-900">Total Players</CardTitle>
+          <Card className="bg-green-100/95 border border-green-600 shadow-sm">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Players</p>
+                <p className="text-lg font-bold text-green-900">
+                  {hostedTournaments.reduce((sum: number, t: Tournament) => sum + (t.currentPlayers || 0), 0)}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="pt-2 sm:pt-3">
-              <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-green-900">
-                {hostedTournaments.reduce((sum: number, t: Tournament) => sum + (t.currentPlayers || 0), 0)}
-              </p>
+              <Users className="w-5 h-5 text-green-600 opacity-70" />
             </CardContent>
           </Card>
 
-          <Card className="bg-green-100/95 border-2 border-green-600">
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-green-700" />
-                <CardTitle className="text-xs sm:text-sm font-medium text-green-900">Total Earnings</CardTitle>
+          <Card className="bg-green-100/95 border border-green-600 shadow-sm">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Earnings</p>
+                <p className="text-lg font-bold text-green-900">
+                  ₦{totalEarnings.toLocaleString()}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="pt-2 sm:pt-3">
-              <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-green-900">
-                ₦{totalEarnings.toLocaleString()}
-              </p>
+              <DollarSign className="w-5 h-5 text-green-600 opacity-70" />
             </CardContent>
           </Card>
 
-          <Card className="bg-green-100/95 border-2 border-green-600">
-            <CardHeader className="pb-2 sm:pb-3">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-green-700" />
-                <CardTitle className="text-xs sm:text-sm font-medium text-green-900">Active Tournaments</CardTitle>
+          <Card className="bg-green-100/95 border border-green-600 shadow-sm">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Active</p>
+                <p className="text-lg font-bold text-green-900">
+                  {hostedTournaments.filter((t: Tournament) => t.status === "active").length}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="pt-2 sm:pt-3">
-              <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-green-900">
-                {hostedTournaments.filter((t: Tournament) => t.status === "active").length}
-              </p>
+              <Trophy className="w-5 h-5 text-green-600 opacity-70" />
             </CardContent>
           </Card>
         </div>
@@ -195,6 +187,7 @@ export function HostDashboard() {
           </div>
         </div>
       </div>
+      <CreateTournamentModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>
   )
 }

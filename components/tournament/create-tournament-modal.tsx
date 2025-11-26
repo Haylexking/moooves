@@ -36,17 +36,23 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       return
     }
 
+    if (!user?.id) {
+      toast({ title: "Error", description: "You must be logged in to create a tournament.", variant: "destructive" })
+      return
+    }
+
     try {
       const selected = startTimeLocal ? new Date(startTimeLocal) : new Date(Date.now() + 24 * 60 * 60 * 1000)
       const startTimeISO = selected.toISOString()
-      const tournament = await createTournament({
+      const payload = {
         name,
         entryFee,
         maxPlayers,
         gameMode: "timed",
-        ...(user?.id ? ({ organizerId: user.id } as any) : {}),
+        organizerId: user.id,
         startTime: startTimeISO,
-      })
+      }
+      const tournament = await createTournament(payload)
 
       toast({ title: "Tournament created", description: `${tournament.name} scheduled successfully.` })
       onClose()

@@ -38,7 +38,7 @@ export interface LoginRequest {
 // ============================================================================
 export type TournamentStatus = "created" | "waiting" | "active" | "completed" | "cancelled"
 export type MatchStatus = "waiting" | "active" | "completed" | "forfeited"
-export type GameMode = "timed" | "full-grid"
+export type GameMode = "timed" | "full-grid" | "p2p" | "ai"
 
 export interface Tournament {
   id: string

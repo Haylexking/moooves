@@ -174,6 +174,8 @@ export default function TournamentDashboard() {
       } else {
         setLeaderboard([])
       }
+    } catch (err: any) {
+      toast({ title: "Error loading details", description: err.message || "Failed to load tournament details", variant: "destructive" })
     } finally {
       setDetailLoading(false)
     }
@@ -184,6 +186,8 @@ export default function TournamentDashboard() {
     setJoinLoading(true)
     try {
       router.push(`/join/${joinCode.trim()}`)
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to navigate to join page", variant: "destructive" })
     } finally {
       setJoinLoading(false)
     }
@@ -200,9 +204,13 @@ export default function TournamentDashboard() {
 
   const handleStartNow = async () => {
     if (!selectedTournament) return
-    await apiClient.startTournament(selectedTournament.id)
-    toast({ title: "Tournament started", description: `${selectedTournament.name} is now live.` })
-    await refreshSelectedTournament()
+    try {
+      await apiClient.startTournament(selectedTournament.id)
+      toast({ title: "Tournament started", description: `${selectedTournament.name} is now live.` })
+      await refreshSelectedTournament()
+    } catch (err: any) {
+      toast({ title: "Failed to start", description: err.message || "Could not start tournament", variant: "destructive" })
+    }
   }
 
   const handleReschedule = async () => {
@@ -214,6 +222,8 @@ export default function TournamentDashboard() {
       toast({ title: "Tournament rescheduled", description: `New start time: ${new Date(iso).toLocaleString()}` })
       setShowReschedule(false)
       await refreshSelectedTournament()
+    } catch (err: any) {
+      toast({ title: "Reschedule failed", description: err.message || "Could not reschedule tournament", variant: "destructive" })
     } finally {
       setRescheduling(false)
     }
@@ -238,6 +248,8 @@ export default function TournamentDashboard() {
       setManualBankCode("")
       setShowManualConfirm(false)
       await refreshSelectedTournament()
+    } catch (err: any) {
+      toast({ title: "Payout failed", description: err.message || "Could not send payout", variant: "destructive" })
     } finally {
       setSendingPayout(false)
     }

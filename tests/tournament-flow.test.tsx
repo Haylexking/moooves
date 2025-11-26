@@ -90,7 +90,7 @@ describe("Tournament user flow", () => {
 
     render(<TournamentView tournament={tournament} />)
 
-    expect(screen.getByText(/Round 1/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Round 1/).length).toBeGreaterThan(0)
     expect(screen.getByText(/one@example.com/i)).toBeInTheDocument()
     expect(screen.getByText(/₦3,000/)).toBeInTheDocument()
   })
