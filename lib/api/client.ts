@@ -641,7 +641,12 @@ class ApiClient {
   async addBank(payload: { accountNumber: string; bankCode: string; role?: string; userId?: string }): Promise<ApiResponse<any>> {
     return this.request(API_CONFIG.ENDPOINTS.BANK.ADD, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        account_number: payload.accountNumber,
+        bank_code: payload.bankCode,
+        role: payload.role,
+        user_id: payload.userId,
+      }),
     })
   }
 
