@@ -112,6 +112,7 @@ export function BankLinkForm({ onSuccess }: { onSuccess?: () => void }) {
         bankCode: code,
         role,
         userId: user?.id,
+        accountName,
       }
       const ar = await apiClient.addBank(payload)
       const data: any = ar.data || {}

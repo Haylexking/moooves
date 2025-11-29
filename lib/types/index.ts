@@ -26,6 +26,11 @@ export interface User {
   lastActive?: number
   phone?: string
   notificationsEnabled?: boolean
+  bankAccount?: {
+    accountName: string
+    accountNumber: string
+    bankCode: string
+  }
 }
 
 export interface LoginRequest {

@@ -45,41 +45,100 @@ export function SavedBanksModal({
           setLoading(false)
           return
         }
-        const res = await apiClient.getSavedBanks(user.id, user.role)
-        if (!res.success) {
-          setBanks([])
-          setError(res.error || 'Failed to load banks')
-          setLoading(false)
-          return
+
+        // Fetch bank list for name resolution
+        let bankMap: Record<string, string> = {}
+        try {
+          const bankRes = await apiClient.listBanks()
+          const bankData: any = bankRes.data || {}
+          const bankList = (bankData?.banks || bankData) as Array<{ name: string; code: string }>
+          if (Array.isArray(bankList)) {
+            bankList.forEach(b => {
+              bankMap[b.code] = b.name
+            })
+          }
+        } catch { }
+
+        // Start with user's embedded bank account if available
+        const localBanks: SavedBank[] = []
+        if (user.bankAccount) {
+          localBanks.push({
+            id: "primary",
+            accountNumber: user.bankAccount.accountNumber,
+            bankCode: user.bankAccount.bankCode,
+            accountName: user.bankAccount.accountName,
+            bankName: bankMap[user.bankAccount.bankCode] || "Primary Account"
+          })
         }
-        const payload: any = res.data
-        const raw = Array.isArray(payload?.data)
-          ? payload.data
-          : payload?.data
-            ? [payload.data]
-            : Array.isArray(payload)
-              ? payload
-              : []
-        const normalized: SavedBank[] = raw
-          .map((b: any) => ({
-            id: b.id || b._id,
-            accountNumber: b.accountNumber || b.account_number || "",
-            bankCode: b.bankCode || b.bank_code,
-            bankName: b.bankName || b.bank_name,
-            accountName: b.accountName || b.account_name,
-            currency: b.currency,
-          }))
-          .filter((b: SavedBank) => b.accountNumber)
-        setBanks(normalized)
+
+        const res = await apiClient.getSavedBanks(user.id, user.role)
+        let fetchedBanks: SavedBank[] = []
+
+        if (res.success) {
+          const payload: any = res.data
+          const raw = Array.isArray(payload?.data)
+            ? payload.data
+            : payload?.data
+              ? [payload.data]
+              : Array.isArray(payload)
+                ? payload
+                : []
+
+          fetchedBanks = raw
+            .filter((b: any) => {
+              const bUserId = b._id || b.id || b.userId || b.user_id
+              return String(bUserId) === String(user.id)
+            })
+            .map((u: any) => {
+              const bank = u.bankAccount || {}
+              return {
+                id: u._id,
+                accountNumber: bank.accountNumber,
+                bankCode: bank.bankCode,
+                accountName: bank.accountName,
+                bankName: bankMap[bank.bankCode] || bank.bankName,
+                userId: u._id,
+                role: u.role
+              }
+            })
+            .filter((b: SavedBank) => b.accountNumber)
+        }
+
+        // Merge and deduplicate by account number
+        const allBanks = [...localBanks, ...fetchedBanks]
+        const uniqueBanks = Array.from(new Map(allBanks.map(item => [item.accountNumber, item])).values())
+
+        setBanks(uniqueBanks)
         setStatus(null)
       } catch (e: any) {
-        setError(e?.message || "Failed to load banks")
+        // Even if fetch fails, show local bank if available
+        if (user?.bankAccount) {
+          // Try to resolve name again if possible, though map might be empty if fetch failed
+          let bankName = "Primary Account"
+          try {
+            const bankRes = await apiClient.listBanks()
+            const bankData: any = bankRes.data || {}
+            const bankList = (bankData?.banks || bankData) as Array<{ name: string; code: string }>
+            const found = bankList?.find(b => b.code === user.bankAccount?.bankCode)
+            if (found) bankName = found.name
+          } catch { }
+
+          setBanks([{
+            id: "primary",
+            accountNumber: user.bankAccount.accountNumber,
+            bankCode: user.bankAccount.bankCode,
+            accountName: user.bankAccount.accountName,
+            bankName
+          }])
+        } else {
+          setError(e?.message || "Failed to load banks")
+        }
       } finally {
         setLoading(false)
       }
     }
     fetchBanks()
-  }, [open, reloadToken, user?.id, user?.role])
+  }, [open, reloadToken, user?.id, user?.role, user?.bankAccount])
 
   const handleRemoveBanks = async () => {
     if (!user?.id || !user?.role) {

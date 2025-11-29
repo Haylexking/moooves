@@ -77,6 +77,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             canHost,
             createdAt: new Date(userData.createdAt || new Date()).getTime(),
             lastActive: new Date(userData.updatedAt || new Date()).getTime(),
+            bankAccount: (userData as any)?.bankAccount,
           },
           isAuthenticated: true,
           isLoading: false,
@@ -129,6 +130,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             canHost,
             createdAt: new Date(userData?.createdAt || new Date()).getTime(),
             lastActive: new Date(userData?.updatedAt || new Date()).getTime(),
+            bankAccount: (userData as any)?.bankAccount,
           },
           isAuthenticated: true,
           isLoading: false,
@@ -169,6 +171,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             canHost,
             createdAt: new Date(userData.createdAt || new Date()).getTime(),
             lastActive: new Date(userData.updatedAt || new Date()).getTime(),
+            bankAccount: (userData as any)?.bankAccount,
           },
           isAuthenticated: true,
           isLoading: false,
@@ -212,6 +215,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
             canHost,
             createdAt: new Date(hostData?.createdAt || new Date()).getTime(),
             lastActive: new Date(hostData?.updatedAt || new Date()).getTime(),
+            bankAccount: (hostData as any)?.bankAccount,
           },
           isAuthenticated: true,
           isLoading: false,
@@ -316,6 +320,7 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
           canHost,
           createdAt: current.createdAt,
           lastActive: Date.now(),
+          bankAccount: u.bankAccount,
         }
         set({ user: updated, isLoading: false })
       } else {

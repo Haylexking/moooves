@@ -18,7 +18,7 @@ export function SplashScreen({ progress = 0 }: SplashScreenProps) {
       {/* Logo image */}
       <div className="relative z-10 flex flex-col items-center justify-center mt-[-10vh]">
         <Image
-          src="/images/mooves logo.png"
+          src="/images/moooves logo.png"
           alt="MOOOVES Logo"
           width={500}
           height={160}

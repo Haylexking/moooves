@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
-import { User, Maximize2, Minimize2, Trophy } from "lucide-react"
+import { User, Trophy, Info, RefreshCw } from "lucide-react"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { useGameRules } from './GameRulesProvider'
 import { TopNavigation } from "@/components/ui/top-navigation"
@@ -44,7 +44,6 @@ export function BattleGround({
 }: BattleGroundProps) {
   const [resultModalOpen, setResultModalOpen] = useState(false)
   const [resultType, setResultType] = useState<"win" | "lose" | "draw">("lose")
-  const [expanded, setExpanded] = useState(false)
   const [showStartModal, setShowStartModal] = useState(false)
   const { openRules } = useGameRules()
   const board = useGameStore((state) => state.board)
@@ -205,20 +204,49 @@ export function BattleGround({
     if (gameMode === "player-vs-computer" && currentPlayer !== "X") return
     if (serverAuthoritative && pendingMove) return
 
+    // Optimistic update: Apply move locally immediately
+    makeMove(row, col)
+    onMoveMade?.(row, col, currentPlayer)
+
     if (serverAuthoritative && matchId) {
-      setPendingMove(true)
+      // Don't set pendingMove to true to avoid blocking UI (spinner)
+      // setPendingMove(true) 
+
       try {
         const res = await apiClient.makeMove(matchId, { row, col, player: currentPlayer })
         if (!res.success) {
+          // Revert move on failure (simple reload or undo logic could be added here)
+          // For now, we just show error and maybe force a re-sync if possible
           toast({ title: "Move failed", description: res.error, variant: "destructive" })
-          setPendingMove(false)
+
+          // Force re-fetch of room details to sync state
+          const idToFetch = matchRoom.roomId || matchId
+          if (idToFetch) {
+            try {
+              const details = await matchRoom.getRoomDetails(idToFetch)
+              if (details) {
+                useGameStore.getState().applyServerMatchState?.(details.match || details)
+              }
+            } catch (e) {
+              console.error("Failed to sync state after error", e)
+            }
+          }
         }
       } catch (err) {
-        setPendingMove(false)
+        toast({ title: "Connection Error", description: "Failed to send move to server.", variant: "destructive" })
+        // Force re-fetch
+        const idToFetch = matchRoom.roomId || matchId
+        if (idToFetch) {
+          try {
+            const details = await matchRoom.getRoomDetails(idToFetch)
+            if (details) {
+              useGameStore.getState().applyServerMatchState?.(details.match || details)
+            }
+          } catch (e) {
+            console.error("Failed to sync state after error", e)
+          }
+        }
       }
-    } else {
-      makeMove(row, col)
-      onMoveMade?.(row, col, currentPlayer)
     }
   }
 
@@ -226,13 +254,9 @@ export function BattleGround({
     const row = Math.floor(index / 30)
     const col = index % 30
 
-    // If clicking the cursor position, execute move (confirm)
-    if (cursorPosition && cursorPosition[0] === row && cursorPosition[1] === col) {
-      executeMove(row, col)
-    } else {
-      // Otherwise move cursor
-      setCursorPosition([row, col])
-    }
+    // Direct placement for mouse interaction
+    executeMove(row, col)
+    setCursorPosition([row, col])
   }
 
   const handlePlay = () => {
@@ -265,7 +289,7 @@ export function BattleGround({
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24">
+    <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24 bg-gray-50">
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
       {localMode && localMode !== 'ai' && (
         <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
@@ -354,21 +378,43 @@ export function BattleGround({
         src="/images/dashboard-background.png"
         alt="Dashboard Background"
         fill
-        className="object-cover object-center z-0"
+        className="object-cover object-center z-0 opacity-50"
         priority
       />
 
-      <div className="absolute top-20 left-4 z-20">
+      {/* Floating Controls (Right Side) */}
+      <div className="fixed right-4 top-48 sm:top-24 z-30 flex flex-col gap-3 items-end">
+        {/* Rules Button */}
         <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 text-gray-800 font-semibold hover:bg-green-100 hover:text-green-800 transition-colors shadow-lg"
+          onClick={openRules}
+          className="h-10 sm:h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg flex items-center justify-center gap-2 px-3 sm:px-4 transition-all hover:scale-105 active:scale-95"
+          title="Game Rules"
         >
-          {expanded ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-          {expanded ? "Collapse" : "Expand"}
+          <Info className="w-5 h-5 sm:w-6 sm:h-6" />
+          <span className="font-bold text-sm sm:text-base">Rules</span>
+        </button>
+
+        {/* Timer */}
+        <div className="bg-gray-900/90 backdrop-blur text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg border border-white/10 font-mono text-lg sm:text-xl font-bold min-w-[90px] sm:min-w-[100px] text-center">
+          {formatTime(timeLeft)}
+        </div>
+
+        {/* Restart / Play Button */}
+        <button
+          onClick={handlePlay}
+          disabled={gameStatus === "playing"}
+          className={`h-10 sm:h-12 rounded-xl shadow-lg flex items-center justify-center gap-2 px-3 sm:px-4 transition-all hover:scale-105 active:scale-95 ${gameStatus === "playing"
+            ? "bg-gray-400 cursor-not-allowed text-gray-200"
+            : "bg-green-600 hover:bg-green-700 text-white"
+            }`}
+          title={gameStatus === "playing" ? "Game in Progress" : "Start New Game"}
+        >
+          <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${gameStatus === "playing" ? "" : ""}`} />
+          <span className="font-bold text-sm sm:text-base">Restart</span>
         </button>
       </div>
 
-      <div className="w-full flex justify-center mt-2 mb-2 sm:mt-4 sm:mb-4 relative z-10">
+      <div className="w-full flex justify-center mt-2 mb-2 sm:mt-4 sm:mb-4 relative z-10 px-4">
         <GameScore
           player1={player1}
           player2={player2}
@@ -383,10 +429,8 @@ export function BattleGround({
       <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-200px)] p-2 sm:p-4">
         <div className="relative">
           <div
-            className={`bg-white border-4 border-green-800 rounded-lg overflow-auto ${expanded
-              ? "w-[95vw] h-[95vw] max-w-[800px] max-h-[800px]"
-              : "w-[95vw] h-[95vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw]"
-              } ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""} ${showGameStartAlert ? "pointer-events-none opacity-60" : ""}`}
+            className={`bg-white border-4 border-green-800 rounded-lg overflow-auto w-[95vw] h-[95vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw] ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""
+              } ${showGameStartAlert ? "pointer-events-none opacity-60" : ""}`}
           >
             <div
               className="grid gap-0 p-1 min-w-full min-h-full"
@@ -402,7 +446,7 @@ export function BattleGround({
                 const col = index % 30
 
                 return (
-                  <div key={index} style={{ fontSize: expanded ? "10px" : "8px" }}>
+                  <div key={index} style={{ fontSize: "8px" }}>
                     <Cell
                       value={cellContent}
                       onClick={() => {
@@ -419,51 +463,6 @@ export function BattleGround({
                   </div>
                 )
               })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="w-full flex justify-center mt-4 relative z-10">
-        <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-white font-bold w-full max-w-[95vw] sm:max-w-fit">
-          <div className="flex items-center gap-4 mb-2 sm:mb-0 text-white font-bold">
-            <div className="flex items-center gap-2">
-              <span className="text-blue-300 truncate max-w-[100px] sm:max-w-[150px]">{displayUsername}</span>
-              <span className="text-xs text-blue-200">(X)</span>
-              <span className="ml-2 text-2xl">{scores.X}</span>
-            </div>
-            <div className="text-2xl">:</div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{scores.O}</span>
-              <span className="text-xs text-red-200">(O)</span>
-              <span className="text-red-300 ml-2">{player2}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <button
-              onClick={openRules}
-              className="px-4 py-2 bg-gray-600 text-white font-bold rounded-lg hover:bg-green-600 active:bg-green-700 transition-colors w-full sm:w-auto"
-            >
-              GAME RULES
-            </button>
-
-            <button
-              onClick={handlePlay}
-              disabled={gameStatus === "playing"}
-              className={`px-6 py-2 font-bold rounded-lg transition-colors w-full sm:w-auto ${gameStatus === "playing"
-                ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-                }`}
-            >
-              {gameStatus === "playing" ? "PLAYING" : "PLAY"}
-            </button>
-
-            <div
-              className={`px-4 py-2 font-bold rounded-lg w-full sm:w-auto text-center ${timeLeft < 60 ? "bg-red-500 text-white" : "bg-gray-600 text-white"
-                }`}
-            >
-              {formatTime(timeLeft)}
             </div>
           </div>
         </div>

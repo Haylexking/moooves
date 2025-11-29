@@ -43,6 +43,12 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
 
     try {
       const selected = startTimeLocal ? new Date(startTimeLocal) : new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+      if (selected < new Date()) {
+        toast({ title: "Invalid Date", description: "Tournament start time cannot be in the past.", variant: "destructive" })
+        return
+      }
+
       const startTimeISO = selected.toISOString()
       const payload = {
         name,
@@ -62,7 +68,8 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       setStartTimeLocal(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
       router.push(`/tournament/${tournament.id}`)
     } catch (error) {
-      toast({ title: "Failed to create tournament", description: String(error), variant: "destructive" })
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred."
+      toast({ title: "Failed to create tournament", description: errorMessage, variant: "destructive" })
     }
   }
 
@@ -120,9 +127,11 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             <Input
               id="startTime"
               type="datetime-local"
+              min={new Date().toISOString().slice(0, 16)}
               value={startTimeLocal}
               onChange={(e) => setStartTimeLocal(e.target.value)}
               required
+              className="w-full"
             />
             <p className="text-xs text-gray-500 mt-1">Sent to the backend as UTC. Hosts can reschedule later.</p>
           </div>

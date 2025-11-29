@@ -638,14 +638,14 @@ class ApiClient {
     })
   }
 
-  async addBank(payload: { accountNumber: string; bankCode: string; role?: string; userId?: string }): Promise<ApiResponse<any>> {
+  async addBank(payload: { accountNumber: string; bankCode: string; role?: string; userId?: string; accountName?: string }): Promise<ApiResponse<any>> {
     return this.request(API_CONFIG.ENDPOINTS.BANK.ADD, {
       method: 'POST',
       body: JSON.stringify({
-        account_number: payload.accountNumber,
-        bank_code: payload.bankCode,
+        accountNumber: payload.accountNumber,
+        bankCode: payload.bankCode,
         role: payload.role,
-        user_id: payload.userId,
+        userId: payload.userId,
       }),
     })
   }
@@ -664,12 +664,26 @@ class ApiClient {
       if (all.success) {
         const payload: any = all.data || {}
         const items: any[] = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : [])
-        const filtered = items.filter((b: any) => {
-          const bUserId = b.userId || b.user_id || b.ownerId
-          const bRole = b.role || b.userRole
-          const roleParam = role === 'player' ? 'user' : role
-          return String(bUserId) === String(userId) && (!bRole || String(bRole).toLowerCase() === String(roleParam).toLowerCase())
-        })
+        const filtered = items
+          .filter((b: any) => {
+            const bUserId = b._id || b.id || b.userId || b.user_id
+            return String(bUserId) === String(userId)
+          })
+          .map((u: any) => {
+            // Extract bank account from user object
+            const bank = u.bankAccount || {}
+            return {
+              id: u._id,
+              accountNumber: bank.accountNumber,
+              bankCode: bank.bankCode,
+              accountName: bank.accountName,
+              bankName: bank.bankName, // Might not be present, but that's okay
+              userId: u._id,
+              role: u.role
+            }
+          })
+          .filter((b: any) => b.accountNumber) // Only return if account number exists
+
         return { success: true, data: filtered }
       }
     } catch { }

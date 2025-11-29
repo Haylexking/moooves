@@ -7,6 +7,8 @@ import { GameButton } from "@/components/ui/game-button"
 import PasswordInput from "@/components/ui/password-input"
 import { X, Mail, CheckCircle2 } from "lucide-react"
 
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
+
 export default function ForgotClient({
   mode = "verify",
   onComplete,
@@ -17,7 +19,8 @@ export default function ForgotClient({
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [stage, setStage] = useState(mode)
+  const [otp, setOtp] = useState("")
+  const [stage, setStage] = useState<"verify" | "otp" | "reset" | "enter">(mode)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [accountId, setAccountId] = useState<string | null>(null)
@@ -30,18 +33,38 @@ export default function ForgotClient({
     setLoading(true)
     try {
       const res = await apiClient.forgotPassword(email)
-      if (res.success && res.data?.found) {
+      if (res.success) {
         // If backend returns an identifier required for reset, store it
         const extractedId =
           res.data?.id || res.data?._id || res.data?.accountId || res.data?.data?.id || null
-        setAccountId(extractedId)
-        setMessage(res.data.message || "Email verified. Please create a new password.")
-        setStage("reset")
+        if (extractedId) setAccountId(extractedId)
+
+        setMessage(res.data?.message || "OTP sent to your email.")
+        setStage("otp")
       } else {
         setError(res.data?.message || res.error || "Email not found in our system")
       }
     } catch (err: any) {
       setError(err?.message || "Unexpected error occurred")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await apiClient.verifyAccountOtp(email, otp)
+      if (res.success) {
+        setMessage("OTP verified. Please create a new password.")
+        setStage("reset")
+      } else {
+        setError(res.data?.message || res.error || "Invalid OTP")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Verification failed")
     } finally {
       setLoading(false)
     }
@@ -81,15 +104,15 @@ export default function ForgotClient({
 
     setLoading(true)
     try {
-  // Some backends expect an account id/token for reset. Prefer accountId when available.
-    let res
-    if (accountId) {
-      // Send explicit id and newPassword per Swagger
-      res = await apiClient.resetPassword({ id: accountId, newPassword: password })
-    } else {
-      // Fallback: try sending email + newPassword; some backends accept this
-      res = await apiClient.resetPassword({ email, newPassword: password })
-    }
+      // Some backends expect an account id/token for reset. Prefer accountId when available.
+      let res
+      if (accountId) {
+        // Send explicit id and newPassword per Swagger
+        res = await apiClient.resetPassword({ id: accountId, newPassword: password })
+      } else {
+        // Fallback: try sending email + newPassword; some backends accept this
+        res = await apiClient.resetPassword({ email, newPassword: password })
+      }
       if (res.success && res.data?.success) {
         setMessage(res.data.message || "Password reset successful")
         setShowSuccess(true)
@@ -151,6 +174,66 @@ export default function ForgotClient({
     )
   }
 
+  // OTP Verification Form
+  if (stage === "otp") {
+    return (
+      <div className="relative min-h-screen w-full flex items-center justify-center bg-black overflow-hidden">
+        <Image
+          src="/images/background.png"
+          alt="Background"
+          fill
+          className="object-cover object-center z-0 opacity-90"
+          priority
+        />
+        <div className="relative z-10 w-full max-w-md mx-auto rounded-[24px] bg-[#E6FFE6]/90 border-4 border-[#6AC56E] shadow-2xl flex flex-col items-center px-6 py-8">
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 w-10 h-10 bg-[#002B03] text-white rounded-full flex items-center justify-center hover:bg-[#003B05] transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="-mt-16 mb-4 flex justify-center w-full">
+            <Image src="/images/XO.png" alt="XO Logo" width={120} height={60} className="drop-shadow-xl" />
+          </div>
+          <h2 className="text-xl font-bold text-[#002B03] mb-6 text-center">Verify OTP</h2>
+          <p className="text-[#002B03] text-center mb-6 text-sm">
+            Enter the 6-digit code sent to <strong>{email}</strong>
+          </p>
+
+          <form onSubmit={handleVerifyOtp} className="flex flex-col gap-6 w-full items-center">
+            <InputOTP
+              maxLength={6}
+              value={otp}
+              onChange={(value) => setOtp(value)}
+              render={({ slots }) => (
+                <InputOTPGroup className="gap-2">
+                  {slots.map((slot, index) => (
+                    <InputOTPSlot
+                      key={index}
+                      {...slot}
+                      index={index}
+                      className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]"
+                    />
+                  ))}
+                </InputOTPGroup>
+              )}
+            />
+
+            {error && (
+              <div role="alert" className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3 w-full text-center">
+                {error}
+              </div>
+            )}
+
+            <GameButton type="submit" className="w-full mt-2" disabled={loading || otp.length < 6}>
+              {loading ? "Verifying..." : "Verify OTP"}
+            </GameButton>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   // Reset password form
   if (stage === "reset") {
     return (
@@ -172,7 +255,7 @@ export default function ForgotClient({
           <div className="-mt-16 mb-4 flex justify-center w-full">
             <Image src="/images/XO.png" alt="XO Logo" width={120} height={60} className="drop-shadow-xl" />
           </div>
-          <h2 className="text-xl font-bold text-[#002B03] mb-6 text-center">Forgot password</h2>
+          <h2 className="text-xl font-bold text-[#002B03] mb-6 text-center">Reset Password</h2>
 
           <form onSubmit={handleReset} className="flex flex-col gap-4 w-full">
             <label className="text-[#002B03] font-bold">Email</label>
@@ -180,13 +263,13 @@ export default function ForgotClient({
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AC56E]">
                 <Mail className="w-5 h-5" />
               </span>
-                <input
-                  type="email"
-                  value={email}
-                  readOnly
-                  data-testid="forgot-email-readonly"
-                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border border-[#BFC4BF] text-[#002B03] font-semibold"
-                />
+              <input
+                type="email"
+                value={email}
+                readOnly
+                data-testid="forgot-email-readonly"
+                className="w-full pl-10 pr-3 py-2 rounded-lg bg-[#E6FFE6] border border-[#BFC4BF] text-[#002B03] font-semibold"
+              />
             </div>
 
             <label className="text-[#002B03] font-bold">Enter new password</label>
@@ -279,7 +362,7 @@ export default function ForgotClient({
           {error && <div role="alert" className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
 
           <GameButton data-testid="forgot-send" type="submit" className="mt-2" disabled={loading}>
-            {loading ? "Verifying..." : "Verify Email"}
+            {loading ? "Sending OTP..." : "Send OTP"}
           </GameButton>
         </form>
       </div>

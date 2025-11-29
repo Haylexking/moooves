@@ -24,14 +24,21 @@ export function ProtectedRoute({ children, redirectTo = "/onboarding", allowUnve
         try {
           const target = `${window.location.pathname}${window.location.search}${window.location.hash}`
           localStorage.setItem("return_to", target)
-        } catch {}
+        } catch { }
         router.replace("/auth/verify")
         return
       }
       return
     }
     router.replace(redirectTo)
-  }, [allowUnverified, isAuthenticated, isLoading, rehydrated, router, redirectTo, user])
+  }, [allowUnverified, isAuthenticated, isLoading, rehydrated, router, redirectTo, user?.emailVerified])
+
+  // Separate effect for data sync to avoid infinite loop with isLoading
+  useEffect(() => {
+    if (rehydrated && isAuthenticated) {
+      useAuthStore.getState().refreshUser()
+    }
+  }, [rehydrated, isAuthenticated])
 
   // If the persisted store hasn't rehydrated, show a splash to avoid blank screens
   if (!rehydrated || isLoading) {
