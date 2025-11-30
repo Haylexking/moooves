@@ -509,12 +509,12 @@ export function BattleGround({
         </div>
 
         {/* Game Board Area */}
-        <div className="flex items-center justify-center">
-          <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden border-[16px] border-green-800 select-none">
+        <div className="flex items-center justify-center w-full overflow-x-auto pb-4">
+          <div className="relative bg-white rounded-xl shadow-2xl border-[16px] border-green-800 select-none">
             <div
               className="grid gap-[1px] bg-gray-200"
               style={{
-                gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
+                gridTemplateColumns: `repeat(30, minmax(${isMobile ? '24px' : '30px'}, 1fr))`,
                 width: "fit-content",
               }}
             >
@@ -522,10 +522,6 @@ export function BattleGround({
                 row.map((cell, cIndex) => {
                   const isCursor = cursorPosition ? cursorPosition[0] === rIndex && cursorPosition[1] === cIndex : false
                   const isUsed = usedPositions.has(`${rIndex},${cIndex}`)
-                  const isLastMove = moveHistory.length > 0 &&
-                    moveHistory[moveHistory.length - 1].position[0] === rIndex &&
-                    moveHistory[moveHistory.length - 1].position[1] === cIndex
-
                   return (
                     <Cell
                       key={`${rIndex}-${cIndex}`}
@@ -536,7 +532,7 @@ export function BattleGround({
                         gameStatus !== "playing" ||
                         (serverAuthoritative && pendingMove)
                       }
-                      isHighlighted={isLastMove}
+                      isHighlighted={false}
                       isUsed={isUsed}
                       isMobile={isMobile}
                       isCursor={isCursor}
