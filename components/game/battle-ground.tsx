@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Image from "next/image"
-import { User, Trophy, Info, RefreshCw } from "lucide-react"
+import { User, Trophy, Info, RefreshCw, Clock, BookOpen, RotateCcw } from "lucide-react"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { useGameRules } from './GameRulesProvider'
 import { TopNavigation } from "@/components/ui/top-navigation"
@@ -22,6 +22,7 @@ import { getUserDisplayName } from "@/lib/utils/display-name"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
 import { toast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api/client"
+import { cn } from "@/lib/utils"
 
 interface BattleGroundProps {
   player1?: string
@@ -56,6 +57,13 @@ export function BattleGround({
   const setCurrentPlayer = useGameStore((state) => state.setCurrentPlayer)
   const cursorPosition = useGameStore((state) => state.cursorPosition)
   const setCursorPosition = useGameStore((state) => state.setCursorPosition)
+  const moveHistory = useGameStore((state) => state.moveHistory)
+
+  const resetGame = () => {
+    initializeGame(gameMode === 'player-vs-computer' ? 'ai' : 'p2p')
+    setResultModalOpen(false)
+  }
+
   const { timeLeft, startTimer, stopTimer } = useGameTimer(10 * 60) // 10 minutes
   const { user } = useAuthStore()
   const matchRoom = useMatchRoom()
@@ -69,6 +77,15 @@ export function BattleGround({
   const [waitingTimer, setWaitingTimer] = useState(15 * 60) // 15 minutes in seconds
   const [winByDefault, setWinByDefault] = useState(false)
   const router = useRouter()
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.matchMedia('(max-width: 768px)').matches)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     // Initialize game when component mounts
@@ -212,22 +229,18 @@ export function BattleGround({
     }
   }, [timeLeft, gameStatus])
 
-  // AI Logic
+  // AI Logic - Instant response
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
-      // Reduced delay for snappier gameplay
-      const timer = setTimeout(() => {
-        const runComputation = () => {
-          const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
-          if (computerMove) {
-            makeMove(computerMove[0], computerMove[1])
-          }
+      // Execute immediately without artificial delay
+      const runComputation = () => {
+        const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
+        if (computerMove) {
+          makeMove(computerMove[0], computerMove[1])
         }
-
-        // Execute directly to avoid idle callback delays
-        runComputation()
-      }, 50) // 50ms delay just to allow UI render
-      return () => clearTimeout(timer)
+      }
+      // Use setTimeout(..., 0) to allow React state to settle but run ASAP
+      setTimeout(runComputation, 0)
     }
   }, [gameMode, currentPlayer, gameStatus, board, usedSequences, scores, makeMove])
 
@@ -282,14 +295,21 @@ export function BattleGround({
     }
   }
 
-  const handleCellClick = (index: number) => {
-    const row = Math.floor(index / 30)
-    const col = index % 30
-
-    // Direct placement for mouse interaction
-    executeMove(row, col)
-    setCursorPosition([row, col])
-  }
+  const handleCellClick = useCallback((row: number, col: number) => {
+    // Mobile Double-Click Logic
+    if (isMobile) {
+      if (cursorPosition && cursorPosition[0] === row && cursorPosition[1] === col) {
+        // Second click on same cell -> Place
+        executeMove(row, col)
+      } else {
+        // First click -> Select/Move Cursor
+        setCursorPosition([row, col])
+      }
+    } else {
+      // Desktop Single-Click Logic
+      executeMove(row, col)
+    }
+  }, [isMobile, cursorPosition, executeMove, setCursorPosition])
 
   const handlePlay = () => {
     if (gameMode === "player-vs-computer") {
@@ -319,9 +339,27 @@ export function BattleGround({
   }
 
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
+  const usedPositions = new Set(usedSequences.flat().map(([r, c]) => `${r},${c}`))
+
+  const handleSubmitResult = async () => {
+    if (matchId && user) {
+      const winnerId = resultType === "win" ? user.id : (resultType === "lose" ? "opponent" : "draw")
+      try {
+        const res = await apiClient.submitMatchResult(matchId, winnerId)
+        if (!res.success) {
+          toast({ title: "Error", description: "Failed to submit match result", variant: "destructive" })
+        } else {
+          toast({ title: "Success", description: "Match result submitted", variant: "default" })
+          router.push("/dashboard")
+        }
+      } catch (err) {
+        console.error("Error submitting result:", err)
+      }
+    }
+  }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24 pb-32 sm:pb-0 bg-gray-50">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-gray-50 relative">
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
       {localMode && localMode !== 'ai' && (
         <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
@@ -390,122 +428,103 @@ export function BattleGround({
       <GlobalSidebar showTrigger={false} />
       <TopNavigation username={displayUsername} />
 
-      <GameResultModal
-        open={resultModalOpen}
-        onClose={() => setResultModalOpen(false)}
-        onPlayAgain={() => {
-          useGameStore.getState().initializeGame("timed")
-          setResultModalOpen(false)
-        }}
-        onBackToMenu={() => {
-          setResultModalOpen(false)
-          router.push('/dashboard')
-        }}
-        result={resultType}
-        scoreX={scores.X}
-        scoreO={scores.O}
-      />
+      {/* Floating Controls (Desktop/Tablet) */}
+      <div className="hidden lg:flex fixed right-8 top-1/2 -translate-y-1/2 flex-col gap-4 z-50">
+        <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-white/20 flex flex-col gap-4">
+          {/* Timer */}
+          <div className={cn(
+            "flex flex-col items-center justify-center w-20 h-20 rounded-xl bg-gray-100 border-2 border-gray-200 transition-colors duration-300",
+            timeLeft < 60 && "bg-red-50 border-red-200 animate-pulse"
+          )}>
+            <Clock className={cn("w-6 h-6 mb-1 text-gray-400", timeLeft < 60 && "text-red-500")} />
+            <span className={cn("text-xl font-bold font-mono text-gray-600", timeLeft < 60 && "text-red-600")}>
+              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
+            </span>
+          </div>
 
-      <Image
-        src="/images/dashboard-background.png"
-        alt="Dashboard Background"
-        fill
-        className="object-cover object-center z-0 opacity-50"
-        priority
-      />
-
-      {/* Floating Controls (Right Side) */}
-      <div className="fixed right-4 top-48 sm:top-24 z-30 flex flex-col gap-3 items-end">
-        {/* Rules Button */}
-        <button
-          onClick={openRules}
-          className="h-10 sm:h-12 bg-gray-800 hover:bg-gray-700 text-white rounded-xl shadow-lg flex items-center justify-center gap-2 px-3 sm:px-4 transition-all hover:scale-105 active:scale-95 border border-white/10"
-          title="Game Rules"
-        >
-          <Info className="w-5 h-5 sm:w-6 sm:h-6" />
-          <span className="font-bold text-sm sm:text-base">Rules</span>
-        </button>
-
-        {/* Timer */}
-        <div className={`bg-gray-900/90 backdrop-blur px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg border border-white/10 font-mono text-lg sm:text-xl font-bold min-w-[90px] sm:min-w-[100px] text-center transition-colors duration-300 ${timeLeft < 60 ? "text-red-500 border-red-500/50 animate-pulse" : "text-white"
-          }`}>
-          {formatTime(timeLeft)}
-        </div>
-
-        {/* Restart / Play Button */}
-        <button
-          onClick={handlePlay}
-          disabled={gameStatus === "playing"}
-          className={`h-10 sm:h-12 rounded-xl shadow-lg flex items-center justify-center gap-2 px-3 sm:px-4 transition-all hover:scale-105 active:scale-95 ${gameStatus === "playing"
-            ? "bg-gray-400 cursor-not-allowed text-gray-200"
-            : "bg-green-600 hover:bg-green-700 text-white"
-            }`}
-          title={gameStatus === "playing" ? "Game in Progress" : "Start New Game"}
-        >
-          <RefreshCw className={`w-5 h-5 sm:w-6 sm:h-6 ${gameStatus === "playing" ? "" : ""}`} />
-          <span className="font-bold text-sm sm:text-base">Restart</span>
-        </button>
-      </div>
-
-      <div className="w-full flex justify-center mt-2 mb-2 sm:mt-4 sm:mb-4 relative z-10 px-4">
-        <GameScore
-          player1={player1}
-          player2={player2}
-          scoreX={scores.X}
-          scoreO={scores.O}
-          currentPlayer={currentPlayer}
-          gameStatus={gameStatus}
-          gameMode={gameMode}
-        />
-      </div>
-
-      <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-200px)] p-2 sm:p-4">
-        <div className="relative">
-          <div
-            className={`bg-white border-4 border-green-800 rounded-lg overflow-auto w-[95vw] h-[95vw] max-w-[600px] max-h-[600px] sm:w-[70vw] sm:h-[70vw] ${serverAuthoritative && pendingMove ? "pointer-events-none opacity-60" : ""
-              } ${showGameStartAlert ? "pointer-events-none opacity-60" : ""}`}
+          {/* Rules Button */}
+          <button
+            onClick={openRules}
+            className="flex flex-col items-center justify-center w-20 h-20 rounded-xl bg-[#0f172a] text-white hover:bg-[#1e293b] transition-colors shadow-lg"
           >
-            <div
-              className="grid gap-0 p-1 min-w-full min-h-full"
-              style={{
-                gridTemplateColumns: "repeat(30, minmax(0, 1fr))",
-                gridTemplateRows: "repeat(30, minmax(0, 1fr))",
-              }}
-            >
-              {Array.from({ length: 900 }, (_, index) => {
-                const cellContent = getCellContent(index)
-                const isUsed = isCellUsed(index)
-                const row = Math.floor(index / 30)
-                const col = index % 30
+            <BookOpen className="w-8 h-8 mb-1" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Rules</span>
+          </button>
+
+          {/* Restart Button */}
+          <button
+            onClick={resetGame}
+            className="flex flex-col items-center justify-center w-20 h-20 rounded-xl bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <RotateCcw className="w-8 h-8 mb-1" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Restart</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Top Score Bar - Fixed */}
+      <div className="flex-none z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/50">
+        <div className="max-w-4xl mx-auto w-full">
+          <GameScore
+            player1={player1}
+            player2={player2}
+            scoreX={scores.X}
+            scoreO={scores.O}
+            currentPlayer={currentPlayer}
+            gameStatus={gameStatus}
+            gameMode={gameMode}
+          />
+        </div>
+      </div>
+
+      {/* Game Board Area - Scrollable/Pannable */}
+      <div className="flex-1 relative overflow-auto touch-pan-x touch-pan-y bg-gray-50/50 flex items-center justify-center p-4 pb-32 lg:pb-4">
+        <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden border-[16px] border-[#1e293b] select-none">
+          <div
+            className="grid gap-[1px] bg-gray-200"
+            style={{
+              gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
+              width: "fit-content",
+            }}
+          >
+            {board.map((row, rIndex) =>
+              row.map((cell, cIndex) => {
+                const isCursor = cursorPosition ? cursorPosition[0] === rIndex && cursorPosition[1] === cIndex : false
+                const isUsed = usedPositions.has(`${rIndex},${cIndex}`)
+                const isLastMove = moveHistory.length > 0 &&
+                  moveHistory[moveHistory.length - 1].position[0] === rIndex &&
+                  moveHistory[moveHistory.length - 1].position[1] === cIndex
 
                 return (
-                  <div key={index} style={{ fontSize: "8px" }}>
-                    <Cell
-                      value={cellContent}
-                      onClick={() => {
-                        if (serverAuthoritative && pendingMove) return
-                        handleCellClick(index)
-                      }}
-                      disabled={gameMode === "player-vs-computer" && currentPlayer === "O"}
-                      row={row}
-                      col={col}
-                      isHighlighted={false}
-                      isUsed={isUsed}
-                      isCursor={cursorPosition?.[0] === row && cursorPosition?.[1] === col}
-                    />
-                  </div>
+                  <Cell
+                    key={`${rIndex}-${cIndex}`}
+                    value={cell}
+                    onClick={() => handleCellClick(rIndex, cIndex)}
+                    disabled={
+                      (gameMode === "player-vs-computer" && currentPlayer !== "X") ||
+                      gameStatus !== "playing" ||
+                      (serverAuthoritative && pendingMove)
+                    }
+                    isHighlighted={isLastMove}
+                    isUsed={isUsed}
+                    isMobile={isMobile}
+                    isCursor={isCursor}
+                    row={rIndex}
+                    col={cIndex}
+                  />
                 )
-              })}
-            </div>
+              }),
+            )}
           </div>
         </div>
       </div>
 
-      <div className="lg:hidden relative z-10">
+      {/* Mobile Controls - Fixed Bottom */}
+      <div className="lg:hidden flex-none z-50 pb-safe">
         <MobileControls
           onPlace={() => {
             if (cursorPosition) {
-              executeMove(cursorPosition[0], cursorPosition[1])
+              executeMove(cursorPosition[0], cursorPosition[1]);
             }
           }}
           disabled={
@@ -517,6 +536,25 @@ export function BattleGround({
           playerSymbol={currentPlayer}
         />
       </div>
+
+      {/* Modals */}
+      <GameResultModal
+        open={resultModalOpen}
+        result={resultType}
+        onPlayAgain={resetGame}
+        onBackToMenu={() => router.push("/dashboard")}
+        onClose={() => setResultModalOpen(false)}
+        scoreX={scores.X}
+        scoreO={scores.O}
+      />
+
+
+      {/* Loading Overlay */}
+      {pendingMove && serverAuthoritative && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+          {/* Invisible blocker, spinner removed for optimistic feel */}
+        </div>
+      )}
     </div>
   )
 }
