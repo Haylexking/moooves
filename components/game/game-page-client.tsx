@@ -55,7 +55,7 @@ export default function GamePageClient() {
 
   return (
     <ProtectedRoute>
-      <BattleGround player1={user?.fullName || "User"} localMode={localMode} connectionType={connectionType} />
+      <BattleGround gameMode="player-vs-player" localMode={localMode as any} />
       <GameResultModal
         open={gameStatus === "completed"}
         onClose={handleBackToMenu}

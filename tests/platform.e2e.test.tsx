@@ -319,7 +319,7 @@ describe('Platform E2E Tests: Tournament Lifecycle & Error Scenarios', () => {
       }
     })
 
-    render(<BattleGround matchId="match-123" localMode="tournament" />)
+    render(<BattleGround gameMode="player-vs-player" matchId="match-123" localMode="tournament" />)
 
     // Simulate move by clicking a cell
     // Note: Cell component might need specific selector
@@ -355,7 +355,7 @@ describe('Platform E2E Tests: Tournament Lifecycle & Error Scenarios', () => {
 
       ; (apiClient.submitMatchResult as jest.Mock).mockResolvedValue({ success: true })
 
-    render(<BattleGround matchId="match-123" localMode="tournament" />)
+    render(<BattleGround gameMode="player-vs-player" matchId="match-123" localMode="tournament" />)
 
     await waitFor(() => {
       // Should attempt to submit result

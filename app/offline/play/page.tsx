@@ -35,7 +35,7 @@ export default function OfflinePlayPage() {
         }
     }, [wifi, bt, makeMove, gameStatus])
 
-    const handleLocalMove = async (row: number, col: number, byPlayer: Player) => {
+    const handleMove = async (row: number, col: number, byPlayer: Player) => {
         // Forward local moves to the connected peer over whichever channel is active
         const payload = { row, col, by: byPlayer }
 
@@ -61,7 +61,11 @@ export default function OfflinePlayPage() {
 
     return (
         <div className="min-h-screen">
-            <BattleGround player2="OFFLINE PEER" gameMode="player-vs-player" onMoveMade={handleLocalMove} />
+            <BattleGround
+                gameMode="player-vs-player"
+                localMode="offline"
+                onMoveMade={handleMove}
+            />
         </div>
     )
 }

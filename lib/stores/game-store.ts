@@ -21,9 +21,12 @@ type GameStore = GameBoardSlice &
     cursorPosition: [number, number] | null
     setCursorPosition: (pos: [number, number] | null) => void
     moveCursor: (dr: number, dc: number) => void
+    winner: "X" | "O" | null
     serverAuthoritative?: boolean
+    setServerAuthoritative: (enabled: boolean) => void
     applyServerMatchState?: (match: any) => void
     initializeGame: (mode?: GameMode) => void
+    resetGame: () => void
     makeMove: (row: number, col: number) => void
     endGame: () => void
     pauseGame: () => void
@@ -44,6 +47,13 @@ export const useGameStore = create<GameStore>()(
       aiAutoEnabled: false,
       cursorPosition: null,
       serverAuthoritative: false,
+
+      setServerAuthoritative: (enabled) => set({ serverAuthoritative: enabled }),
+      resetGame: () => {
+        get().initializeBoard()
+        get().resetGameState()
+        get().resetScores()
+      },
 
       setCursorPosition: (pos) => set({ cursorPosition: pos }),
 

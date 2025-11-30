@@ -38,7 +38,7 @@ describe('Mode runtime behavior', () => {
     try {
       render(
         <GameRulesProvider>
-          <BattleGround localMode="ai" />
+          <BattleGround gameMode="player-vs-computer" localMode="ai" />
         </GameRulesProvider>
       )
 

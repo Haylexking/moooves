@@ -1,85 +1,81 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import Image from "next/image"
-import { User, Trophy, Info, RefreshCw, Clock, BookOpen, RotateCcw } from "lucide-react"
-import { GlobalSidebar } from "@/components/ui/global-sidebar"
-import { useGameRules } from './GameRulesProvider'
-import { TopNavigation } from "@/components/ui/top-navigation"
-import { GameScore } from "./game-score"
-import StartGameModal from "@/components/ui/start-game-modal"
-import { GameResultModal } from "./game-result-modal"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import { useGameStore } from "@/lib/stores/game-store"
-import { Cell } from "./cell"
-import type { Player } from "@/lib/types"
-import { useGameTimer } from "@/lib/hooks/use-game-timer"
-import { GameStartAlert } from "@/components/game/game-start-alert"
-import { MobileControls } from "@/components/game/mobile-controls"
-import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
-import { useAuthStore } from "@/lib/stores/auth-store"
-import { useRouter } from 'next/navigation'
-import { getUserDisplayName } from "@/lib/utils/display-name"
 import { useMatchRoom } from "@/lib/hooks/use-match-room"
-import { toast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api/client"
+import { Cell } from "./cell"
+import { GameScore } from "./game-score"
+import { MobileControls } from "./mobile-controls"
+import { GameStartAlert } from "./game-start-alert"
+import { StartGameModal } from "../ui/start-game-modal"
+import { GameResultModal } from "./game-result-modal"
+import { useGameRules } from "./GameRulesProvider"
 import { cn } from "@/lib/utils"
+import { Clock, RotateCcw, BookOpen, User, Trophy } from "lucide-react"
+import { useGameTimer } from "@/lib/hooks/use-game-timer"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { getUserDisplayName } from "@/lib/utils/display-name"
+import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
+import { GlobalSidebar } from "@/components/ui/global-sidebar"
+import { TopNavigation } from "@/components/ui/top-navigation"
 
 interface BattleGroundProps {
-  player1?: string
-  player2?: string
-  gameMode?: "player-vs-player" | "player-vs-computer"
-  /** localMode: 'ai' = vs computer, 'p2p' = nearby multiplayer, 'tournament' = online tournament */
-  localMode?: 'ai' | 'p2p' | 'tournament'
-  onMoveMade?: (row: number, col: number, byPlayer: Player) => void
-  connectionType?: string | undefined
+  gameMode: "player-vs-player" | "player-vs-computer"
+  localMode?: "offline" | "tournament" | "ai" | "p2p"
   matchId?: string
+  initialBoard?: (string | null)[][]
+  initialCurrentPlayer?: "X" | "O"
+  onMoveMade?: (row: number, col: number, player: "X" | "O") => void
 }
 
 export function BattleGround({
-  player1 = "User",
-  player2 = "COMPUTER",
-  gameMode = "player-vs-computer",
+  gameMode: initialGameMode,
   localMode,
-  onMoveMade,
   matchId,
+  initialBoard,
+  initialCurrentPlayer,
+  onMoveMade,
 }: BattleGroundProps) {
-  const [resultModalOpen, setResultModalOpen] = useState(false)
-  const [resultType, setResultType] = useState<"win" | "lose" | "draw">("lose")
-  const [showStartModal, setShowStartModal] = useState(false)
-  const { openRules } = useGameRules()
-  const board = useGameStore((state) => state.board)
-  const currentPlayer = useGameStore((state) => state.currentPlayer)
-  const gameStatus = useGameStore((state) => state.gameStatus)
-  const scores = useGameStore((state) => state.scores)
-  const makeMove = useGameStore((state) => state.makeMove)
-  const initializeGame = useGameStore((state) => state.initializeGame)
-  const usedSequences = useGameStore((state) => state.usedSequences)
-  const setCurrentPlayer = useGameStore((state) => state.setCurrentPlayer)
-  const cursorPosition = useGameStore((state) => state.cursorPosition)
-  const setCursorPosition = useGameStore((state) => state.setCursorPosition)
-  const moveHistory = useGameStore((state) => state.moveHistory)
+  const {
+    board,
+    currentPlayer,
+    gameStatus,
+    winner,
+    scores,
+    initializeGame,
+    makeMove,
+    resetGame: resetGameState,
+    setCurrentPlayer,
+    cursorPosition,
+    setCursorPosition,
+    gameMode,
+    moveHistory,
+    usedSequences,
+    serverAuthoritative,
+    setServerAuthoritative,
+  } = useGameStore()
 
-  const resetGame = () => {
-    initializeGame(gameMode === 'player-vs-computer' ? 'ai' : 'p2p')
-    setResultModalOpen(false)
-  }
-
-  const { timeLeft, startTimer, stopTimer } = useGameTimer(10 * 60) // 10 minutes
   const { user } = useAuthStore()
-  const matchRoom = useMatchRoom()
-  const serverAuthoritative = useGameStore((s) => s.serverAuthoritative)
-  const [pendingMove, setPendingMove] = useState(false)
-  const [showGameStartAlert, setShowGameStartAlert] = useState(true)
-  const overlayRef = useRef<HTMLDivElement | null>(null)
-  const previousActiveElementRef = useRef<HTMLElement | null>(null)
-
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false)
-  const [waitingTimer, setWaitingTimer] = useState(15 * 60) // 15 minutes in seconds
-  const [winByDefault, setWinByDefault] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
+  const { openRules } = useGameRules()
+
+  const [showStartModal, setShowStartModal] = useState(localMode !== "ai" && localMode !== "tournament")
+  const [showGameStartAlert, setShowGameStartAlert] = useState(false)
+  const [resultModalOpen, setResultModalOpen] = useState(false)
+  const [resultType, setResultType] = useState<"win" | "lose" | "draw">("draw")
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false)
+  const [waitingTimer, setWaitingTimer] = useState(900) // 15 minutes
+  const [winByDefault, setWinByDefault] = useState(false)
+  const [pendingMove, setPendingMove] = useState(false)
+  const overlayRef = useRef<HTMLDivElement>(null)
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false)
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia('(max-width: 768px)').matches)
     checkMobile()
@@ -87,117 +83,69 @@ export function BattleGround({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  useEffect(() => {
-    // Initialize game when component mounts
-    if (matchId) {
-      initializeGame("timed")
+  // Timer logic
+  const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(300)
 
-      // Check for opponent presence
-      if (localMode === 'tournament') {
-        setWaitingForOpponent(true)
-        // Poll for room details to check participants
-        const interval = setInterval(async () => {
-          if (matchRoom.roomId) {
-            const details = await matchRoom.getRoomDetails(matchRoom.roomId)
-            if (details && details.participants && details.participants.length >= 2) {
-              setWaitingForOpponent(false)
-              clearInterval(interval)
-            }
-          }
-        }, 5000)
-        return () => clearInterval(interval)
-      }
+  // Handle Timer Expiry
+  useEffect(() => {
+    if (timeLeft === 0) {
+      useGameStore.getState().endGame()
+    }
+  }, [timeLeft])
+
+  // Match Room Hook (for tournament/online play)
+  const matchRoom = useMatchRoom(matchId)
+
+  // Initialize Game
+  useEffect(() => {
+    if (localMode === "tournament" && matchId) {
+      setServerAuthoritative(true)
+      // Initial fetch is handled by useMatchRoom
     } else {
-      initializeGame("timed")
+      setServerAuthoritative(false)
+      initializeGame(localMode === "ai" ? "ai" : "p2p")
     }
-  }, [initializeGame, matchId, localMode, matchRoom.roomId])
-
-  // Waiting timer logic
-  useEffect(() => {
-    if (waitingForOpponent && waitingTimer > 0) {
-      const timer = setInterval(() => {
-        setWaitingTimer((prev) => prev - 1)
-      }, 1000)
-      return () => clearInterval(timer)
-    } else if (waitingForOpponent && waitingTimer === 0) {
-      setWinByDefault(true)
-      setWaitingForOpponent(false)
-      toast({ title: "Opponent timed out", description: "You win by default!", variant: "default" })
+    return () => {
+      setServerAuthoritative(false)
     }
-  }, [waitingForOpponent, waitingTimer])
+  }, [localMode, matchId, initializeGame, setServerAuthoritative])
 
-  // Poll for game state updates in tournament mode (Server Authoritative)
+  // Sync with Server State (Tournament Mode)
   useEffect(() => {
-    if (serverAuthoritative && gameStatus === "playing" && matchId && !waitingForOpponent) {
+    if (localMode === "tournament" && matchRoom.matchState) {
+      useGameStore.getState().applyServerMatchState?.(matchRoom.matchState)
+
+      // Update local UI state based on server match state
+      if (matchRoom.matchState.status === 'completed') {
+        const isWinner = matchRoom.matchState.winner === user?.id
+        setResultType(isWinner ? 'win' : 'lose')
+        setResultModalOpen(true)
+      }
+    }
+  }, [localMode, matchRoom.matchState, user?.id])
+
+  // Polling for opponent moves in tournament mode
+  useEffect(() => {
+    if (localMode === "tournament" && matchId && gameStatus === "playing") {
       const interval = setInterval(async () => {
-        try {
-          const idToFetch = matchRoom.roomId || matchId
-          if (!idToFetch) return
-
-          const details = await matchRoom.getRoomDetails(idToFetch)
-          const serverMatch = details.match || details
-
-          if (serverMatch) {
-            const currentHistory = useGameStore.getState().moveHistory
-            const serverHistory = serverMatch.moveHistory || []
-
-            // Only apply server state if it has more moves (opponent moved) 
-            // or if we are significantly behind/out of sync.
-            // We avoid overwriting if we are "ahead" (optimistic update) to prevent flickering.
-            if (serverHistory.length > currentHistory.length) {
-              useGameStore.getState().applyServerMatchState?.(serverMatch)
+        // Only poll if it's NOT our turn, or if we are waiting for a state update
+        if (currentPlayer !== 'X' || pendingMove) {
+          try {
+            const details = await matchRoom.getRoomDetails(matchId)
+            if (details && details.match) {
+              useGameStore.getState().applyServerMatchState?.(details.match)
             }
+          } catch (e) {
+            console.error("Polling error:", e)
           }
-        } catch (e) {
-          console.error("Polling error", e)
         }
       }, 2000) // Poll every 2 seconds
       return () => clearInterval(interval)
     }
-  }, [serverAuthoritative, gameStatus, matchId, matchRoom, waitingForOpponent])
+  }, [localMode, matchId, gameStatus, currentPlayer, pendingMove, matchRoom])
 
-  // Manage focus when overlay appears/disappears
-  useEffect(() => {
-    if (pendingMove && serverAuthoritative) {
-      previousActiveElementRef.current = document.activeElement as HTMLElement | null
-      const panel = overlayRef.current?.querySelector('[tabindex="-1"]') as HTMLElement | null
-      if (panel) panel.focus()
-    } else {
-      previousActiveElementRef.current?.focus()
-      previousActiveElementRef.current = null
-    }
-  }, [pendingMove, serverAuthoritative])
 
-  // Show result modal on game end and submit result if tournament match
-  useEffect(() => {
-    if (gameStatus === "completed") {
-      let result: "win" | "lose" | "draw" = "draw"
-      if (scores.X > scores.O) {
-        result = "win"
-      } else if (scores.X < scores.O) {
-        result = "lose"
-      }
-
-      setResultType(result)
-      setResultModalOpen(true)
-
-      if (matchId && user) {
-        const winnerId = result === "win" ? user.id : (result === "lose" ? "opponent" : "draw")
-        apiClient.submitMatchResult(matchId, winnerId)
-          .then(res => {
-            if (!res.success) {
-              toast({ title: "Error", description: "Failed to submit match result", variant: "destructive" })
-            }
-          })
-          .catch(err => {
-            console.error("Error submitting result:", err)
-          })
-      }
-    } else {
-      setResultModalOpen(false)
-    }
-  }, [gameStatus, scores, matchId, user])
-
+  // Timer Management
   useEffect(() => {
     if (gameStatus === "playing") {
       startTimer()
@@ -206,32 +154,67 @@ export function BattleGround({
     }
   }, [gameStatus, startTimer, stopTimer])
 
-  // Map localMode to internal behavior
+  // Game Over Handling
   useEffect(() => {
-    if (gameMode === 'player-vs-computer') {
-      useGameStore.setState({ serverAuthoritative: false })
+    if (gameStatus === "completed") {
+      setResultType(winner === "X" ? "win" : winner === "O" ? "lose" : "draw")
+      setResultModalOpen(true)
+      stopTimer()
     }
+  }, [gameStatus, winner, stopTimer])
 
-    if (localMode === 'ai') {
-      setCurrentPlayer('X')
-      useGameStore.setState({ serverAuthoritative: false })
-    } else if (localMode === 'p2p') {
-      useGameStore.setState({ serverAuthoritative: false })
-    } else if (localMode === 'tournament') {
-      useGameStore.setState({ serverAuthoritative: true })
+  // Reset Game
+  const resetGame = () => {
+    resetGameState()
+    resetTimer()
+    setResultModalOpen(false)
+    if (localMode === "ai") {
+      initializeGame("ai")
+    } else if (localMode === "tournament") {
+      // Tournament reset logic (likely just re-fetch)
+      matchRoom.getRoomDetails(matchId!)
+    } else {
+      initializeGame("p2p")
     }
-  }, [localMode, gameMode, setCurrentPlayer])
+  }
 
-  // Auto-end game when timer reaches 0
+  // Player Names
+  const player1 = user ? getUserDisplayName(user) : "Player 1"
+  const player2 = (gameMode as string) === "player-vs-computer" ? "AI Opponent" : "Player 2"
+
+  // Opponent Waiting Logic (Tournament)
   useEffect(() => {
-    if (timeLeft === 0 && gameStatus === "playing") {
-      useGameStore.getState().endGame()
+    if (localMode === "tournament" && (!matchRoom.participants || matchRoom.participants.length < 2)) {
+      setWaitingForOpponent(true)
+      const timer = setInterval(() => {
+        setWaitingTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            setWinByDefault(true)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      return () => clearInterval(timer)
+    } else {
+      setWaitingForOpponent(false)
     }
-  }, [timeLeft, gameStatus])
+  }, [localMode, matchRoom.participants])
+
+  // Handle Win By Default
+  useEffect(() => {
+    if (winByDefault && matchId) {
+      // Auto-submit win
+      apiClient.submitMatchResult(matchId, user?.id || "unknown").then(() => {
+        useGameStore.getState().endGame()
+      })
+    }
+  }, [winByDefault, matchId, user?.id])
 
   // AI Logic - Instant response
   useEffect(() => {
-    if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
+    if ((gameMode as string) === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
       // Execute immediately without artificial delay
       const runComputation = () => {
         const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
@@ -246,7 +229,7 @@ export function BattleGround({
 
   const executeMove = async (row: number, col: number) => {
     if (board[row][col] !== null) return
-    if (gameMode === "player-vs-computer" && currentPlayer !== "X") return
+    if ((gameMode as string) === "player-vs-computer" && currentPlayer !== "X") return
     if (serverAuthoritative && pendingMove) return
 
     // Optimistic update: Apply move locally immediately
@@ -311,52 +294,8 @@ export function BattleGround({
     }
   }, [isMobile, cursorPosition, executeMove, setCursorPosition])
 
-  const handlePlay = () => {
-    if (gameMode === "player-vs-computer") {
-      initializeGame("ai")
-      setCurrentPlayer("X")
-    } else {
-      setShowStartModal(true)
-    }
-  }
-
-  const getCellContent = (index: number) => {
-    const row = Math.floor(index / 30)
-    const col = index % 30
-    return board[row][col]
-  }
-
-  const isCellUsed = (index: number) => {
-    const row = Math.floor(index / 30)
-    const col = index % 30
-    return usedSequences.some((sequence) => sequence.some(([r, c]) => r === row && c === col))
-  }
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
-  }
-
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
   const usedPositions = new Set(usedSequences.flat().map(([r, c]) => `${r},${c}`))
-
-  const handleSubmitResult = async () => {
-    if (matchId && user) {
-      const winnerId = resultType === "win" ? user.id : (resultType === "lose" ? "opponent" : "draw")
-      try {
-        const res = await apiClient.submitMatchResult(matchId, winnerId)
-        if (!res.success) {
-          toast({ title: "Error", description: "Failed to submit match result", variant: "destructive" })
-        } else {
-          toast({ title: "Success", description: "Match result submitted", variant: "default" })
-          router.push("/dashboard")
-        }
-      } catch (err) {
-        console.error("Error submitting result:", err)
-      }
-    }
-  }
 
   return (
     <div className="relative min-h-screen w-full pb-32">
@@ -428,16 +367,16 @@ export function BattleGround({
       <GlobalSidebar showTrigger={false} />
       <TopNavigation username={displayUsername} />
 
-      {/* Floating Controls (Desktop/Tablet) */}
-      <div className="hidden lg:flex fixed right-8 top-1/2 -translate-y-1/2 flex-col gap-4 z-50">
-        <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-white/20 flex flex-col gap-4">
+      {/* Floating Controls (Timer, Rules, Restart) - Visible on all screens */}
+      <div className="fixed left-4 lg:left-8 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
+        <div className="bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/10 flex flex-col gap-3 shadow-xl">
           {/* Timer */}
           <div className={cn(
-            "flex flex-col items-center justify-center w-20 h-20 rounded-xl bg-gray-100 border-2 border-gray-200 transition-colors duration-300",
-            timeLeft < 60 && "bg-red-50 border-red-200 animate-pulse"
+            "flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-white/10 border border-white/20 transition-colors duration-300",
+            timeLeft < 60 && "bg-red-500/20 border-red-500/50 animate-pulse"
           )}>
-            <Clock className={cn("w-6 h-6 mb-1 text-gray-400", timeLeft < 60 && "text-red-500")} />
-            <span className={cn("text-xl font-bold font-mono text-gray-600", timeLeft < 60 && "text-red-600")}>
+            <Clock className={cn("w-4 h-4 lg:w-6 lg:h-6 mb-0.5 text-white/80", timeLeft < 60 && "text-red-400")} />
+            <span className={cn("text-[10px] lg:text-xs font-bold font-mono text-white", timeLeft < 60 && "text-red-400")}>
               {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
             </span>
           </div>
@@ -445,19 +384,19 @@ export function BattleGround({
           {/* Rules Button */}
           <button
             onClick={openRules}
-            className="flex flex-col items-center justify-center w-20 h-20 rounded-xl bg-[#0f172a] text-white hover:bg-[#1e293b] transition-colors shadow-lg"
+            className="flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
           >
-            <BookOpen className="w-8 h-8 mb-1" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Rules</span>
+            <BookOpen className="w-5 h-5 lg:w-6 lg:h-6 mb-0.5" />
+            <span className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider">Rules</span>
           </button>
 
           {/* Restart Button */}
           <button
             onClick={resetGame}
-            className="flex flex-col items-center justify-center w-20 h-20 rounded-xl bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            className="flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
           >
-            <RotateCcw className="w-8 h-8 mb-1" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Restart</span>
+            <RotateCcw className="w-5 h-5 lg:w-6 lg:h-6 mb-0.5" />
+            <span className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider">Restart</span>
           </button>
         </div>
       </div>
@@ -476,46 +415,13 @@ export function BattleGround({
           />
         </div>
 
-        {/* Mobile Horizontal Controls (Timer, Rules, Restart) */}
-        <div className="lg:hidden flex items-center justify-center gap-3 w-full">
-          {/* Timer */}
-          <div className={cn(
-            "flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-white border-2 border-gray-200 transition-colors duration-300 shadow-sm",
-            timeLeft < 60 && "bg-red-50 border-red-200 animate-pulse"
-          )}>
-            <Clock className={cn("w-5 h-5 mb-0.5 text-gray-400", timeLeft < 60 && "text-red-500")} />
-            <span className={cn("text-sm font-bold font-mono text-gray-600", timeLeft < 60 && "text-red-600")}>
-              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
-            </span>
-          </div>
-
-          {/* Rules Button */}
-          <button
-            onClick={openRules}
-            className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-[#0f172a] text-white hover:bg-[#1e293b] transition-colors shadow-lg"
-          >
-            <BookOpen className="w-6 h-6 mb-0.5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Rules</span>
-          </button>
-
-          {/* Restart Button */}
-          <button
-            onClick={resetGame}
-            className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm"
-          >
-            <RotateCcw className="w-6 h-6 mb-0.5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Restart</span>
-          </button>
-        </div>
-
         {/* Game Board Area */}
-        <div className="flex items-center justify-center w-full overflow-x-auto pb-4">
-          <div className="relative bg-white rounded-xl shadow-2xl border-[16px] border-green-800 select-none">
+        <div className="flex items-center justify-center w-full px-2">
+          <div className="relative bg-white rounded-xl shadow-2xl border-[8px] sm:border-[16px] border-green-800 select-none w-full max-w-[95vw] aspect-square">
             <div
-              className="grid gap-[1px] bg-gray-200"
+              className="grid gap-[1px] bg-gray-200 w-full h-full"
               style={{
-                gridTemplateColumns: `repeat(30, minmax(${isMobile ? '24px' : '30px'}, 1fr))`,
-                width: "fit-content",
+                gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
               }}
             >
               {board.map((row, rIndex) =>
@@ -528,7 +434,7 @@ export function BattleGround({
                       value={cell}
                       onClick={() => handleCellClick(rIndex, cIndex)}
                       disabled={
-                        (gameMode === "player-vs-computer" && currentPlayer !== "X") ||
+                        ((gameMode as string) === "player-vs-computer" && currentPlayer !== "X") ||
                         gameStatus !== "playing" ||
                         (serverAuthoritative && pendingMove)
                       }
@@ -558,7 +464,7 @@ export function BattleGround({
           disabled={
             !cursorPosition ||
             board[cursorPosition[0]][cursorPosition[1]] !== null ||
-            (gameMode === "player-vs-computer" && currentPlayer !== "X") ||
+            ((gameMode as string) === "player-vs-computer" && currentPlayer !== "X") ||
             (serverAuthoritative && pendingMove)
           }
           playerSymbol={currentPlayer}
@@ -575,7 +481,6 @@ export function BattleGround({
         scoreX={scores.X}
         scoreO={scores.O}
       />
-
 
       {/* Loading Overlay */}
       {pendingMove && serverAuthoritative && (

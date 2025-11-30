@@ -14,13 +14,14 @@ interface MatchRoomState {
   isConnected: boolean
   error: string | null
   participants: string[]
+  matchState?: any
 }
 
-export function useMatchRoom() {
+export function useMatchRoom(initialMatchId?: string) {
   const [state, setState] = useState<MatchRoomState>({
-    roomId: null,
+    roomId: initialMatchId || null,
     isHost: false,
-    isConnected: false,
+    isConnected: !!initialMatchId,
     error: null,
     participants: [],
   })
@@ -48,13 +49,13 @@ export function useMatchRoom() {
           throw new Error(response.error || "Failed to create room")
         }
 
-  // API shape varies between backends/mocks. Normalize common fields.
-  const roomId = response.data?.id || response.data?.roomId || response.data?.matchId || response.data?.match?.id || null
-  const roomCode = response.data?.roomCode || response.data?.code || response.data?.match?.roomCode || null
-  // Backend may return a bluetoothToken / handshakeToken used for offline join verification
-  const bluetoothTokenFromServer = response.data?.bluetoothToken || response.data?.handshakeToken || null
-  // Store server-provided token for later use (we'll send it over local connection to the peer)
-  bluetoothTokenRef.current = bluetoothTokenFromServer
+        // API shape varies between backends/mocks. Normalize common fields.
+        const roomId = response.data?.id || response.data?.roomId || response.data?.matchId || response.data?.match?.id || null
+        const roomCode = response.data?.roomCode || response.data?.code || response.data?.match?.roomCode || null
+        // Backend may return a bluetoothToken / handshakeToken used for offline join verification
+        const bluetoothTokenFromServer = response.data?.bluetoothToken || response.data?.handshakeToken || null
+        // Store server-provided token for later use (we'll send it over local connection to the peer)
+        bluetoothTokenRef.current = bluetoothTokenFromServer
 
         // Enable server-authoritative mode for online match
         useGameStore.setState({ serverAuthoritative: true })
@@ -100,7 +101,7 @@ export function useMatchRoom() {
           throw new Error(response.error || "Failed to join room")
         }
 
-  handshakeTokenRef.current = handshakeToken
+        handshakeTokenRef.current = handshakeToken
 
         // Normalize fields returned from join
         const joinedRoomId = response.data?.id || response.data?.roomId || response.data?.matchId || roomId
@@ -159,6 +160,7 @@ export function useMatchRoom() {
       setState((prev) => ({
         ...prev,
         participants: response.data.participants || [],
+        matchState: response.data.match,
       }))
 
       return response.data
@@ -247,5 +249,6 @@ export function useMatchRoom() {
     getRoomDetails,
     makeMove,
     leaveRoom,
+    matchState: state.matchState,
   }
 }
