@@ -109,6 +109,36 @@ export function BattleGround({
     }
   }, [waitingForOpponent, waitingTimer])
 
+  // Poll for game state updates in tournament mode (Server Authoritative)
+  useEffect(() => {
+    if (serverAuthoritative && gameStatus === "playing" && matchId && !waitingForOpponent) {
+      const interval = setInterval(async () => {
+        try {
+          const idToFetch = matchRoom.roomId || matchId
+          if (!idToFetch) return
+
+          const details = await matchRoom.getRoomDetails(idToFetch)
+          const serverMatch = details.match || details
+
+          if (serverMatch) {
+            const currentHistory = useGameStore.getState().moveHistory
+            const serverHistory = serverMatch.moveHistory || []
+
+            // Only apply server state if it has more moves (opponent moved) 
+            // or if we are significantly behind/out of sync.
+            // We avoid overwriting if we are "ahead" (optimistic update) to prevent flickering.
+            if (serverHistory.length > currentHistory.length) {
+              useGameStore.getState().applyServerMatchState?.(serverMatch)
+            }
+          }
+        } catch (e) {
+          console.error("Polling error", e)
+        }
+      }, 2000) // Poll every 2 seconds
+      return () => clearInterval(interval)
+    }
+  }, [serverAuthoritative, gameStatus, matchId, matchRoom, waitingForOpponent])
+
   // Manage focus when overlay appears/disappears
   useEffect(() => {
     if (pendingMove && serverAuthoritative) {
@@ -161,6 +191,10 @@ export function BattleGround({
 
   // Map localMode to internal behavior
   useEffect(() => {
+    if (gameMode === 'player-vs-computer') {
+      useGameStore.setState({ serverAuthoritative: false })
+    }
+
     if (localMode === 'ai') {
       setCurrentPlayer('X')
       useGameStore.setState({ serverAuthoritative: false })
@@ -169,7 +203,7 @@ export function BattleGround({
     } else if (localMode === 'tournament') {
       useGameStore.setState({ serverAuthoritative: true })
     }
-  }, [localMode, setCurrentPlayer])
+  }, [localMode, gameMode, setCurrentPlayer])
 
   // Auto-end game when timer reaches 0
   useEffect(() => {
@@ -181,6 +215,7 @@ export function BattleGround({
   // AI Logic
   useEffect(() => {
     if (gameMode === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
+      // Reduced delay for snappier gameplay
       const timer = setTimeout(() => {
         const runComputation = () => {
           const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
@@ -189,12 +224,9 @@ export function BattleGround({
           }
         }
 
-        if (typeof window !== "undefined" && (window as any).requestIdleCallback) {
-          (window as any).requestIdleCallback(runComputation, { timeout: 300 })
-        } else {
-          requestAnimationFrame(runComputation)
-        }
-      }, 600)
+        // Execute directly to avoid idle callback delays
+        runComputation()
+      }, 50) // 50ms delay just to allow UI render
       return () => clearTimeout(timer)
     }
   }, [gameMode, currentPlayer, gameStatus, board, usedSequences, scores, makeMove])
@@ -289,7 +321,7 @@ export function BattleGround({
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24 bg-gray-50">
+    <div className="relative min-h-screen w-full overflow-hidden pt-20 sm:pt-24 pb-32 sm:pb-0 bg-gray-50">
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
       {localMode && localMode !== 'ai' && (
         <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
@@ -387,7 +419,7 @@ export function BattleGround({
         {/* Rules Button */}
         <button
           onClick={openRules}
-          className="h-10 sm:h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg flex items-center justify-center gap-2 px-3 sm:px-4 transition-all hover:scale-105 active:scale-95"
+          className="h-10 sm:h-12 bg-gray-800 hover:bg-gray-700 text-white rounded-xl shadow-lg flex items-center justify-center gap-2 px-3 sm:px-4 transition-all hover:scale-105 active:scale-95 border border-white/10"
           title="Game Rules"
         >
           <Info className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -395,7 +427,8 @@ export function BattleGround({
         </button>
 
         {/* Timer */}
-        <div className="bg-gray-900/90 backdrop-blur text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg border border-white/10 font-mono text-lg sm:text-xl font-bold min-w-[90px] sm:min-w-[100px] text-center">
+        <div className={`bg-gray-900/90 backdrop-blur px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg border border-white/10 font-mono text-lg sm:text-xl font-bold min-w-[90px] sm:min-w-[100px] text-center transition-colors duration-300 ${timeLeft < 60 ? "text-red-500 border-red-500/50 animate-pulse" : "text-white"
+          }`}>
           {formatTime(timeLeft)}
         </div>
 
