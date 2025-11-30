@@ -181,9 +181,9 @@ export function BattleGround({
   // Player Names
   const player1 = user ? getUserDisplayName(user) : "Player 1"
   const player2 = (gameMode as string) === "player-vs-computer"
-    ? "AI Opponent"
+    ? "Computer"
     : localMode === "tournament" && matchRoom.participants.length > 1
-      ? "Opponent"
+      ? matchRoom.participants.find(p => p !== user?.id) || "Opponent"
       : "Player 2"
 
   // Opponent Waiting Logic (Tournament)
@@ -420,14 +420,12 @@ export function BattleGround({
         </div>
 
         {/* Game Board Area */}
-        <div className="flex items-center justify-center w-full px-2 overflow-auto">
-          <div className="relative bg-white rounded-xl shadow-2xl border-[8px] sm:border-[16px] border-green-800 select-none min-w-fit">
+        <div className="flex items-center justify-center w-full px-2">
+          <div className="relative bg-white rounded-xl shadow-2xl border-[1.5px] border-green-800 select-none w-full max-w-fit aspect-square">
             <div
               className="grid gap-[1px] bg-gray-200"
               style={{
                 gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
-                width: isMobile ? '480px' : '600px', // Explicit width to force scroll if needed
-                height: isMobile ? '480px' : '600px',
               }}
             >
               {board.map((row, rIndex) =>

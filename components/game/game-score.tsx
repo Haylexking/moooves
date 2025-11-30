@@ -77,7 +77,7 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
               </span>
               {currentPlayer === "O" && gameStatus === "playing" && (
                 <span className="text-[10px] sm:text-xs font-bold text-red-500 animate-pulse">
-                  Thinking
+                  Turn
                 </span>
               )}
             </div>
