@@ -71,6 +71,7 @@ export function BattleGround({
   const [waitingTimer, setWaitingTimer] = useState(900) // 15 minutes
   const [winByDefault, setWinByDefault] = useState(false)
   const [pendingMove, setPendingMove] = useState(false)
+  const [opponentName, setOpponentName] = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // Mobile detection
@@ -100,15 +101,19 @@ export function BattleGround({
   useEffect(() => {
     if (localMode === "tournament" && matchId) {
       setServerAuthoritative(true)
-      // Initial fetch is handled by useMatchRoom
+      // Initial fetch
+      matchRoom.getRoomDetails(matchId)
     } else {
       setServerAuthoritative(false)
-      initializeGame(localMode === "ai" ? "ai" : "p2p")
+      // If initialGameMode is "player-vs-computer", we must initialize as "ai"
+      // Otherwise, default to "p2p" unless localMode says otherwise
+      const modeToInit = (localMode === "ai" || initialGameMode === "player-vs-computer") ? "ai" : "p2p"
+      initializeGame(modeToInit)
     }
     return () => {
       setServerAuthoritative(false)
     }
-  }, [localMode, matchId, initializeGame, setServerAuthoritative])
+  }, [localMode, matchId, initializeGame, setServerAuthoritative, initialGameMode])
 
   // Sync with Server State (Tournament Mode)
   useEffect(() => {
@@ -168,7 +173,7 @@ export function BattleGround({
     resetGameState()
     resetTimer()
     setResultModalOpen(false)
-    if (localMode === "ai") {
+    if (localMode === "ai" || initialGameMode === "player-vs-computer") {
       initializeGame("ai")
     } else if (localMode === "tournament") {
       // Tournament reset logic (likely just re-fetch)
@@ -178,12 +183,26 @@ export function BattleGround({
     }
   }
 
+  // Fetch Opponent Name (Tournament)
+  useEffect(() => {
+    if (localMode === "tournament" && matchRoom.participants && matchRoom.participants.length > 1 && user?.id) {
+      const opponentId = matchRoom.participants.find((p: string) => p !== user.id)
+      if (opponentId) {
+        apiClient.getUserById(opponentId).then((res) => {
+          if (res.success && res.data) {
+            setOpponentName(res.data.fullName || res.data.name || res.data.email || "Opponent")
+          }
+        })
+      }
+    }
+  }, [localMode, matchRoom.participants, user?.id])
+
   // Player Names
   const player1 = user ? getUserDisplayName(user) : "Player 1"
-  const player2 = (gameMode as string) === "player-vs-computer"
+  const player2 = (gameMode === "ai" || (gameMode as string) === "player-vs-computer")
     ? "Computer"
-    : localMode === "tournament" && matchRoom.participants.length > 1
-      ? matchRoom.participants.find(p => p !== user?.id) || "Opponent"
+    : localMode === "tournament"
+      ? opponentName || "Opponent"
       : "Player 2"
 
   // Opponent Waiting Logic (Tournament)
@@ -218,7 +237,7 @@ export function BattleGround({
 
   // AI Logic - Instant response
   useEffect(() => {
-    if ((gameMode as string) === "player-vs-computer" && currentPlayer === "O" && gameStatus === "playing") {
+    if ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer === "O" && gameStatus === "playing") {
       // Execute immediately without artificial delay
       const runComputation = () => {
         const computerMove = mockOpponentMove(board, "O", usedSequences, scores)
@@ -233,7 +252,7 @@ export function BattleGround({
 
   const executeMove = async (row: number, col: number) => {
     if (board[row][col] !== null) return
-    if ((gameMode as string) === "player-vs-computer" && currentPlayer !== "X") return
+    if ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") return
     if (serverAuthoritative && pendingMove) return
 
     // Optimistic update: Apply move locally immediately
@@ -438,7 +457,7 @@ export function BattleGround({
                       value={cell}
                       onClick={() => handleCellClick(rIndex, cIndex)}
                       disabled={
-                        ((gameMode as string) === "player-vs-computer" && currentPlayer !== "X") ||
+                        ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") ||
                         gameStatus !== "playing" ||
                         (serverAuthoritative && pendingMove)
                       }
