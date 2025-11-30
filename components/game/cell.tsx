@@ -18,7 +18,7 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
         isCursor && "ring-4 ring-blue-500 z-20 shadow-[0_0_15px_rgba(59,130,246,0.5)] scale-110",
         value && "animate-bounce-in",
         disabled ? "opacity-50" : "cursor-pointer",
-        isMobile ? "min-w-[24px] min-h-[24px]" : "min-w-[10px] min-h-[10px]"
+        isMobile ? "min-w-[16px] min-h-[16px]" : "min-w-[10px] min-h-[10px]"
       )}
       style={{
         aspectRatio: "1/1",
@@ -29,7 +29,7 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
         border: "1px solid rgba(0,0,0,0.06)",
         color: value === "X" ? "#1e40af" : value === "O" ? "#dc2626" : "transparent",
         fontWeight: 700,
-        fontSize: isMobile ? '1.2rem' : '0.9rem',
+        fontSize: isMobile ? '0.8rem' : '0.9rem',
         touchAction: 'manipulation',
         WebkitTapHighlightColor: 'transparent',
       }}

@@ -84,7 +84,7 @@ export function BattleGround({
   }, [])
 
   // Timer logic
-  const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(300)
+  const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(600)
 
   // Handle Timer Expiry
   useEffect(() => {
@@ -180,7 +180,11 @@ export function BattleGround({
 
   // Player Names
   const player1 = user ? getUserDisplayName(user) : "Player 1"
-  const player2 = (gameMode as string) === "player-vs-computer" ? "AI Opponent" : "Player 2"
+  const player2 = (gameMode as string) === "player-vs-computer"
+    ? "AI Opponent"
+    : localMode === "tournament" && matchRoom.participants.length > 1
+      ? "Opponent" // In a real app, we'd fetch the opponent's name using their ID from participants
+      : "Player 2"
 
   // Opponent Waiting Logic (Tournament)
   useEffect(() => {
