@@ -359,7 +359,7 @@ export function BattleGround({
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-gray-50 relative">
+    <div className="relative min-h-screen w-full pb-32">
       <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
       {localMode && localMode !== 'ai' && (
         <StartGameModal open={showStartModal} onOpenChange={(v) => setShowStartModal(v)} />
@@ -462,9 +462,9 @@ export function BattleGround({
         </div>
       </div>
 
-      {/* Top Score Bar - Fixed */}
-      <div className="flex-none z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/50">
-        <div className="max-w-4xl mx-auto w-full">
+      <div className="pt-20 sm:pt-24 px-4 max-w-4xl mx-auto w-full flex flex-col gap-6">
+        {/* Top Score Bar */}
+        <div className="w-full">
           <GameScore
             player1={player1}
             player2={player2}
@@ -475,52 +475,84 @@ export function BattleGround({
             gameMode={gameMode}
           />
         </div>
-      </div>
 
-      {/* Game Board Area - Scrollable/Pannable */}
-      <div className="flex-1 relative overflow-auto touch-pan-x touch-pan-y bg-gray-50/50 flex items-center justify-center p-4 pb-32 lg:pb-4">
-        <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden border-[16px] border-[#1e293b] select-none">
-          <div
-            className="grid gap-[1px] bg-gray-200"
-            style={{
-              gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
-              width: "fit-content",
-            }}
+        {/* Mobile Horizontal Controls (Timer, Rules, Restart) */}
+        <div className="lg:hidden flex items-center justify-center gap-3 w-full">
+          {/* Timer */}
+          <div className={cn(
+            "flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-white border-2 border-gray-200 transition-colors duration-300 shadow-sm",
+            timeLeft < 60 && "bg-red-50 border-red-200 animate-pulse"
+          )}>
+            <Clock className={cn("w-5 h-5 mb-0.5 text-gray-400", timeLeft < 60 && "text-red-500")} />
+            <span className={cn("text-sm font-bold font-mono text-gray-600", timeLeft < 60 && "text-red-600")}>
+              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
+            </span>
+          </div>
+
+          {/* Rules Button */}
+          <button
+            onClick={openRules}
+            className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-[#0f172a] text-white hover:bg-[#1e293b] transition-colors shadow-lg"
           >
-            {board.map((row, rIndex) =>
-              row.map((cell, cIndex) => {
-                const isCursor = cursorPosition ? cursorPosition[0] === rIndex && cursorPosition[1] === cIndex : false
-                const isUsed = usedPositions.has(`${rIndex},${cIndex}`)
-                const isLastMove = moveHistory.length > 0 &&
-                  moveHistory[moveHistory.length - 1].position[0] === rIndex &&
-                  moveHistory[moveHistory.length - 1].position[1] === cIndex
+            <BookOpen className="w-6 h-6 mb-0.5" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Rules</span>
+          </button>
 
-                return (
-                  <Cell
-                    key={`${rIndex}-${cIndex}`}
-                    value={cell}
-                    onClick={() => handleCellClick(rIndex, cIndex)}
-                    disabled={
-                      (gameMode === "player-vs-computer" && currentPlayer !== "X") ||
-                      gameStatus !== "playing" ||
-                      (serverAuthoritative && pendingMove)
-                    }
-                    isHighlighted={isLastMove}
-                    isUsed={isUsed}
-                    isMobile={isMobile}
-                    isCursor={isCursor}
-                    row={rIndex}
-                    col={cIndex}
-                  />
-                )
-              }),
-            )}
+          {/* Restart Button */}
+          <button
+            onClick={resetGame}
+            className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm"
+          >
+            <RotateCcw className="w-6 h-6 mb-0.5" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Restart</span>
+          </button>
+        </div>
+
+        {/* Game Board Area */}
+        <div className="flex items-center justify-center">
+          <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden border-[16px] border-green-800 select-none">
+            <div
+              className="grid gap-[1px] bg-gray-200"
+              style={{
+                gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
+                width: "fit-content",
+              }}
+            >
+              {board.map((row, rIndex) =>
+                row.map((cell, cIndex) => {
+                  const isCursor = cursorPosition ? cursorPosition[0] === rIndex && cursorPosition[1] === cIndex : false
+                  const isUsed = usedPositions.has(`${rIndex},${cIndex}`)
+                  const isLastMove = moveHistory.length > 0 &&
+                    moveHistory[moveHistory.length - 1].position[0] === rIndex &&
+                    moveHistory[moveHistory.length - 1].position[1] === cIndex
+
+                  return (
+                    <Cell
+                      key={`${rIndex}-${cIndex}`}
+                      value={cell}
+                      onClick={() => handleCellClick(rIndex, cIndex)}
+                      disabled={
+                        (gameMode === "player-vs-computer" && currentPlayer !== "X") ||
+                        gameStatus !== "playing" ||
+                        (serverAuthoritative && pendingMove)
+                      }
+                      isHighlighted={isLastMove}
+                      isUsed={isUsed}
+                      isMobile={isMobile}
+                      isCursor={isCursor}
+                      row={rIndex}
+                      col={cIndex}
+                    />
+                  )
+                }),
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Mobile Controls - Fixed Bottom */}
-      <div className="lg:hidden flex-none z-50 pb-safe">
+      <div className="lg:hidden flex-none z-50 pb-safe fixed bottom-0 left-0 right-0">
         <MobileControls
           onPlace={() => {
             if (cursorPosition) {
