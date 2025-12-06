@@ -303,9 +303,17 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
   async refreshUser() {
     const current = get().user
     if (!current?.id) return
+
     set({ isLoading: true })
     try {
-      const res = await apiClient.getUserById(current.id)
+      let res;
+      // Use getHostById for Hosts, getCurrentUser for others
+      if (current.role === 'host' || current.canHost) {
+        res = await apiClient.getHostById(current.id)
+      } else {
+        res = await apiClient.getCurrentUser()
+      }
+
       if (res.success && res.data) {
         const u: any = res.data
         const serverRole = u.role || (u.canHost ? "host" : current.role)
@@ -324,6 +332,14 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         }
         set({ user: updated, isLoading: false })
       } else {
+        // Only logout for explicit "User not found" (deleted account)
+        // Ignore "Invalid role" or "Invalid user ID" as they might just be endpoint mismatches
+        if (res.error && (
+          res.error.toLowerCase().includes("not found") ||
+          res.error.includes("404")
+        )) {
+          get().logout()
+        }
         set({ isLoading: false })
       }
     } catch {

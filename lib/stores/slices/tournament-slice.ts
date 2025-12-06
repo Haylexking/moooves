@@ -13,14 +13,13 @@ export interface TournamentSlice {
   createTournament: (data: {
     name: string
     entryFee?: number
-    entryfee?: number
     maxPlayers: number
     organizerId?: string
     startTime?: string
   }) => Promise<Tournament>
   joinTournament: (inviteCode: string, userId: string) => Promise<void>
   loadAllTournaments: () => Promise<void>
-  loadTournament: (tournamentId: string) => Promise<void>
+  loadTournament: (tournamentId: string, isBackground?: boolean) => Promise<void>
   startTournament: (tournamentId: string) => Promise<void>
   loadUserTournaments: (userId: string) => Promise<Tournament[]>
   getActiveMatch: (userId: string) => import("@/lib/types").BracketMatch | undefined
@@ -33,23 +32,58 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   isLoading: false,
 
   // ✅ CREATE TOURNAMENT
-  createTournament: async ({ name, entryFee, entryfee, maxPlayers, organizerId, gameMode, startTime }: any) => {
+  createTournament: async ({ name, entryFee, maxPlayers, organizerId, startTime }: any) => {
     set({ isLoading: true })
     try {
-      const fee = typeof entryFee !== 'undefined' ? entryFee : entryfee
-
       const res = await apiClient.createTournament({
         name,
         organizerId,
         maxPlayers,
-        entryFee: typeof fee !== 'undefined' ? fee : undefined,
-        gameMode: (gameMode as string) || undefined,
+        entryFee,
         startTime: startTime,
       })
 
       if (!res.success) throw new Error(res.error || res.message || 'Failed to create tournament')
 
-      const tournament = (res.data && (res.data.tournament || res.data)) || res.data || {}
+      const data = res.data
+      console.log("Create Tournament Response:", res)
+
+      let rawTournament =
+        (data && data.tournament) ||
+        (data && data.data && data.data.tournament) ||
+        (data && data.data) ||
+        data ||
+        {}
+
+      let tournament = {
+        ...rawTournament,
+        id: rawTournament._id || rawTournament.id || rawTournament.tournamentId
+      }
+
+      // Fallback: If ID is missing, fetch all tournaments and find the most recent one created by this user
+      if (!tournament.id) {
+        console.warn("Tournament ID missing in response, fetching all tournaments...")
+        const allRes = await apiClient.getAllTournaments()
+        if (allRes.success) {
+          const payload: any = allRes.data || []
+          const list = Array.isArray(payload)
+            ? payload
+            : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
+          // Sort by creation time descending (assuming newer ones are at the end or have higher createdAt)
+          // We filter by organizerId and name to be safe
+          const myTournaments = list.filter((t: any) =>
+            (t.organizerId === organizerId || t.hostId === organizerId) &&
+            t.name === name
+          )
+          if (myTournaments.length > 0) {
+            // Pick the last one (most recent)
+            const found = myTournaments[myTournaments.length - 1]
+            tournament = { ...found, id: found.id || found._id }
+          }
+        }
+      }
+
+      console.log("Parsed Tournament:", tournament)
 
       set((state) => ({
         tournaments: [...state.tournaments, tournament],
@@ -84,9 +118,11 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
       const res = await apiClient.getAllTournaments()
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournaments')
       const data = res.data || []
-      // API may return { tournaments: [...] } or an array directly
       const d: any = data
-      const tournaments = Array.isArray(d) ? d : d.tournaments || []
+      const tournaments = (Array.isArray(d)
+        ? d
+        : (Array.isArray(d.data) ? d.data : d.tournaments || [])
+      ).map((t: any) => ({ ...t, id: t.id || t._id }))
       set({ tournaments, isLoading: false })
     } catch (error) {
       set({ isLoading: false })
@@ -95,8 +131,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   },
 
   // ✅ LOAD SINGLE TOURNAMENT
-  loadTournament: async (tournamentId: string) => {
-    set({ isLoading: true })
+  loadTournament: async (tournamentId: string, isBackground = false) => {
+    if (!isBackground) set({ isLoading: true })
     try {
       const res = await apiClient.getTournament(tournamentId)
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournament')
@@ -135,18 +171,36 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     set({ isLoading: true })
     try {
       const res = await apiClient.getAllTournaments()
+      console.log("[loadUserTournaments] Raw Response:", res)
+
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournaments')
       const data = res.data || []
       const d: any = data
-      const tournaments = Array.isArray(d) ? d : d.tournaments || []
+      const tournaments = (Array.isArray(d)
+        ? d
+        : (Array.isArray(d.data) ? d.data : d.tournaments || [])
+      ).map((t: any) => ({ ...t, id: t.id || t._id }))
+
+      // console.log("[loadUserTournaments] Extracted Tournaments (Count):", tournaments.length)
+      // if (tournaments.length > 0) {
+      //   console.log("[loadUserTournaments] First Tournament Sample:", tournaments[0])
+      //   console.log("[loadUserTournaments] First Tournament Keys:", Object.keys(tournaments[0]))
+      // }
+      // console.log("[loadUserTournaments] Filtering for User ID:", userId)
 
       // Filter tournaments where user is a participant or host
       const userTournaments = tournaments.filter((t: Tournament) => {
         if (!t) return false
-        const hostMatch = t.hostId && String(t.hostId) === String(userId)
+        // Check for hostId, organizerId, or createdBy
+        const hostId = t.hostId || (t as any).organizerId || (t as any).createdBy
+        const hostMatch = hostId && String(hostId) === String(userId)
         const participantMatch = Array.isArray(t.participants) && t.participants.some((p: any) => String(p.userId || p.id) === String(userId))
+
+        // console.log(`[loadUserTournaments] Checking T=${t.id}: Host=${hostId} (${hostMatch}), Part=${participantMatch}`)
         return hostMatch || participantMatch
       })
+
+      // console.log("[loadUserTournaments] Filtered Count:", userTournaments.length)
 
       // Set both the full tournaments list and the derived userTournaments for callers
       set({ tournaments, userTournaments, isLoading: false })

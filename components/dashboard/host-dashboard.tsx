@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
 import type { Tournament } from '@/lib/types'
@@ -14,13 +15,21 @@ export function HostDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [loadingTournamentId, setLoadingTournamentId] = useState<string | null>(null)
   const { user, rehydrated } = useAuthStore()
-  const { userTournaments = [] } = useTournamentStore() as any
+  const { userTournaments = [], loadUserTournaments } = useTournamentStore() as any
+
+  // Load tournaments on mount to ensure the list is up to date
+  useEffect(() => {
+    if (user?.id && typeof loadUserTournaments === 'function') {
+      loadUserTournaments(user.id).catch(() => void 0)
+    }
+  }, [user?.id, loadUserTournaments])
 
   if (!rehydrated) {
     return <div className="min-h-screen flex items-center justify-center text-white">Loading session...</div>
   }
 
-  const hostedTournaments: Tournament[] = (userTournaments as Tournament[]).filter((t: Tournament) => t.hostId === user?.id)
+  // Store already filters tournaments for us
+  const hostedTournaments: Tournament[] = userTournaments as Tournament[]
   const totalEarnings = 0 // TODO: Calculate from completed tournaments
 
   const hostName = user?.fullName || user?.email || "Host"
@@ -119,8 +128,8 @@ export function HostDashboard() {
                           <div className="flex-1 w-full sm:w-auto">
                             <h3 className="text-base sm:text-lg font-semibold text-green-900">{tournament.name}</h3>
                             <p className="text-xs sm:text-sm text-green-700 mt-1">
-                              {tournament.currentPlayers}/{tournament.maxPlayers} players • ₦
-                              {tournament.totalPool.toLocaleString()} pool
+                              {tournament.currentPlayers || 0}/{tournament.maxPlayers || 0} players • ₦
+                              {(tournament.totalPool || 0).toLocaleString()} pool
                             </p>
                             <p className="text-xs text-green-600 mt-1">Invite Code: {tournament.inviteCode}</p>
                           </div>
@@ -136,24 +145,11 @@ export function HostDashboard() {
                             >
                               {tournament.status}
                             </span>
-                            <GameButton onClick={() => {
-                              // call backend verification/winners for completed tournaments
-                              const t = tournament
-                              const handle = async () => {
-                                try {
-                                  setLoadingTournamentId(t.id)
-                                  if (t.status === 'completed') {
-                                    await apiClient.getTournamentWinners(t.id)
-                                    await apiClient.verifyTournamentPayouts(t.id)
-                                  }
-                                } finally {
-                                  setLoadingTournamentId(null)
-                                }
-                              }
-                              void handle()
-                            }} className="w-full sm:w-auto text-sm py-2">
-                              {loadingTournamentId === tournament.id ? 'Loading...' : 'View'}
-                            </GameButton>
+                            <Link href={`/tournaments/${tournament.id}`} className="w-full sm:w-auto">
+                              <GameButton variant="outline" size="sm" className="w-full sm:w-auto text-sm py-2">
+                                View
+                              </GameButton>
+                            </Link>
                           </div>
                         </CardContent>
                       </Card>

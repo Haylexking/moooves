@@ -31,10 +31,10 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (entryFee < 500) {
-      toast({ title: "Entry fee too low", description: "Minimum entry fee is NGN 500.", variant: "destructive" })
-      return
-    }
+    // if (entryFee < 500) {
+    //   toast({ title: "Entry fee too low", description: "Minimum entry fee is NGN 500.", variant: "destructive" })
+    //   return
+    // }
 
     if (!user?.id) {
       toast({ title: "Error", description: "You must be logged in to create a tournament.", variant: "destructive" })
@@ -54,7 +54,6 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
         name,
         entryFee,
         maxPlayers,
-        gameMode: "timed",
         organizerId: user.id,
         startTime: startTimeISO,
       }

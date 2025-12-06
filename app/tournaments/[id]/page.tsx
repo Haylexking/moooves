@@ -30,15 +30,42 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     const [isHost, setIsHost] = useState(false)
     const [isParticipant, setIsParticipant] = useState(false)
 
+    // Initial load
     useEffect(() => {
         if (tournamentId) {
             loadTournament(tournamentId)
-            const interval = setInterval(() => {
-                loadTournament(tournamentId)
-            }, 10000)
-            return () => clearInterval(interval)
         }
-    }, [tournamentId, loadTournament])
+    }, [tournamentId])
+
+    // Dynamic polling
+    useEffect(() => {
+        if (!tournamentId) return
+
+        const calculateInterval = () => {
+            if (!currentTournament) return 10000
+
+            const status = currentTournament.status
+            const startTime = new Date(currentTournament.startTime || currentTournament.createdAt).getTime()
+            const now = Date.now()
+            const timeUntilStart = startTime - now
+
+            // Active or starting soon (< 10 mins) -> 10s
+            // Also keep fast polling if it started recently
+            if (status === 'active' || (status === 'waiting' && timeUntilStart < 10 * 60 * 1000)) {
+                return 10000
+            }
+
+            // Completed or far future -> 60s
+            return 60000
+        }
+
+        const intervalMs = calculateInterval()
+        const interval = setInterval(() => {
+            loadTournament(tournamentId, true) // Silent refresh
+        }, intervalMs)
+
+        return () => clearInterval(interval)
+    }, [tournamentId, currentTournament?.status, currentTournament?.startTime])
 
     useEffect(() => {
         if (currentTournament && user) {
@@ -92,10 +119,10 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
     useEffect(() => {
         if (currentTournament && user) {
-            const match = getActiveMatch(user.id)
-            setActiveMatch(match)
+            const match = getActiveMatch(user.id);
+            setActiveMatch(match);
         }
-    }, [currentTournament, user, getActiveMatch])
+    }, [currentTournament, user]);
 
     const handlePlayMatch = () => {
         if (activeMatch) {
@@ -213,7 +240,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                         <Trophy className="w-6 h-6 text-green-500" />
                                         <div>
                                             <p className="text-xs text-gray-500 uppercase font-bold">Prize Pool</p>
-                                            <p className="font-semibold text-green-400">₦{currentTournament.totalPool.toLocaleString()}</p>
+                                            <p className="font-semibold text-green-400">₦{(currentTournament.totalPool || 0).toLocaleString()}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -234,7 +261,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             <div>
                                                 <h3 className="text-xs font-bold text-yellow-700 uppercase tracking-wider mb-4">Quick Actions</h3>
                                                 <div className="flex flex-wrap gap-3">
-                                                    {currentTournament.status === "created" && (
+                                                    {(currentTournament.status === "created" || currentTournament.status === "waiting") && (
                                                         <Button
                                                             onClick={handleStartTournament}
                                                             className="bg-yellow-600 hover:bg-yellow-700 text-white border-none"
@@ -251,7 +278,31 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                                         <Users className="w-4 h-4 mr-2" /> Admin Tools
                                                     </Button>
 
-                                                    <Button variant="outline" className="border-yellow-600/50 text-yellow-500 hover:bg-yellow-900/20">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="border-yellow-600/50 text-yellow-500 hover:bg-yellow-900/20"
+                                                        onClick={async () => {
+                                                            const dateStr = prompt("Enter new start date (YYYY-MM-DD HH:mm):", new Date(currentTournament.startTime || Date.now()).toISOString().slice(0, 16).replace('T', ' '))
+                                                            if (dateStr) {
+                                                                try {
+                                                                    const newDate = new Date(dateStr).toISOString()
+                                                                    await apiClient.rescheduleTournament(tournamentId, newDate)
+                                                                    loadTournament(tournamentId)
+                                                                    toast({
+                                                                        title: "Success",
+                                                                        description: "Tournament rescheduled successfully",
+                                                                        variant: "default",
+                                                                    })
+                                                                } catch (e) {
+                                                                    toast({
+                                                                        title: "Error",
+                                                                        description: "Invalid date format or server error",
+                                                                        variant: "destructive",
+                                                                    })
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
                                                         <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
                                                     </Button>
                                                 </div>
@@ -327,7 +378,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                         {/* Bracket Section */}
                         <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-10 overflow-hidden">
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold text-white">Tournament Bracket</h2>
+                                <h2 className="text-2xl font-bold text-white">Tournament Draw</h2>
                                 <span className="text-sm text-gray-500">
                                     Round {currentTournament.bracket?.currentRound || 1} of {currentTournament.bracket?.rounds?.length || 1}
                                 </span>

@@ -1,10 +1,10 @@
-  {
+{
   "swaggerDoc": {
     "openapi": "3.0.0",
     "info": {
-      "title": "Moooves Documentation",
+      "title": "Mooves Documentation",
       "version": "1.0.0",
-      "description": "This is a swagger documentation for our web application MOOOVES.",
+      "description": "This is a swagger documentation for our web application MOOVES.",
       "license": {
         "name": "Base_URL: https://mooves.onrender.com "
       },
@@ -1878,7 +1878,7 @@
           }
         }
       },
-      "/api/v1/tournaments/{id}/reschedule": {
+      "/api/v1/{id}/reschedule": {
         "patch": {
           "summary": "Reschedule a tournament (creator only)",
           "description": "Allows the tournament creator to change the start time of a scheduled tournament.   Only tournaments with a status of scheduled can be rescheduled.   The new start time must be a valid future date.  \nAfter successful update, all participants can optionally be notified via email or WhatsApp (if implemented).\n",
@@ -4838,4 +4838,4 @@
       }
     ]
   }
-  }
+}

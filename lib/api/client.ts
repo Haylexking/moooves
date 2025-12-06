@@ -68,6 +68,7 @@ class ApiClient {
         }
         const response = await fetch(url, {
           ...options,
+          cache: 'no-store',
           headers,
           signal: controller ? (controller as AbortController).signal : undefined,
         })
@@ -112,7 +113,15 @@ class ApiClient {
         if (!response.ok) {
           const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
           const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
-          if (response.status === 401 && typeof window !== 'undefined') {
+          const isSessionError =
+            response.status === 401 ||
+            (typeof safeMsg === 'string' && (
+              (safeMsg.toLowerCase().includes('jwt expired') ||
+                safeMsg.toLowerCase().includes('session timeout')) &&
+              !safeMsg.toLowerCase().includes('invalid role') // Explicitly exclude "Invalid role" from auto-logout
+            ))
+
+          if (isSessionError && typeof window !== 'undefined') {
             try {
               const ret = `${window.location.pathname}${window.location.search}${window.location.hash}`
               localStorage.setItem('return_to', ret)
@@ -188,7 +197,6 @@ class ApiClient {
     fullName: string,
     email: string,
     password: string,
-    phone?: string,
   ): Promise<ApiResponse<RegisterResponse>> {
     return this.request<RegisterResponse>("/users", {
       method: "POST",
@@ -197,7 +205,6 @@ class ApiClient {
         email,
         password,
         repeatPassword: password, // API requires repeatPassword field
-        phone,
       }),
     })
   }
@@ -272,7 +279,6 @@ class ApiClient {
     fullName: string,
     email: string,
     password: string,
-    phone?: string,
   ): Promise<ApiResponse<RegisterResponse>> {
     return this.request<RegisterResponse>("/host", {
       method: "POST",
@@ -281,9 +287,12 @@ class ApiClient {
         email,
         password,
         repeatPassword: password, // API requires repeatPassword field
-        phone,
       }),
     })
+  }
+
+  async getHostById(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/host/${id}`)
   }
 
   // User methods
@@ -423,16 +432,14 @@ class ApiClient {
     })
   }
 
-  async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number; gameMode?: string }): Promise<ApiResponse<any>> {
-    // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryfee
+  async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number }): Promise<ApiResponse<any>> {
+    // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryFee
     const body: any = {
       organizerId: payload.organizerId,
-      createdBy: payload.organizerId, // Add createdBy field for Swagger
       name: payload.name,
       startTime: payload.startTime,
       ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
-      ...(typeof payload.entryFee !== 'undefined' ? { entryfee: payload.entryFee } : {}), // Use 'entryfee' to match API spec
-      ...(payload.gameMode ? { gameMode: payload.gameMode } : {}),
+      ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
     }
 
     return this.request("/tournaments", {
@@ -446,7 +453,44 @@ class ApiClient {
   }
 
   async getTournament(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/tournaments/${id}`)
+    console.log(`[getTournament] Fetching tournament ${id}...`)
+    // Try direct endpoint first, but fallback to filtering all tournaments if it fails (e.g. 404 or "Invalid role")
+    try {
+      const res = await this.request(`/tournaments/${id}`)
+      if (res.success) {
+        console.log(`[getTournament] Direct fetch success for ${id}`)
+        return res
+      }
+      // If success is false, we intentionally fall through to the fallback
+      console.warn(`[getTournament] Direct fetch failed for ${id}, falling back to list. Error:`, res.error)
+    } catch (e) {
+      // Ignore error and try fallback
+      console.warn(`[getTournament] Direct fetch threw for ${id}, falling back to list.`, e)
+    }
+
+    // Fallback: Fetch all and find by ID
+    console.log(`[getTournament] Fallback: Fetching all tournaments...`)
+    const res = await this.getAllTournaments()
+    if (!res.success) {
+      console.error(`[getTournament] Fallback fetch failed.`, res.error)
+      return res
+    }
+
+    const payload: any = res.data || []
+    const list = Array.isArray(payload)
+      ? payload
+      : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
+    console.log(`[getTournament] Fallback: Found ${list.length} tournaments. Searching for ${id}...`)
+
+    const match = list.find((t: any) => t.id === id || t._id === id)
+
+    if (match) {
+      console.log(`[getTournament] Fallback: Match found for ${id}`)
+      return { success: true, data: match }
+    }
+
+    console.warn(`[getTournament] Fallback: No match found for ${id}`)
+    return { success: false, error: "Tournament not found" }
   }
 
   async findTournamentByInviteCode(inviteCode: string): Promise<ApiResponse<any>> {
@@ -455,9 +499,7 @@ class ApiClient {
     const payload: any = res.data || []
     const tournaments: any[] = Array.isArray(payload)
       ? payload
-      : Array.isArray(payload?.tournaments)
-        ? payload.tournaments
-        : []
+      : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
     const match = tournaments.find((t: any) => {
       const code = (t?.inviteCode || t?.invite_code || "").toString().toLowerCase()
       return code === inviteCode.toLowerCase()
@@ -465,7 +507,7 @@ class ApiClient {
     if (match) {
       return {
         success: true,
-        data: match,
+        data: { ...match, id: match.id || match._id },
       }
     }
     return {
@@ -499,7 +541,7 @@ class ApiClient {
   }
 
   async rescheduleTournament(id: string, newStartTime: string): Promise<ApiResponse<any>> {
-    return this.request(`/tournaments/${id}/reschedule`, {
+    return this.request(`/${id}/reschedule`, {
       method: "PATCH",
       body: JSON.stringify({ newStartTime }),
     })
@@ -599,14 +641,16 @@ class ApiClient {
 
   async initWalletTransaction(payload: { amount: number; method: string; redirectUrl?: string; tournamentId?: string }): Promise<ApiResponse<any>> {
     // Swagger: POST /api/v1/initial — returns { message, payment_link }
+    const body = {
+      amount: payload.amount,
+      method: payload.method,
+      redirectUrl: payload.redirectUrl,
+      ...(payload.tournamentId ? { tournamentId: payload.tournamentId } : {}),
+    }
+    console.log(`[initWalletTransaction] Sending payload to /initial:`, body)
     return this.request(`/initial`, {
       method: 'POST',
-      body: JSON.stringify({
-        amount: payload.amount,
-        method: payload.method,
-        redirectUrl: payload.redirectUrl,
-        ...(payload.tournamentId ? { tournamentId: payload.tournamentId } : {}),
-      }),
+      body: JSON.stringify(body),
     })
   }
 

@@ -27,6 +27,8 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
     setError(null);
     try {
       // 1. Initiate payment for tournament entry fee
+      // BYPASS: Payment skipped for testing
+      /*
       const init = await apiClient.initWalletTransaction({ amount: tournament.entryFee, method: "card", redirectUrl: window.location.href, tournamentId: tournament.id })
       if (!init.success) throw new Error(init.error || "Payment initiation failed")
       const paymentData: any = init.data || {}
@@ -44,6 +46,8 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
         const ver = await apiClient.verifyWalletTransaction({ transactionId: paymentData.data.transactionId })
         if (!ver.success) throw new Error(ver.error || "Payment verification failed")
       }
+      */
+      const paymentData = { reference: "TEST-REF-" + Date.now() }
 
       // 4. Join tournament after successful payment
       if (!user?.id) throw new Error("You must be signed in to join the tournament")
@@ -51,7 +55,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       if (!join.success) throw new Error(join.error || "Failed to join tournament")
 
       // 5. Refresh user to pick up potential role upgrade (auto host after 3 tournaments)
-      try { await refreshUser() } catch {}
+      try { await refreshUser() } catch { }
 
       setTicket({
         reference: paymentData?.data?.transactionId || paymentData?.reference || join.data?.paymentId,
@@ -72,7 +76,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
   const handleShareInvite = async () => {
     try {
       await navigator.clipboard.writeText(inviteCode)
-    } catch {}
+    } catch { }
   }
 
   if (ticket) {

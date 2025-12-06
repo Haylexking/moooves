@@ -5,6 +5,10 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import type { Tournament, BracketMatch } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Clock, DollarSign, Trophy, Share2, ChevronRight, Calendar } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { apiClient } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 
 interface TournamentViewProps {
   tournament: Tournament
@@ -12,6 +16,23 @@ interface TournamentViewProps {
 
 export function TournamentView({ tournament }: TournamentViewProps) {
   const { user } = useAuthStore()
+  const { toast } = useToast()
+  const router = useRouter()
+  const isHost = user?.id === tournament.hostId
+
+  const handleStartTournament = async () => {
+    try {
+      const res = await apiClient.startTournament(tournament.id)
+      if (res.success) {
+        toast({ title: "Tournament Started", description: "The bracket has been generated." })
+        router.refresh()
+      } else {
+        toast({ title: "Error", description: res.error || "Failed to start tournament", variant: "destructive" })
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "An unexpected error occurred", variant: "destructive" })
+    }
+  }
 
   const participants = tournament.participants || []
   const participantNames = useMemo(() => {
@@ -52,15 +73,27 @@ export function TournamentView({ tournament }: TournamentViewProps) {
   const handleShareCode = async () => {
     try {
       await navigator.clipboard.writeText(tournament.inviteCode)
-    } catch {}
+    } catch { }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+    <div className="min-h-screen pt-24 sm:pt-28 relative">
+      {/* Top Navigation */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10">
+        <Button
+          variant="ghost"
+          className="text-white hover:bg-white/10 gap-2"
+          onClick={() => router.push(isHost ? '/host-dashboard' : '/dashboard')}
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Leave Lobby
+        </Button>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{tournament.name}</h1>
-          <p className="text-gray-600">Tournament lobby &mdash; stay ready for your matches.</p>
+          <h1 className="text-3xl font-bold text-white mb-2">{tournament.name}</h1>
+          <p className="text-green-100">Tournament lobby &mdash; stay ready for your matches.</p>
         </div>
 
         <div className="grid md:grid-cols-4 gap-4">
@@ -68,10 +101,10 @@ export function TournamentView({ tournament }: TournamentViewProps) {
             {tournament.currentPlayers}/{tournament.maxPlayers}
           </InfoCard>
           <InfoCard icon={<DollarSign className="w-6 h-6 text-green-600" />} label="Entry Fee">
-            ₦{tournament.entryFee.toLocaleString()}
+            ₦{(tournament.entryFee || 0).toLocaleString()}
           </InfoCard>
           <InfoCard icon={<Trophy className="w-6 h-6 text-yellow-600" />} label="Prize Pool">
-            ₦{tournament.totalPool.toLocaleString()}
+            ₦{(tournament.totalPool || 0).toLocaleString()}
           </InfoCard>
           <InfoCard icon={<Clock className="w-6 h-6 text-purple-600" />} label="Status">
             <span className="capitalize">{tournament.status}</span>
@@ -79,45 +112,44 @@ export function TournamentView({ tournament }: TournamentViewProps) {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-4">
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 bg-white/95 shadow-md">
             <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle>Lobby details</CardTitle>
-                <p className="text-sm text-gray-500">Share the invite code or wait here for updates.</p>
+                <CardTitle>{isHost ? "Host Controls" : "Lobby Details"}</CardTitle>
+                <p className="text-sm text-gray-500">
+                  {isHost ? "Manage your tournament settings" : "Review tournament rules and settings"}
+                </p>
               </div>
-              <button
-                onClick={handleShareCode}
-                className="inline-flex items-center gap-2 text-sm text-green-700 hover:text-green-800"
-              >
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleShareCode}>
                 <Share2 className="w-4 h-4" />
-                Copy Code
-              </button>
+                {tournament.inviteCode}
+              </Button>
             </CardHeader>
             <CardContent className="grid sm:grid-cols-2 gap-4">
               <LobbyStat
-                label="Invite Code"
-                value={tournament.inviteCode}
-                helper="Share this with friends"
+                label="Status"
+                value={tournament.status}
+                helper={isHost ? "You can start when ready" : "Waiting for host"}
               />
               <LobbyStat
                 label="Start Time"
                 value={formatDateTime(tournament.startedAt || tournament.createdAt)}
-                helper="Stay close when the clock starts"
+                helper="Scheduled kick-off"
               />
               <LobbyStat
                 label="Match duration"
                 value={`${tournament.matchDuration || 10} mins`}
-                helper="Each round is timed"
+                helper="Per round limit"
               />
               <LobbyStat
                 label="Game mode"
                 value={tournament.gameMode}
-                helper="Settings are locked by host"
+                helper={isHost ? "Configured by you" : "Set by host"}
               />
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/95 shadow-md">
             <CardHeader>
               <CardTitle>Your next match</CardTitle>
             </CardHeader>
@@ -146,13 +178,13 @@ export function TournamentView({ tournament }: TournamentViewProps) {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-4">
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 bg-white/95 shadow-md">
             <CardHeader>
-              <CardTitle>Tournament bracket</CardTitle>
+              <CardTitle>Tournament Draw</CardTitle>
             </CardHeader>
             <CardContent>
               {rounds.length === 0 ? (
-                <EmptyState />
+                <EmptyState isHost={isHost} onStart={handleStartTournament} />
               ) : (
                 <div className="space-y-4">
                   {rounds.map((round) => (
@@ -190,7 +222,7 @@ export function TournamentView({ tournament }: TournamentViewProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/95 shadow-md">
             <CardHeader>
               <CardTitle>Participants</CardTitle>
             </CardHeader>
@@ -220,7 +252,7 @@ export function TournamentView({ tournament }: TournamentViewProps) {
         </div>
 
         {tournament.winners?.length ? (
-          <Card>
+          <Card className="bg-white/95 shadow-md">
             <CardHeader>
               <CardTitle>Winners</CardTitle>
             </CardHeader>
@@ -264,12 +296,12 @@ const InfoCard = ({
   label: string
   children: React.ReactNode
 }) => (
-  <Card>
+  <Card className="bg-green-100/95 border border-green-600 shadow-sm">
     <CardContent className="p-5 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">{icon}</div>
+      <div className="w-10 h-10 rounded-full bg-white/50 flex items-center justify-center">{icon}</div>
       <div>
-        <p className="text-xs uppercase text-gray-400">{label}</p>
-        <p className="text-xl font-semibold text-gray-900">{children}</p>
+        <p className="text-xs uppercase text-green-700 font-medium">{label}</p>
+        <p className="text-xl font-bold text-green-900">{children}</p>
       </div>
     </CardContent>
   </Card>
@@ -302,18 +334,26 @@ const ButtonLink = ({
 }) => (
   <button
     disabled={disabled}
-    className={`w-full py-3 text-sm font-semibold rounded-lg ${
-      disabled ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
-    }`}
+    className={`w-full py-3 text-sm font-semibold rounded-lg ${disabled ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
+      }`}
   >
     {label}
     {helper && <p className="text-xs font-normal text-gray-600 mt-1">{helper}</p>}
   </button>
 )
 
-const EmptyState = () => (
+const EmptyState = ({ isHost, onStart }: { isHost: boolean; onStart: () => void }) => (
   <div className="text-center py-10 text-gray-500">
     <Calendar className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-    <p>The host hasn&apos;t started the bracket yet. Check back closer to kickoff.</p>
+    <p className="mb-4">
+      {isHost
+        ? "You haven't started the tournament yet."
+        : "The host hasn't started the bracket yet. Check back closer to kickoff."}
+    </p>
+    {isHost && (
+      <Button onClick={onStart} className="bg-green-600 hover:bg-green-700 text-white">
+        Start Tournament
+      </Button>
+    )}
   </div>
 )
