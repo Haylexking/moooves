@@ -58,7 +58,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       try { await refreshUser() } catch { }
 
       setTicket({
-        reference: paymentData?.data?.transactionId || paymentData?.reference || join.data?.paymentId,
+        reference: paymentData?.reference || join.data?.paymentId,
         joinedAt: new Date().toISOString(),
       })
     } catch (err: any) {

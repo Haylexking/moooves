@@ -146,7 +146,7 @@ export function HostDashboard() {
                               {tournament.status}
                             </span>
                             <Link href={`/tournaments/${tournament.id}`} className="w-full sm:w-auto">
-                              <GameButton variant="outline" size="sm" className="w-full sm:w-auto text-sm py-2">
+                              <GameButton className="w-full sm:w-auto text-sm py-2">
                                 View
                               </GameButton>
                             </Link>
