@@ -74,6 +74,36 @@ export function BattleGround({
   const [opponentName, setOpponentName] = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
+  // Draggable Controls State
+  const controlsRef = useRef<HTMLDivElement>(null)
+  const [controlsPos, setControlsPos] = useState({ x: 16, y: 300 })
+  const dragOffset = useRef({ x: 0, y: 0 })
+  const isDragging = useRef(false)
+
+  const handleDragStart = (e: React.PointerEvent) => {
+    isDragging.current = true
+    dragOffset.current = {
+      x: e.clientX - controlsPos.x,
+      y: e.clientY - controlsPos.y
+    }
+    // Optional: capture pointer for smoother drag outside element
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId) } catch { }
+  }
+
+  const handleDragMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return
+    e.preventDefault() // Prevent scrolling on touch
+    setControlsPos({
+      x: e.clientX - dragOffset.current.x,
+      y: e.clientY - dragOffset.current.y
+    })
+  }
+
+  const handleDragEnd = (e: React.PointerEvent) => {
+    isDragging.current = false
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId) } catch { }
+  }
+
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false)
 
@@ -133,8 +163,9 @@ export function BattleGround({
   useEffect(() => {
     if (localMode === "tournament" && matchId && gameStatus === "playing") {
       const interval = setInterval(async () => {
-        // Only poll if it's NOT our turn, or if we are waiting for a state update
-        if (currentPlayer !== 'X' || pendingMove) {
+        // Only poll if it's NOT our turn AND we are not currently sending a move
+        // This prevents the "glitch" where we overwrite our own optimistic move with old server state
+        if (currentPlayer !== 'X' && !pendingMove) {
           try {
             const details = await matchRoom.getRoomDetails(matchId)
             if (details && details.match) {
@@ -260,8 +291,8 @@ export function BattleGround({
     onMoveMade?.(row, col, currentPlayer)
 
     if (serverAuthoritative && matchId) {
-      // Don't set pendingMove to true to avoid blocking UI (spinner)
-      // setPendingMove(true) 
+      // Set pending move to true to PAUSE POLLING and prevent state overwrite lag
+      setPendingMove(true)
 
       try {
         const res = await apiClient.makeMove(matchId, { row, col, player: currentPlayer })
@@ -296,6 +327,19 @@ export function BattleGround({
           } catch (e) {
             console.error("Failed to sync state after error", e)
           }
+        }
+      } finally {
+        // Resume polling
+        setPendingMove(false)
+
+        // Immediately fetch the latest state (in case opponent played instantly)
+        // This answers the user's concern about "when will it resume"
+        if (matchId) {
+          matchRoom.getRoomDetails(matchId).then((details) => {
+            if (details && details.match) {
+              useGameStore.getState().applyServerMatchState?.(details.match)
+            }
+          }).catch(() => { })
         }
       }
     }
@@ -390,9 +434,21 @@ export function BattleGround({
       <GlobalSidebar showTrigger={false} />
       <TopNavigation username={displayUsername} />
 
-      {/* Floating Controls (Timer, Rules, Restart) - Visible on all screens */}
-      <div className="fixed left-4 lg:left-8 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
-        <div className="bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/10 flex flex-col gap-3 shadow-xl">
+      {/* Floating Controls (Timer, Rules, Restart) - Draggable */}
+      <div
+        ref={controlsRef}
+        className="fixed flex flex-col gap-3 z-40 touch-none cursor-move active:scale-95 transition-transform"
+        style={{
+          left: controlsPos.x,
+          top: controlsPos.y
+        }}
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
+        onPointerLeave={handleDragEnd}
+      >
+        <div className="bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/10 flex flex-col gap-3 shadow-xl select-none">
           {/* Timer */}
           <div className={cn(
             "flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-white/10 border border-white/20 transition-colors duration-300",
@@ -406,6 +462,7 @@ export function BattleGround({
 
           {/* Rules Button */}
           <button
+            onPointerDown={(e) => e.stopPropagation()} // Prevent drag when clicking button
             onClick={openRules}
             className="flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
           >
@@ -415,6 +472,7 @@ export function BattleGround({
 
           {/* Restart Button */}
           <button
+            onPointerDown={(e) => e.stopPropagation()} // Prevent drag when clicking button
             onClick={resetGame}
             className="flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
           >
@@ -505,12 +563,11 @@ export function BattleGround({
         scoreO={scores.O}
       />
 
-      {/* Loading Overlay */}
-      {pendingMove && serverAuthoritative && (
+      {/* Loading Overlay - Hidden to be optimistic/instant */}
+      {/* {pendingMove && serverAuthoritative && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
-          {/* Invisible blocker, spinner removed for optimistic feel */}
         </div>
-      )}
+      )} */}
     </div>
   )
 }
