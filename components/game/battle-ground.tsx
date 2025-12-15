@@ -214,9 +214,13 @@ export function BattleGround({
     }
   }
 
-  // Fetch Opponent Name (Tournament)
+  // Player Names
+  // If we are in "live" 1-on-1 or tournament, we want to show real names.
+  const isOnlineMode = localMode === "tournament" || localMode === "p2p" // p2p used for live 1-on-1
+
   useEffect(() => {
-    if (localMode === "tournament" && matchRoom.participants && matchRoom.participants.length > 1 && user?.id) {
+    // Fetch opponent name for both Tournament and Live 1-on-1 modes
+    if (isOnlineMode && matchRoom.participants && matchRoom.participants.length > 1 && user?.id) {
       const opponentId = matchRoom.participants.find((p: string) => p !== user.id)
       if (opponentId) {
         apiClient.getUserById(opponentId).then((res) => {
@@ -226,15 +230,29 @@ export function BattleGround({
         })
       }
     }
-  }, [localMode, matchRoom.participants, user?.id])
+  }, [isOnlineMode, matchRoom.participants, user?.id])
 
-  // Player Names
   const player1 = user ? getUserDisplayName(user) : "Player 1"
   const player2 = (gameMode === "ai" || (gameMode as string) === "player-vs-computer")
     ? "Computer"
-    : localMode === "tournament"
+    : isOnlineMode
       ? opponentName || "Opponent"
       : "Player 2"
+
+  // Livestream Prompt for Live 1-on-1
+  useEffect(() => {
+    if (isOnlineMode && matchId && gameStatus === 'playing') {
+      const hasShown = sessionStorage.getItem(`shown-prompt-${matchId}`)
+      if (!hasShown) {
+        toast({
+          title: "Livestream your match!",
+          description: "Tag @makingmoooves on Instagram to share your moment!",
+          duration: 8000,
+        })
+        sessionStorage.setItem(`shown-prompt-${matchId}`, 'true')
+      }
+    }
+  }, [isOnlineMode, matchId, gameStatus, toast])
 
   // Opponent Waiting Logic (Tournament)
   useEffect(() => {

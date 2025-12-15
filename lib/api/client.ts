@@ -403,6 +403,21 @@ class ApiClient {
     })
   }
 
+  // Live 1-on-1 Match Methods
+  async createLiveMatch(userId: string): Promise<ApiResponse<any>> {
+    return this.request("/matches/live", {
+      method: "POST",
+      body: JSON.stringify({ userId, gameType: "TicTacToe", mode: "1on1_live" }),
+    })
+  }
+
+  async joinMatchByCode(code: string, userId: string): Promise<ApiResponse<any>> {
+    return this.request("/matches/join-by-code", {
+      method: "POST",
+      body: JSON.stringify({ code, userId }),
+    })
+  }
+
   async getAllMatchRooms(): Promise<ApiResponse<any[]>> {
     return this.request<any[]>(MATCHROOM_ENDPOINTS.LIST)
   }

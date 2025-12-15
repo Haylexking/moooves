@@ -53,9 +53,9 @@ export function GameResultModal({
     if (onPlayAgain) {
       onPlayAgain()
     } else {
-      // Fallback: go back to /start-game-options to let the user pick a mode
+      // Fallback: go back to dashboard
       const router = useRouter()
-      router.push('/start-game-options')
+      router.push('/dashboard')
     }
     onClose()
   }

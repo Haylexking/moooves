@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Users, Clock, Share2, X } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
@@ -260,15 +261,27 @@ export default function TournamentDashboard() {
 
   return (
     <>
-      <div className="relative min-h-screen bg-gray-50 pt-24 sm:pt-28">
+      <div className="relative min-h-screen bg-black pt-24 sm:pt-28">
+        {/* Background Image */}
+        <div className="fixed inset-0 z-0">
+          <Image
+            src="/images/dashboard-background.png"
+            alt="Background"
+            fill
+            className="object-cover object-center opacity-40"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/80" />
+        </div>
+
         <GlobalSidebar showTrigger={false} />
         <div className="relative z-20">
           <TopNavigation />
         </div>
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pb-16 space-y-6">
           <header className="space-y-1">
-            <h1 className="text-3xl font-bold text-gray-900">My Tournaments</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-3xl font-bold text-white drop-shadow-md">My Tournaments</h1>
+            <p className="text-sm text-gray-300">
               Join via invite code, keep track of brackets, and manage tournaments you host.
             </p>
           </header>
@@ -278,28 +291,28 @@ export default function TournamentDashboard() {
               <LoadingSpinner />
             </div>
           ) : tournaments.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-green-400 bg-green-50 p-6 text-center text-green-800">
+            <div className="rounded-2xl border border-dashed border-green-500/50 bg-green-900/10 p-6 text-center text-green-400 backdrop-blur-sm">
               You haven&apos;t joined any tournaments yet. Paste an invite code below to get started.
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {tournaments.map((tournament) => (
-                <div key={tournament.id} className="bg-white rounded-2xl border border-green-100 shadow-sm p-4 flex flex-col gap-3">
+                <div key={tournament.id} className="bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg p-4 flex flex-col gap-3 hover:border-green-500/50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-gray-900 truncate">{tournament.name}</h2>
+                    <h2 className="font-semibold text-white truncate">{tournament.name}</h2>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusBadge(tournament.status)}`}>
                       {tournament.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <Users className="w-4 h-4 text-blue-600" />
+                  <div className="flex items-center gap-3 text-sm text-gray-400">
+                    <Users className="w-4 h-4 text-blue-400" />
                     {tournament.currentPlayers}/{tournament.maxPlayers}
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <Clock className="w-4 h-4 text-purple-600" />
+                  <div className="flex items-center gap-3 text-sm text-gray-400">
+                    <Clock className="w-4 h-4 text-purple-400" />
                     {formatDateTime(parseStartDate(tournament))}
                   </div>
-                  <GameButton onClick={() => selectTournament(tournament)} className="mt-auto">
+                  <GameButton onClick={() => router.push(`/tournaments/${tournament.id}`)} className="mt-auto">
                     View Details
                   </GameButton>
                 </div>
@@ -307,20 +320,25 @@ export default function TournamentDashboard() {
             </div>
           )}
 
-          <div className="bg-green-100/90 border-4 border-green-600 rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-green-900 text-center mb-4">Join via Invite Code</h3>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                className="border border-green-400 rounded-lg px-3 py-2 flex-1"
-                placeholder="Paste tournament invite code here"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                disabled={joinLoading}
-              />
-              <GameButton onClick={handleJoinByCode} disabled={joinLoading || !joinCode.trim()}>
-                {joinLoading ? "Redirecting..." : "Join"}
-              </GameButton>
+          <div className="bg-black/60 backdrop-blur-md border border-green-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Users className="w-32 h-32 text-green-500" />
+            </div>
+            <div className="relative z-10">
+              <h3 className="text-xl font-bold text-white mb-4">Join via Invite Code</h3>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  className="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 flex-1 placeholder:text-gray-500 focus:outline-none focus:border-green-500 transition-colors"
+                  placeholder="Paste tournament invite code here"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  disabled={joinLoading}
+                />
+                <GameButton onClick={handleJoinByCode} disabled={joinLoading || !joinCode.trim()}>
+                  {joinLoading ? "Redirecting..." : "Join"}
+                </GameButton>
+              </div>
             </div>
           </div>
         </div>

@@ -35,7 +35,7 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
             </div>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider truncate">
+            <span className="text-xs sm:text-sm font-bold text-gray-500 tracking-wider truncate">
               {player1}
             </span>
             <div className="flex items-baseline gap-2">
@@ -68,7 +68,7 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
             </div>
           </div>
           <div className="flex flex-col items-end min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider truncate">
+            <span className="text-xs sm:text-sm font-bold text-gray-500 tracking-wider truncate">
               {player2}
             </span>
             <div className="flex items-baseline gap-2 flex-row-reverse">

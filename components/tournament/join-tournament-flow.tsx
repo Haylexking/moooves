@@ -113,7 +113,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
             <div className="space-y-3">
               <Button
                 className="w-full py-6 text-base font-semibold"
-                onClick={() => router.push(`/tournament/${tournament.id}`)}
+                onClick={() => router.push(`/tournaments/${tournament.id}`)}
               >
                 Enter Lobby
               </Button>
@@ -208,7 +208,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
 
           <Button
             onClick={handleJoin}
-            className="w-full text-base sm:text-lg whitespace-normal break-words text-center py-4"
+            className="w-full text-base sm:text-lg whitespace-normal break-words text-center py-4 h-auto min-h-[3.5rem]"
             size="lg"
             disabled={loading}
           >

@@ -45,6 +45,12 @@ export function StartGameModal({ open, onOpenChange }: { open: boolean; onOpenCh
 
             <div className="space-y-3 sm:space-y-4 py-4 px-4 sm:px-6 pb-6">
               <GameButton
+                onClick={() => navigateWithLoader("/live-1on1")}
+                className="w-full text-base sm:text-lg font-bold py-4 sm:py-6 rounded-xl sm:rounded-2xl"
+              >
+                Play 1-on-1 Live
+              </GameButton>
+              <GameButton
                 onClick={() => navigateWithLoader("/game?mode=ai", true)}
                 className="w-full text-base sm:text-lg font-bold py-4 sm:py-6 rounded-xl sm:rounded-2xl"
               >

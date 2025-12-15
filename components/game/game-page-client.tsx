@@ -42,7 +42,7 @@ export default function GamePageClient() {
     } else {
       // Redirect to menu to choose mode
       const r = useRouter()
-      r.push('/start-game-options')
+      r.push('/dashboard')
     }
   };
 
