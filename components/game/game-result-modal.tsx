@@ -11,6 +11,12 @@ interface GameResultModalProps {
   result: "win" | "lose" | "draw"
   scoreX?: number
   scoreO?: number
+  isOnlineMode?: boolean
+  onRematch?: () => void
+  rematchLoading?: boolean
+  rematchInviteId?: string | null
+  onAcceptRematch?: () => void
+  onDeclineRematch?: () => void
 }
 
 export function GameResultModal({
@@ -21,6 +27,12 @@ export function GameResultModal({
   result,
   scoreX,
   scoreO,
+  isOnlineMode,
+  onRematch,
+  rematchLoading,
+  rematchInviteId,
+  onAcceptRematch,
+  onDeclineRematch,
 }: GameResultModalProps) {
   const router = useRouter()
 
@@ -77,10 +89,23 @@ export function GameResultModal({
           <span className="text-red-700">{scoreO ?? 0}</span>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center mt-2">
-          <GameButton onClick={handlePlayAgain} className="w-full sm:w-56 text-sm sm:text-base py-3">
-            Play Again
-          </GameButton>
-          <GameButton onClick={handleBackToMenu} className="w-full sm:w-56 text-sm sm:text-base py-3">
+          {isOnlineMode && onRematch ? (
+            rematchInviteId && onAcceptRematch ? (
+              <GameButton onClick={onAcceptRematch} className="w-full sm:w-56 text-sm sm:text-base py-3 bg-green-600 hover:bg-green-700 border-green-800 animate-pulse">
+                Accept Rematch!
+              </GameButton>
+            ) : (
+              <GameButton onClick={onRematch} disabled={rematchLoading} className="w-full sm:w-56 text-sm sm:text-base py-3 bg-blue-600 hover:bg-blue-700 border-blue-800">
+                {rematchLoading ? "Requesting..." : "Rematch!"}
+              </GameButton>
+            )
+          ) : (
+            <GameButton onClick={handlePlayAgain} className="w-full sm:w-56 text-sm sm:text-base py-3">
+              Play Again
+            </GameButton>
+          )}
+
+          <GameButton onClick={handleBackToMenu} className="w-full sm:w-56 text-sm sm:text-base py-3 text-white bg-gray-600 border-gray-700 hover:bg-gray-700">
             Back to Menu
           </GameButton>
         </div>

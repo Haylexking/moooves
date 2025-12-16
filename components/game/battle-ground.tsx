@@ -63,6 +63,55 @@ export function BattleGround({
   const { toast } = useToast()
   const { openRules } = useGameRules()
 
+  // Rematch State
+  const [rematchLoading, setRematchLoading] = useState(false)
+  const [isRematchRedirecting, setIsRematchRedirecting] = useState(false)
+
+  const handleRematch = async () => {
+    if (!matchId || !user?.id) return
+    setRematchLoading(true)
+    try {
+      const res = await apiClient.requestRematch(matchId, user.id)
+      if (res.success && res.data) {
+        toast({ title: "Rematch Requested", description: "Waiting for opponent..." })
+        // If the backend returns the new match ID immediately (e.g. created), 
+        // we might wait for the opponent to join or just redirect.
+        // Assuming standard flow: The SERVER links them. We wait for poll to redirect us.
+        // OR: If specific newMatchId returned:
+        if (res.data.newMatchId) {
+          router.push(`/game?live=true&id=${res.data.newMatchId}`)
+        }
+      } else {
+        toast({ title: "Failed", description: res.error || "Could not request rematch", variant: "destructive" })
+        setRematchLoading(false)
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Network error", variant: "destructive" })
+      setRematchLoading(false)
+    }
+  }
+
+  // Poll for Rematch ID when game is over
+  useEffect(() => {
+    if (localMode === "p2p" && matchId && gameStatus === "completed" && !isRematchRedirecting) {
+      const interval = setInterval(async () => {
+        try {
+          const res = await apiClient.getMatchRoom(matchId)
+          if (res.success && res.data && res.data.match) {
+            // Check if rematchId exists in payload (assuming backend adds it)
+            const nextMatchId = res.data.match.rematchId
+            if (nextMatchId) {
+              setIsRematchRedirecting(true)
+              toast({ title: "Rematch Found!", description: "Redirecting to new game..." })
+              window.location.href = `/game?live=true&id=${nextMatchId}`
+            }
+          }
+        } catch { }
+      }, 3000)
+      return () => clearInterval(interval)
+    }
+  }, [localMode, matchId, gameStatus, isRematchRedirecting])
+
   const [showStartModal, setShowStartModal] = useState(localMode !== "ai" && localMode !== "tournament")
   const [showGameStartAlert, setShowGameStartAlert] = useState(false)
   const [resultModalOpen, setResultModalOpen] = useState(false)
@@ -72,6 +121,7 @@ export function BattleGround({
   const [winByDefault, setWinByDefault] = useState(false)
   const [pendingMove, setPendingMove] = useState(false)
   const [opponentName, setOpponentName] = useState<string | null>(null)
+  const [gameStarted, setGameStarted] = useState(false) // Control Pre-Match Overlay
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // Draggable Controls State
@@ -239,20 +289,20 @@ export function BattleGround({
       ? opponentName || "Opponent"
       : "Player 2"
 
-  // Livestream Prompt for Live 1-on-1
-  useEffect(() => {
-    if (isOnlineMode && matchId && gameStatus === 'playing') {
-      const hasShown = sessionStorage.getItem(`shown-prompt-${matchId}`)
-      if (!hasShown) {
-        toast({
-          title: "Livestream your match!",
-          description: "Tag @makingmoooves on Instagram to share your moment!",
-          duration: 8000,
-        })
-        sessionStorage.setItem(`shown-prompt-${matchId}`, 'true')
-      }
-    }
-  }, [isOnlineMode, matchId, gameStatus, toast])
+  // Livestream Prompt - Moved to Pre-Match Overlay
+  // useEffect(() => {
+  //   if (isOnlineMode && matchId && gameStatus === 'playing') {
+  //     const hasShown = sessionStorage.getItem(`shown-prompt-${matchId}`)
+  //     if (!hasShown) {
+  //       toast({
+  //         title: "Livestream your match!",
+  //         description: "Tag @makingmoooves on Instagram to share your moment!",
+  //         duration: 8000,
+  //       })
+  //       sessionStorage.setItem(`shown-prompt-${matchId}`, 'true')
+  //     }
+  //   }
+  // }, [isOnlineMode, matchId, gameStatus, toast])
 
   // Opponent Waiting Logic (Tournament)
   useEffect(() => {
@@ -579,6 +629,12 @@ export function BattleGround({
         onClose={() => setResultModalOpen(false)}
         scoreX={scores.X}
         scoreO={scores.O}
+        isOnlineMode={localMode === "tournament" || localMode === "p2p"}
+        onRematch={handleRematch}
+        rematchLoading={rematchLoading}
+        rematchInviteId={rematchInviteId}
+        onAcceptRematch={handleAcceptRematch}
+        onDeclineRematch={handleDeclineRematch}
       />
 
       {/* Loading Overlay - Hidden to be optimistic/instant */}

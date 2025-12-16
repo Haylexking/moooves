@@ -622,6 +622,20 @@ class ApiClient {
     })
   }
 
+  async requestRematch(matchId: string, userId: string): Promise<ApiResponse<any>> {
+    return this.request(`/matches/${matchId}/rematch`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    })
+  }
+
+  async declineRematch(matchId: string, userId: string): Promise<ApiResponse<any>> {
+    return this.request(`/matches/${matchId}/decline`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    })
+  }
+
   // OTP / Verification
   async verifyAccountOtp(email: string, otp: string): Promise<ApiResponse<any>> {
     // Swagger: POST /api/v1/verify with { email, otp }
