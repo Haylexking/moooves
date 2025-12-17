@@ -66,6 +66,21 @@ export function BattleGround({
   // Rematch State
   const [rematchLoading, setRematchLoading] = useState(false)
   const [isRematchRedirecting, setIsRematchRedirecting] = useState(false)
+  const [rematchInviteId, setRematchInviteId] = useState<string | null>(null)
+
+  const handleAcceptRematch = () => {
+    if (rematchInviteId) {
+      router.push(`/game?live=true&id=${rematchInviteId}`)
+    }
+  }
+
+  const handleDeclineRematch = async () => {
+    if (rematchInviteId && user?.id) {
+      await apiClient.declineRematch(rematchInviteId, user.id)
+      setRematchInviteId(null)
+      toast({ title: "Declined", description: "You declined the rematch." })
+    }
+  }
 
   const handleRematch = async () => {
     if (!matchId || !user?.id) return
