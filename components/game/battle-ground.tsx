@@ -359,8 +359,9 @@ export function BattleGround({
           makeMove(computerMove[0], computerMove[1])
         }
       }
-      // Use setTimeout(..., 0) to allow React state to settle but run ASAP
-      setTimeout(runComputation, 0)
+      // Use random timeout between 80ms and 200ms for natural feel
+      const delay = Math.floor(Math.random() * 120) + 80
+      setTimeout(runComputation, delay)
     }
   }, [gameMode, currentPlayer, gameStatus, board, usedSequences, scores, makeMove])
 
@@ -495,21 +496,6 @@ export function BattleGround({
             >
               Return to Lobby
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pending move overlay */}
-      {pendingMove && serverAuthoritative && (
-        <div
-          ref={overlayRef}
-          className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"
-          role="status"
-          aria-live="assertive"
-        >
-          <div className="p-4 rounded-lg bg-white/90 shadow-lg" tabIndex={-1}>
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-800" />
-            <div className="text-center text-sm mt-2">Waiting for server...</div>
           </div>
         </div>
       )}
