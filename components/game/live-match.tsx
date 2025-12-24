@@ -113,8 +113,9 @@ export function LiveMatch() {
         try {
             const res = await apiClient.createLiveMatch(user.id)
             if (res.success && res.data) {
-                setMatchCode(res.data.roomCode)
-                setActiveMatchId(res.data.matchId)
+                // Swagger: { roomId, matchCode }
+                setMatchCode(res.data.matchCode || res.data.roomCode)
+                setActiveMatchId(res.data.roomId || res.data.matchId || res.data.id)
                 setView("create")
             } else {
                 toast({ title: "Error", description: res.error, variant: "destructive" })
@@ -133,8 +134,13 @@ export function LiveMatch() {
             const res = await apiClient.joinMatchByCode(joinCode.toUpperCase(), user.id)
             if (res.success && res.data) {
                 // Redirect to game
-                const matchId = res.data.matchId || res.data.id
-                router.push(`/game?live=true&id=${matchId}`)
+                // Swagger: { room: { _id, ... } } or similar
+                const matchId = res.data.matchId || res.data.id || res.data.roomId || res.data.room?._id
+                if (matchId) {
+                    router.push(`/game?live=true&id=${matchId}`)
+                } else {
+                    setError("Invalid server response")
+                }
             } else {
                 setError(res.error || "Invalid code or match full")
             }

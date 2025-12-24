@@ -139,7 +139,13 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       // 2. Redirect to payment gateway
       // Swagger says it returns { message, payment_link } or { data: { authorization_url: ... } } depending on provider
       // We check for common fields
-      const link = paymentData?.payment_link || paymentData?.data?.authorization_url || paymentData?.data?.paymentUrl
+      const link =
+        paymentData?.payment_link ||
+        paymentData?.data?.authorization_url ||
+        paymentData?.data?.paymentUrl ||
+        paymentData?.data?.link ||
+        paymentData?.link ||
+        paymentData?.authorization_url
 
       if (link) {
         // Save state to localStorage to handle return
