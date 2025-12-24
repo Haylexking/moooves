@@ -136,6 +136,239 @@
       }
     ],
     "paths": {
+      "/api/v1/matches": {
+        "post": {
+          "tags": [
+            "1v1 Matches"
+          ],
+          "summary": "Create a new 1v1 match",
+          "description": "Creates a new 1v1 match after both players have joined a match room. Initializes the board, turn order, and 10-minute timer.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "example": {
+                  "roomId": "64fa1234abcd5678ef901234"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Match created successfully"
+            },
+            "400": {
+              "description": "Both players must join first"
+            }
+          }
+        },
+        "get": {
+          "summary": "Get all matches",
+          "description": "Retrieves all matches from the database.   Useful for admins or for viewing tournament progress.   Returns details like player IDs, board state, and status.\n",
+          "tags": [
+            "Games"
+          ],
+          "security": [],
+          "responses": {
+            "200": {
+              "description": "List of matches",
+              "content": {
+                "application/json": {
+                  "example": [
+                    {
+                      "_id": "650a01c28f9b5678abcd1234",
+                      "player1": "64f9c23d8f9b1234abcd5678",
+                      "player2": "64f9c23d8f9b1234abcd5679",
+                      "status": "in-progress",
+                      "board": [
+                        [
+                          "X",
+                          "",
+                          ""
+                        ],
+                        [
+                          "",
+                          "O",
+                          ""
+                        ],
+                        [
+                          "",
+                          "",
+                          ""
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "error": "Failed to fetch matches"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/matches/{matchId}/move": {
+        "post": {
+          "tags": [
+            "1v1 Matches"
+          ],
+          "summary": "Submit a move in a 1v1 match",
+          "description": "Validates player turn, board position, timer, and determines win, draw, or ongoing state.",
+          "parameters": [
+            {
+              "name": "matchId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "example": {
+                  "playerId": "64fa1111abcd2222ef333333",
+                  "row": 1,
+                  "col": 2,
+                  "symbol": "X"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Move accepted / game result",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Game won",
+                    "result": "win",
+                    "winnerId": "64fa1111abcd2222ef333333",
+                    "board": [
+                      [
+                        "X",
+                        "O",
+                        "X"
+                      ],
+                      [
+                        "O",
+                        "X",
+                        ""
+                      ],
+                      [
+                        "",
+                        "",
+                        "X"
+                      ]
+                    ]
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid move or turn"
+            }
+          }
+        }
+      },
+      "/api/v1/matches/{matchId}/rematch": {
+        "post": {
+          "tags": [
+            "1v1 Matches"
+          ],
+          "summary": "Request a rematch",
+          "description": "Creates a new match using the same players and settings. If a rematch already exists, it returns the existing match ID.",
+          "parameters": [
+            {
+              "name": "matchId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "example": {
+                  "userId": "64fa1111abcd2222ef333333"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Rematch already exists"
+            },
+            "201": {
+              "description": "Rematch created",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": true,
+                    "data": {
+                      "newMatchId": "64fa9999abcd8888ef777777"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/matches/{matchId}/decline": {
+        "post": {
+          "tags": [
+            "1v1 Matches"
+          ],
+          "summary": "Decline a rematch",
+          "description": "Allows a player to decline a rematch request. The match is marked as declined.",
+          "parameters": [
+            {
+              "name": "matchId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "example": {
+                  "userId": "64fa1111abcd2222ef333333"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Rematch declined",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "success": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "/api/v1/{matchId}/submit-result": {
         "post": {
           "summary": "Submit a result for a tournament match",
@@ -483,124 +716,6 @@
                 "application/json": {
                   "example": {
                     "message": "Internal server error"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "/api/v1/moves": {
-        "post": {
-          "summary": "Create a new match for offline 1v1",
-          "description": "Initializes a new match object in the database.   This is usually triggered when pairing players in the first round or subsequent rounds.   The system assigns player1 and player2, sets the board to default state, and status to in-progress.\n",
-          "tags": [
-            "Games"
-          ],
-          "security": [],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "player1": {
-                      "type": "string"
-                    },
-                    "matchroomId": {
-                      "type": "string"
-                    },
-                    "player2": {
-                      "type": "string"
-                    }
-                  },
-                  "example": {
-                    "matchroomId": "650a01c28f9b5678abcd1234",
-                    "player1": "64f9c23d8f9b1234abcd5678",
-                    "player2": "64f9c23d8f9b1234abcd5679"
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Match created successfully",
-              "content": {
-                "application/json": {
-                  "example": {
-                    "matchroomId": "650a01c28f9b5678abcd1234",
-                    "player1": "64f9c23d8f9b1234abcd5678",
-                    "player2": "64f9c23d8f9b1234abcd5679",
-                    "status": "in-progress"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid input"
-            },
-            "500": {
-              "description": "Server error",
-              "content": {
-                "application/json": {
-                  "example": {
-                    "error": "Failed "
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "/api/v1/matches": {
-        "get": {
-          "summary": "Get all matches",
-          "description": "Retrieves all matches from the database.   Useful for admins or for viewing tournament progress.   Returns details like player IDs, board state, and status.\n",
-          "tags": [
-            "Games"
-          ],
-          "security": [],
-          "responses": {
-            "200": {
-              "description": "List of matches",
-              "content": {
-                "application/json": {
-                  "example": [
-                    {
-                      "_id": "650a01c28f9b5678abcd1234",
-                      "player1": "64f9c23d8f9b1234abcd5678",
-                      "player2": "64f9c23d8f9b1234abcd5679",
-                      "status": "in-progress",
-                      "board": [
-                        [
-                          "X",
-                          "",
-                          ""
-                        ],
-                        [
-                          "",
-                          "O",
-                          ""
-                        ],
-                        [
-                          "",
-                          "",
-                          ""
-                        ]
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            "500": {
-              "description": "Server error",
-              "content": {
-                "application/json": {
-                  "example": {
-                    "error": "Failed to fetch matches"
                   }
                 }
               }
@@ -1381,29 +1496,20 @@
           }
         }
       },
-      "/api/v1/match": {
+      "/api/v1/match-rooms": {
         "post": {
-          "summary": "Create a match room (Bluetooth/Hotspot pairing flow).   🔹 Backend does NOT handle the actual Bluetooth/Wi-Fi connection — the app does this using native APIs.   🔹 Backend only creates a room and generates a bluetoothToken that Player A shares with Player B.\n",
           "tags": [
-            "Match Room"
+            "Match Rooms"
           ],
-          "security": [],
+          "summary": "Create a match room",
+          "description": "Creates a temporary match room and generates a 6-character invite code that can be shared with another player.",
           "requestBody": {
             "required": true,
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "userId": {
-                      "type": "string",
-                      "example": "64f9c2e3a12bcd45ef567890"
-                    },
-                    "gameType": {
-                      "type": "string",
-                      "example": "TicTacToe"
-                    }
-                  }
+                "example": {
+                  "userId": "64fa1111abcd2222ef333333",
+                  "gameType": "1v1"
                 }
               }
             }
@@ -1415,34 +1521,28 @@
                 "application/json": {
                   "example": {
                     "message": "Match room created",
-                    "roomId": "650a6d123b7c11f7e09f45c9",
-                    "room": {
-                      "_id": "650a6d123b7c11f7e09f45c9",
-                      "user": "64f9c2e3a12bcd45ef567890",
-                      "gameType": "chess",
-                      "status": "waiting"
-                    },
-                    "bluetoothToken": "abc123xy"
+                    "roomId": "64faaaaaabcd9999ef000000",
+                    "matchCode": "A9F2D1"
                   }
                 }
               }
             },
-            "404": {
-              "description": "matchRoom not found",
+            "400": {
+              "description": "Invalid request body",
               "content": {
                 "application/json": {
                   "example": {
-                    "message": "matchRoom not found"
+                    "error": "userId is required"
                   }
                 }
               }
             },
             "500": {
-              "description": "Internal server error",
+              "description": "Server error",
               "content": {
                 "application/json": {
                   "example": {
-                    "message": "Internal Server Error"
+                    "error": "Internal server error"
                   }
                 }
               }
@@ -1450,88 +1550,68 @@
           }
         }
       },
-      "/api/v1/match/{roomId}": {
+      "/api/v1/match-rooms/join": {
         "post": {
-          "summary": "Join a match room (Bluetooth/Hotspot flow).   🔹 The mobile app must first connect devices via Bluetooth or hotspot.   🔹 Once Player B is connected locally and has the bluetoothToken, the app calls this API to register Player B in the backend.\n",
           "tags": [
-            "Match Room"
+            "Match Rooms"
           ],
-          "security": [],
-          "parameters": [
-            {
-              "in": "path",
-              "name": "roomId",
-              "required": true,
-              "schema": {
-                "type": "string"
-              },
-              "description": "The ID of the match room created by Player A"
-            }
-          ],
+          "summary": "Join a match room using invite code",
+          "description": "Allows a second player to join a match room using a 6-character invite code. Once two players join, the room is paired.",
           "requestBody": {
             "required": true,
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "userId": {
-                      "type": "string",
-                      "example": "64f9c2e3a12bcd45ef567891"
-                    },
-                    "handshakeToken": {
-                      "type": "string",
-                      "example": "abc123xy"
-                    }
-                  }
+                "example": {
+                  "matchCode": "A9F2D1",
+                  "userId": "64fa4444abcd5555ef666666"
                 }
               }
             }
           },
           "responses": {
             "200": {
-              "description": "Player joined successfully",
+              "description": "Joined successfully",
               "content": {
                 "application/json": {
                   "example": {
-                    "message": "Player added successfully",
+                    "message": "Joined successfully",
                     "room": {
-                      "_id": "650a6d123b7c11f7e09f45c9",
-                      "player1": "64f9c2e3a12bcd45ef567890",
-                      "player2": "64f9c2e3a12bcd45ef567891",
-                      "gameType": "chess",
-                      "status": "paired"
+                      "_id": "64faaaaaabcd9999ef000000",
+                      "player1": "64fa1111abcd2222ef333333",
+                      "player2": "64fa4444abcd5555ef666666",
+                      "status": "paired",
+                      "inviteCode": "A9F2D1"
                     }
                   }
                 }
               }
             },
             "400": {
-              "description": "Error if user already joined or room is full",
+              "description": "Room already full",
               "content": {
                 "application/json": {
                   "example": {
-                    "error": "Room is already full"
+                    "error": "Room full"
                   }
                 }
               }
             },
             "404": {
-              "description": "Room not found",
+              "description": "Invalid invite code",
               "content": {
                 "application/json": {
                   "example": {
-                    "error": "Room not found"
+                    "error": "Invalid code"
                   }
                 }
               }
             },
             "500": {
-              "description": "Internal server error",
+              "description": "Server error",
               "content": {
                 "application/json": {
                   "example": {
-                    "message": "Internal Server Error"
+                    "error": "Internal server error"
                   }
                 }
               }
@@ -4825,6 +4905,14 @@
     },
     "tags": [
       {
+        "name": "1v1 Matches",
+        "description": "1-on-1 live match endpoints"
+      },
+      {
+        "name": "Match Rooms",
+        "description": "Temporary match rooms used to pair players via invite codes"
+      },
+      {
         "name": "Internal Logic",
         "description": "Non-endpoint business logic used internally by API controllers."
       },
@@ -4837,5 +4925,6 @@
         "description": "User & Host onboarding and password recovery"
       }
     ]
-  }
+  },
+  "customOptions": {}
 }

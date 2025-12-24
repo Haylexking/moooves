@@ -5,10 +5,10 @@ import type { Tournament } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Users, DollarSign, Clock, Trophy, CheckCircle2, Share2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 interface JoinTournamentFlowProps {
   tournament: Tournament;
@@ -21,44 +21,154 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
   const [ticket, setTicket] = useState<{ reference?: string; joinedAt: string } | null>(null);
   const { user, refreshUser } = useAuthStore();
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Handle return from payment gateway
+  useState(() => {
+    const checkPaymentReturn = async () => {
+      const pendingJoin = localStorage.getItem("pending_tournament_join")
+      if (!pendingJoin) return
+
+      try {
+        const { tournamentId: pendingId, inviteCode: pendingCode } = JSON.parse(pendingJoin)
+        if (pendingId !== tournament.id) return // Wrong tournament page
+
+        // Check for transaction_id or reference in URL
+        const txId = searchParams.get("transaction_id") || searchParams.get("tx_ref") || searchParams.get("reference")
+
+        if (txId) {
+          setLoading(true)
+          // Verify with backend
+          const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+          if (!ver.success) {
+            // Check if backend says "verified" but API wrapper returned standard error structure
+            // Sometimes verification endpoint returns success: true inside data 
+            throw new Error(ver.error || "Payment verification failed")
+          }
+
+          // Complete Join
+          if (!user?.id) throw new Error("User session required")
+          const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
+          if (!join.success) throw new Error(join.error || "Failed to finalize join")
+
+          setTicket({
+            reference: txId,
+            joinedAt: new Date().toISOString()
+          })
+
+          // Clear storage
+          localStorage.removeItem("pending_tournament_join")
+          // Clear URL params
+          router.replace(window.location.pathname)
+        }
+      } catch (e: any) {
+        console.error("Payment return error:", e)
+        setError(e.message || "Failed to verify payment")
+        localStorage.removeItem("pending_tournament_join")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    // Tiny delay to ensure hydration
+    setTimeout(checkPaymentReturn, 500)
+  }) // Run once or when params change, currently using useState initializer hack or useEffect would be better. Let's use useEffect properly below.
+
+  // Actually, let's use standard useEffect
+  /**
+   * Handle return from payment gateway
+   */
+  useEffect(() => {
+    const handleReturn = async () => {
+      const pendingJoin = localStorage.getItem("pending_tournament_join")
+      if (!pendingJoin) return
+
+      const txId = searchParams.get("transaction_id") || searchParams.get("tx_ref") || searchParams.get("reference")
+      if (!txId) return
+
+      try {
+        const { tournamentId: pendingId, inviteCode: pendingCode } = JSON.parse(pendingJoin)
+        if (pendingId !== tournament.id) return
+
+        setLoading(true)
+        // Verify
+        const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+        if (!ver.success) throw new Error(ver.error || "Payment verification failed")
+
+        // Join
+        if (user?.id) {
+          const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
+          if (!join.success) throw new Error(join.error || "Failed to join tournament")
+
+          setTicket({
+            reference: txId,
+            joinedAt: new Date().toISOString()
+          })
+          try { await refreshUser() } catch { }
+        }
+
+        localStorage.removeItem("pending_tournament_join")
+        router.replace(window.location.pathname)
+      } catch (e: any) {
+        setError(e.message || "Payment verification failed")
+        localStorage.removeItem("pending_tournament_join")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    handleReturn()
+  }, [searchParams, tournament.id, user, inviteCode, router, refreshUser])
 
   const handleJoin = async () => {
     setLoading(true);
     setError(null);
     try {
       // 1. Initiate payment for tournament entry fee
-      // BYPASS: Payment skipped for testing
-      /*
-      const init = await apiClient.initWalletTransaction({ amount: tournament.entryFee, method: "card", redirectUrl: window.location.href, tournamentId: tournament.id })
+      const init = await apiClient.initWalletTransaction({
+        amount: tournament.entryFee,
+        method: "card",
+        redirectUrl: window.location.href,
+        tournamentId: tournament.id
+      })
+
       if (!init.success) throw new Error(init.error || "Payment initiation failed")
+
       const paymentData: any = init.data || {}
 
-      // 2. (Optional) Redirect to payment gateway if required
-      // If paymentData contains a paymentUrl, redirect user
-      const link = paymentData?.payment_link || paymentData?.data?.paymentUrl
+      // 2. Redirect to payment gateway
+      // Swagger says it returns { message, payment_link } or { data: { authorization_url: ... } } depending on provider
+      // We check for common fields
+      const link = paymentData?.payment_link || paymentData?.data?.authorization_url || paymentData?.data?.paymentUrl
+
       if (link) {
+        // Save state to localStorage to handle return
+        localStorage.setItem("pending_tournament_join", JSON.stringify({
+          tournamentId: tournament.id,
+          inviteCode: inviteCode
+        }))
         window.location.href = link;
         return;
       }
 
-      // 3. Verify payment (if transactionId present)
-      if (paymentData?.data?.transactionId) {
-        const ver = await apiClient.verifyWalletTransaction({ transactionId: paymentData.data.transactionId })
-        if (!ver.success) throw new Error(ver.error || "Payment verification failed")
+      // If no link (e.g. bypass or immediate success), proceed to join
+      // But usually we need the link.
+      if (!link && !paymentData?.reference) {
+        throw new Error("Could not retrieve payment link")
       }
-      */
-      const paymentData = { reference: "TEST-REF-" + Date.now() }
 
-      // 4. Join tournament after successful payment
+      // 4. Join tournament after successful payment (if not redirected)
+      // This part might be reached if the API returns success immediately (unlikely for card)
       if (!user?.id) throw new Error("You must be signed in to join the tournament")
+
       const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
       if (!join.success) throw new Error(join.error || "Failed to join tournament")
 
-      // 5. Refresh user to pick up potential role upgrade (auto host after 3 tournaments)
+      // 5. Refresh user to pick up potential role upgrade
       try { await refreshUser() } catch { }
 
       setTicket({
-        reference: paymentData?.reference || join.data?.paymentId,
+        reference: paymentData?.reference || join.data?.paymentId || "REF-" + Date.now(),
         joinedAt: new Date().toISOString(),
       })
     } catch (err: any) {

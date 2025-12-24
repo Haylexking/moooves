@@ -418,6 +418,9 @@ export function BattleGround({
 
         // Immediately fetch the latest state (in case opponent played instantly)
         // This answers the user's concern about "when will it resume"
+        /*
+        // Immediate fetch caused "stale state" overwrite (flicker/delay)
+        // We trust our optimistic update. The next poll (2s) will Re-confirm.
         if (matchId) {
           matchRoom.getRoomDetails(matchId).then((details) => {
             if (details && details.match) {
@@ -425,25 +428,19 @@ export function BattleGround({
             }
           }).catch(() => { })
         }
+        */
       }
     }
   }
 
   const handleCellClick = useCallback((row: number, col: number) => {
-    // Mobile Double-Click Logic
-    if (isMobile) {
-      if (cursorPosition && cursorPosition[0] === row && cursorPosition[1] === col) {
-        // Second click on same cell -> Place
-        executeMove(row, col)
-      } else {
-        // First click -> Select/Move Cursor
-        setCursorPosition([row, col])
-      }
-    } else {
-      // Desktop Single-Click Logic
-      executeMove(row, col)
-    }
-  }, [isMobile, cursorPosition, executeMove, setCursorPosition])
+    // Both Mobile and Desktop use Single-Click for instant responsiveness
+    // User requested "instant" placement.
+    executeMove(row, col)
+
+    // Also update cursor for visual feedback if needed, but the move itself is priority
+    setCursorPosition([row, col])
+  }, [executeMove, setCursorPosition])
 
   const displayUsername = user ? getUserDisplayName(user) : "Unknown Player"
   const usedPositions = new Set(usedSequences.flat().map(([r, c]) => `${r},${c}`))

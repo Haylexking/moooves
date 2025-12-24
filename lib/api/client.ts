@@ -405,16 +405,16 @@ class ApiClient {
 
   // Live 1-on-1 Match Methods
   async createLiveMatch(userId: string): Promise<ApiResponse<any>> {
-    return this.request("/matches/live", {
+    return this.request("/match-rooms", {
       method: "POST",
-      body: JSON.stringify({ userId, gameType: "TicTacToe", mode: "1on1_live" }),
+      body: JSON.stringify({ userId, gameType: "1v1" }),
     })
   }
 
   async joinMatchByCode(code: string, userId: string): Promise<ApiResponse<any>> {
-    return this.request("/matches/join-by-code", {
+    return this.request("/match-rooms/join", {
       method: "POST",
-      body: JSON.stringify({ code, userId }),
+      body: JSON.stringify({ matchCode: code, userId }),
     })
   }
 
