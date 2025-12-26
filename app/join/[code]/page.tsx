@@ -52,10 +52,14 @@ export default function JoinTournamentPage() {
       // Check if tournament has entry fee
       if (tournament.entryFee > 0) {
         // Initiate payment flow
+        // Initiate payment flow
         const res = await apiClient.initWalletTransaction({
           amount: tournament.entryFee,
-          method: 'wallet', // Default to wallet for now, could offer options
-          redirectUrl: `${window.location.origin}/tournaments/${tournament.id}`,
+          method: 'card',
+          email: user.email,
+          name: user.fullName,
+          userId: user.id,
+          redirectUrl: `${window.location.origin}/tournaments/${tournament.id}?join=${inviteCode}`,
           tournamentId: tournament.id
         })
 

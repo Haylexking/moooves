@@ -668,11 +668,14 @@ class ApiClient {
     throw new Error("Use makeGameMove instead")
   }
 
-  async initWalletTransaction(payload: { amount: number; method: string; redirectUrl?: string; tournamentId?: string }): Promise<ApiResponse<any>> {
+  async initWalletTransaction(payload: { amount: number; method: string; email?: string; name?: string; userId?: string; redirectUrl?: string; tournamentId?: string }): Promise<ApiResponse<any>> {
     // Swagger: POST /api/v1/initial — returns { message, payment_link }
     const body = {
       amount: payload.amount,
       method: payload.method,
+      email: payload.email,
+      name: payload.name,
+      userId: payload.userId,
       redirectUrl: payload.redirectUrl,
       ...(payload.tournamentId ? { tournamentId: payload.tournamentId } : {}),
     }

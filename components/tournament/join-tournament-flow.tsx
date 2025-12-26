@@ -128,6 +128,9 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       const init = await apiClient.initWalletTransaction({
         amount: tournament.entryFee,
         method: "card",
+        email: user?.email || "",
+        name: user?.fullName || "",
+        userId: user?.id || "",
         redirectUrl: window.location.href,
         tournamentId: tournament.id
       })
