@@ -14,6 +14,9 @@ export default function GamePageClient() {
   const mode = searchParams?.get('mode') || undefined
   const isLive = searchParams?.get('live') === 'true'
   const matchId = searchParams?.get('id') || undefined
+  const matchCode = searchParams?.get('code') || undefined
+
+  console.log("[GamePageClient] Mounted. Params:", { mode, isLive, matchId })
 
   let localMode: 'ai' | 'p2p' | 'tournament' | undefined = undefined
   if (mode === 'ai') {
@@ -57,7 +60,12 @@ export default function GamePageClient() {
 
   return (
     <ProtectedRoute>
-      <BattleGround gameMode="player-vs-player" localMode={localMode as any} matchId={matchId} />
+      <BattleGround
+        gameMode="player-vs-player"
+        localMode={localMode as any}
+        matchId={matchId}
+        initialRoomCode={matchCode}
+      />
       <GameResultModal
         open={gameStatus === "completed"}
         onClose={handleBackToMenu}

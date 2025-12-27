@@ -16,6 +16,7 @@ export function LiveMatch() {
     const { toast } = useToast()
 
     const [view, setView] = useState<"menu" | "create" | "join">("menu")
+    console.log("[LiveMatch] Mounted. User ID:", user?.id, "Role:", user?.role)
     const [loading, setLoading] = useState(false)
 
     // Create State
@@ -34,19 +35,32 @@ export function LiveMatch() {
 
         const interval = setInterval(async () => {
             try {
-                const res = await apiClient.getMatchRoom(activeMatchId)
-                if (res.success && res.data) {
-                    // Check if opponent joined (participants > 1) or status is active
-                    const parts = res.data.participants || []
-                    const matchStatus = res.data.match?.status
+                // If we are the host, we need to POLL to see if we can "create" the match (start it).
+                // The backend requires "Both players must join first" before /matches POST works.
+                // So we repeatedly try to create it.
+                // If it returns 201, we are good.
+                // If it returns 400 (waiting), we ignore.
+                // If invalid role/error, we log.
 
-                    if (parts.length > 1 || matchStatus === 'active') {
-                        clearInterval(interval)
-                        router.push(`/game?live=true&id=${activeMatchId}`)
+                // Poll to create the match. This will fail (waiting) until opponent joins.
+                const res = await apiClient.create1v1Match(activeMatchId)
+                if (res.success) {
+                    clearInterval(interval)
+                    // The create response structure is { message, match: { _id, ... } }
+                    // We must access res.data.match._id to get the actual match ID.
+                    const finalMatchId = res.data?.match?._id || res.data?.match?.id || res.data?.matchId || res.data?._id || activeMatchId
+                    console.log("[LiveMatch] Match started! Redirecting to:", finalMatchId)
+                    router.push(`/game?live=true&id=${finalMatchId}&code=${matchCode || ''}`)
+                } else {
+                    console.log("[LiveMatch] Polling status:", res.error)
+                    // If the error is NOT "waiting for players", we should verify it breaks or continues
+                    if (res.error && !res.error.toLowerCase().includes("players")) {
+                        // It might be "Room not found" or something fatal
+                        console.error("Unexpected polling error:", res.error)
                     }
                 }
             } catch (e) {
-                console.error("Polling error:", e)
+                console.error("Polling exception:", e)
             }
         }, 3000)
 
@@ -58,16 +72,27 @@ export function LiveMatch() {
         setLoading(true)
         setError(null)
         try {
+            // 1. Create the room
             const res = await apiClient.createLiveMatch(user.id)
             if (res.success && res.data) {
-                // Swagger: { roomId, matchCode }
-                setMatchCode(res.data.matchCode || res.data.roomCode)
+                console.log("[LiveMatch] Create Response:", JSON.stringify(res.data, null, 2))
+
+                const code = res.data.matchCode || res.data.roomCode
                 const newMatchId = res.data.roomId || res.data.matchId || res.data.id
+
+                // 2. IMPORTANT: Host must explicitly JOIN the room to be "player1"
+                // The backend does not auto-join the creator as a player.
+                console.log("[LiveMatch] Auto-joining room as host...")
+                const joinRes = await apiClient.joinMatchByCode(code, user.id)
+                console.log("[LiveMatch] Auto-join result:", joinRes)
+
+                setMatchCode(code)
                 setActiveMatchId(newMatchId)
-                if (newMatchId) {
-                    router.push(`/game?live=true&id=${newMatchId}`)
-                }
-                // setView("create") // No longer showing manual create view, going straight to lobby
+
+                // Do NOT redirect yet. Wait for polling (create1v1Match) to succeed.
+                // This ensures the match exists in the /matches endpoint before we send the user there.
+                // Now that we (host) have joined, the NEXT player to join will trigger "ready" state.
+                setView("create")
             } else {
                 toast({ title: "Error", description: res.error, variant: "destructive" })
             }
@@ -86,11 +111,28 @@ export function LiveMatch() {
             if (res.success && res.data) {
                 // Redirect to game
                 // Swagger: { room: { _id, ... } } or similar
-                const matchId = res.data.matchId || res.data.id || res.data.roomId || res.data.room?._id
-                if (matchId) {
-                    router.push(`/game?live=true&id=${matchId}`)
+                // Critical: Must prioritize ROOM ID over Match ID to match Host
+                console.log("[LiveMatch] Join Success:", JSON.stringify(res.data, null, 2))
+
+                // UNIFIED FLOW:
+                // Both Host and Joiner must wait for the "Match" resource to be created.
+                // The Joiner receives the ROOM ID here.
+                // Instead of redirecting immediately (which fails if Match doesn't exist yet),
+                // we set the Joiner to the same "Polling" state as the Host.
+                // They will poll create1v1Match(roomId) until the backend says "OK".
+
+                const roomId = res.data.roomId ||
+                    res.data.room?._id ||
+                    res.data.room?.id ||
+                    res.data.id
+
+                if (roomId) {
+                    console.log("[LiveMatch] Joined Room, switching to polling mode for Match ID...")
+                    setMatchCode(joinCode) // Show the code they joined with
+                    setActiveMatchId(roomId)
+                    setView("create") // Show the "Waiting..." screen which triggers polling
                 } else {
-                    setError("Invalid server response")
+                    setError("Invalid server response - No Room ID")
                 }
             } else {
                 setError(res.error || "Invalid code or match full")

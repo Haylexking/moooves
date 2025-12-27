@@ -146,25 +146,29 @@ export const useGameStore = create<GameStore>()(
         try {
           if (!match) return
 
+          // The API might return a top-level match object with nested 'gameState'
+          // OR a flat object depending on the endpoint. We prioritize nested 'gameState'.
+          const data = match.gameState || match
+
           // Board
-          if (match.board) {
-            set({ board: match.board })
+          if (data.board) {
+            set({ board: data.board })
           }
 
           // Scores
-          if (match.scores) {
-            set({ scores: match.scores })
+          if (data.scores) {
+            set({ scores: data.scores })
           }
 
           // usedPositions (array of "r,c")
-          if (match.usedPositions) {
-            const newUsed = new Set<string>(match.usedPositions)
+          if (data.usedPositions) {
+            const newUsed = new Set<string>(data.usedPositions)
             set({ usedPositions: newUsed })
           }
 
-          // usedSequences (array of arrays of "r,c") -> convert to Position arrays
-          if (match.usedSequences) {
-            const parsed: Array<Array<[number, number]>> = match.usedSequences.map((seq: string[]) =>
+          // usedSequences
+          if (data.usedSequences) {
+            const parsed: Array<Array<[number, number]>> = data.usedSequences.map((seq: string[]) =>
               seq.map((s: string) => {
                 const [r, c] = s.split(",")
                 return [Number(r), Number(c)] as [number, number]
@@ -174,16 +178,18 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Move history
-          if (match.moveHistory) {
-            set({ moveHistory: match.moveHistory })
+          if (data.moveHistory) {
+            set({ moveHistory: data.moveHistory })
           }
 
-          // Current player
-          if (match.currentPlayer) {
-            set({ currentPlayer: match.currentPlayer })
+          // Current player (might be in top-level match or gameState)
+          if (data.currentTurn || match.currentTurn) {
+            set({ currentPlayer: data.currentTurn || match.currentTurn })
+          } else if (data.currentPlayer) {
+            set({ currentPlayer: data.currentPlayer })
           }
 
-          // Game status
+          // Game status (usually top-level)
           if (match.status) {
             set({ gameStatus: match.status })
           }

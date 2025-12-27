@@ -96,13 +96,13 @@ export function MobileControls({ onPlace, disabled, playerSymbol }: MobileContro
                     onClick={onPlace}
                     disabled={disabled}
                     className={cn(
-                        "w-20 h-20 rounded-2xl font-black text-xl tracking-wider uppercase shadow-lg transition-all active:scale-95 flex items-center justify-center border-b-4 active:border-b-0 active:translate-y-1",
+                        "w-20 h-20 rounded-2xl font-black text-4xl tracking-wider uppercase shadow-lg transition-all active:scale-95 flex items-center justify-center border-b-4 active:border-b-0 active:translate-y-1",
                         disabled
                             ? "bg-gray-800 text-gray-600 border-gray-900 cursor-not-allowed"
                             : "bg-green-600 text-white border-green-800 hover:bg-green-500 shadow-green-500/20"
                     )}
                 >
-                    <X className="w-10 h-10 stroke-[3]" />
+                    {playerSymbol === 'X' ? <X className="w-12 h-12 stroke-[4]" /> : <div className="w-10 h-10 rounded-full border-[6px] border-white" />}
                 </button>
             </div>
 

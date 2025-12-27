@@ -4925,6 +4925,5 @@
         "description": "User & Host onboarding and password recovery"
       }
     ]
-  },
-  "customOptions": {}
-}
+  }
+}  

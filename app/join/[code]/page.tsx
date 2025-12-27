@@ -56,11 +56,12 @@ export default function JoinTournamentPage() {
       }
       return
     }
-    if (!txId) return
+    const cleanTxId = txId.trim()
+    if (!cleanTxId) return
 
     setLoading(true)
     try {
-      const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+      const ver = await apiClient.verifyWalletTransaction({ transactionId: cleanTxId })
       if (!ver.success) throw new Error(ver.error || "Verification failed")
 
       const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)

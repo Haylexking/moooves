@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { logDebug } from '@/lib/logger'
 import { apiClient } from "@/lib/api/client"
 import type { Move } from "@/lib/types"
@@ -17,9 +17,10 @@ interface MatchRoomState {
   matchState?: any
 }
 
-export function useMatchRoom(initialMatchId?: string) {
+export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) {
   const [state, setState] = useState<MatchRoomState>({
     roomId: initialMatchId || null,
+    roomCode: initialRoomCode || null,
     isHost: false,
     isConnected: !!initialMatchId,
     error: null,
@@ -151,17 +152,43 @@ export function useMatchRoom(initialMatchId?: string) {
   // Get room details
   const getRoomDetails = useCallback(async (roomId: string) => {
     try {
+      console.log("[useMatchRoom] Fetching details for ID:", roomId)
       const response = await apiClient.getMatchRoom(roomId)
 
       if (!response.success || !response.data) {
         throw new Error(response.error || "Failed to get room details")
       }
 
+      const matchObj = response.data.match || response.data
+      let parts = response.data.participants || []
+
+      // CRITICAL FIX: If player1/player2 are defined (Match Object), 
+      // we MUST use them to enforce order: [Player1(X), Player2(O)]
+      // The raw participants array might be unordered (e.g. Host joined second).
+      if (matchObj.player1 || matchObj.player2) {
+        const p1 = matchObj.player1 ? (typeof matchObj.player1 === 'string' ? matchObj.player1 : matchObj.player1._id) : null
+        const p2 = matchObj.player2 ? (typeof matchObj.player2 === 'string' ? matchObj.player2 : matchObj.player2._id) : null
+
+        // Only override if we actually have distinct players or meaningful slots
+        if (p1 || p2) {
+          parts = []
+          if (p1) parts.push(p1)
+          if (p2) parts.push(p2)
+        }
+      }
+
+      // Determine if I am host
+      const isHost = user?.id && matchObj?.player1 && (
+        (typeof matchObj.player1 === 'string' && matchObj.player1 === user.id) ||
+        (matchObj.player1._id === user.id)
+      )
+
       setState((prev) => ({
         ...prev,
-        participants: response.data.participants || [],
-        matchState: response.data.match,
-        roomCode: response.data.match?.roomCode || response.data.roomCode || prev.roomCode,
+        participants: parts,
+        matchState: matchObj,
+        roomCode: matchObj?.roomCode || response.data.roomCode || prev.roomCode,
+        isHost: !!isHost || prev.isHost, // Keep existing isHost if true (from create), otherwise calc
       }))
 
       return response.data
@@ -207,6 +234,24 @@ export function useMatchRoom(initialMatchId?: string) {
     },
     [state.roomId, user?.id],
   )
+
+  // Auto-Join logic: If I am connected to a room (via ID) but not in participants list, force join.
+  useEffect(() => {
+    if (!state.roomId || !user?.id || !state.matchState) return
+
+    // Check if I am in participants
+    const myId = user.id
+    const amIParticipant = state.participants.some(p =>
+      (typeof p === 'string' && p === myId) ||
+      ((p as any)._id === myId)
+    )
+
+    // If I am NOT a participant, and there is space (less than 2 players), JOIN.
+    if (!amIParticipant && state.participants.length < 2) {
+      console.log("Auto-joining room...", state.roomId)
+      joinRoom(state.roomId, "").catch(e => console.error("Auto-join failed", e))
+    }
+  }, [state.roomId, state.participants, state.matchState, user?.id, joinRoom])
 
   // Leave the room
   const leaveRoom = useCallback(async () => {

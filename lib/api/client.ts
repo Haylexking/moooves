@@ -411,6 +411,13 @@ class ApiClient {
     })
   }
 
+  async create1v1Match(roomId: string): Promise<ApiResponse<any>> {
+    return this.request(MATCHROOM_ENDPOINTS.LIST, { // This maps to /matches
+      method: "POST",
+      body: JSON.stringify({ roomId }),
+    })
+  }
+
   async joinMatchByCode(code: string, userId: string): Promise<ApiResponse<any>> {
     return this.request("/match-rooms/join", {
       method: "POST",
@@ -433,10 +440,10 @@ class ApiClient {
   }
 
   // Game move methods
-  async makeGameMove(playerId: string, row: number, col: number, matchId: string): Promise<ApiResponse<any>> {
-    return this.request("/move", {
+  async makeGameMove(playerId: string, row: number, col: number, matchId: string, symbol?: "X" | "O"): Promise<ApiResponse<any>> {
+    return this.request(`/matches/${matchId}/move`, {
       method: "POST",
-      body: JSON.stringify({ playerId, row, col, matchid: matchId }),
+      body: JSON.stringify({ playerId, row, col, symbol }),
     })
   }
 

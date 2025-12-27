@@ -29,6 +29,7 @@ interface BattleGroundProps {
   initialBoard?: (string | null)[][]
   initialCurrentPlayer?: "X" | "O"
   onMoveMade?: (row: number, col: number, player: "X" | "O") => void
+  initialRoomCode?: string
 }
 
 export function BattleGround({
@@ -38,6 +39,7 @@ export function BattleGround({
   initialBoard,
   initialCurrentPlayer,
   onMoveMade,
+  initialRoomCode,
 }: BattleGroundProps) {
   const {
     board,
@@ -62,6 +64,8 @@ export function BattleGround({
   const router = useRouter()
   const { toast } = useToast()
   const { openRules } = useGameRules()
+
+  const isOnlineMode = localMode === "tournament" || localMode === "p2p" // p2p used for live 1-on-1
 
   // Rematch State
   const [rematchLoading, setRematchLoading] = useState(false)
@@ -115,10 +119,14 @@ export function BattleGround({
           if (res.success && res.data && res.data.match) {
             // Check if rematchId exists in payload (assuming backend adds it)
             const nextMatchId = res.data.match.rematchId
-            if (nextMatchId) {
-              setIsRematchRedirecting(true)
-              toast({ title: "Rematch Found!", description: "Redirecting to new game..." })
-              window.location.href = `/game?live=true&id=${nextMatchId}`
+            if (nextMatchId && nextMatchId !== matchId) { // Ensure it's not the same ID
+              // Found a rematch!
+              // Don't auto redirect. Set invite ID so modal shows "Accept"
+              if (!rematchInviteId) {
+                setRematchInviteId(nextMatchId)
+                setResultModalOpen(true) // Re-open modal if it was closed
+                toast({ title: "Rematch Requested!", description: "Opponent wants to play again." })
+              }
             }
           }
         } catch { }
@@ -190,7 +198,7 @@ export function BattleGround({
   }, [timeLeft])
 
   // Match Room Hook (for tournament/online play)
-  const matchRoom = useMatchRoom(matchId)
+  const matchRoom = useMatchRoom(matchId, initialRoomCode)
 
   // Initialize Game
   useEffect(() => {
@@ -213,28 +221,43 @@ export function BattleGround({
   // Sync with Server State (Tournament Mode)
   useEffect(() => {
     if (localMode === "tournament" && matchRoom.matchState) {
-      useGameStore.getState().applyServerMatchState?.(matchRoom.matchState)
+      const serverMatch = matchRoom.matchState
 
       // Update local UI state based on server match state
-      if (matchRoom.matchState.status === 'completed') {
-        const isWinner = matchRoom.matchState.winner === user?.id
+      if (serverMatch.status === 'completed') {
+        const isWinner = serverMatch.winner === user?.id
         setResultType(isWinner ? 'win' : 'lose')
         setResultModalOpen(true)
       }
     }
   }, [localMode, matchRoom.matchState, user?.id])
 
-  // Polling for opponent moves in tournament mode
+  // Polling for opponent moves in tournament AND p2p mode
   useEffect(() => {
-    if (localMode === "tournament" && matchId && gameStatus === "playing") {
+    // We want to poll in "tournament" OR "p2p" (live match) modes
+    // CRITICAL FIX: Poll even if gameStatus is 'waiting' so we detect when it starts.
+    const shouldPoll = (localMode === "tournament" || localMode === "p2p") && !!matchId
+
+    if (shouldPoll) {
       const interval = setInterval(async () => {
-        // Only poll if it's NOT our turn AND we are not currently sending a move
-        // This prevents the "glitch" where we overwrite our own optimistic move with old server state
-        if (currentPlayer !== 'X' && !pendingMove) {
+        // Poll regularly to keep state in sync, but skip if we are actively sending a move
+        if (!pendingMove) {
           try {
-            const details = await matchRoom.getRoomDetails(matchId)
-            if (details && details.match) {
-              useGameStore.getState().applyServerMatchState?.(details.match)
+            const details = await matchRoom.getRoomDetails(matchId!)
+            console.log("[BattleGround] Polled details:", details)
+            // Fix: API returns match object directly in 'details' sometimes
+            const serverMatch = (details && details.match) ? details.match : details
+
+            if (serverMatch) {
+              console.log("[BattleGround] Server State:", {
+                status: serverMatch.status,
+                turn: serverMatch.currentTurn,
+                player1: serverMatch.player1,
+                player2: serverMatch.player2,
+                gameStateTurn: serverMatch.gameState?.currentTurn
+              })
+
+              useGameStore.getState().applyServerMatchState?.(serverMatch)
             }
           } catch (e) {
             console.error("Polling error:", e)
@@ -243,7 +266,7 @@ export function BattleGround({
       }, 2000) // Poll every 2 seconds
       return () => clearInterval(interval)
     }
-  }, [localMode, matchId, gameStatus, currentPlayer, pendingMove, matchRoom])
+  }, [localMode, matchId, currentPlayer, pendingMove, matchRoom, isOnlineMode])
 
 
   // Timer Management
@@ -279,29 +302,85 @@ export function BattleGround({
     }
   }
 
-  // Player Names
-  // If we are in "live" 1-on-1 or tournament, we want to show real names.
-  const isOnlineMode = localMode === "tournament" || localMode === "p2p" // p2p used for live 1-on-1
+  // State to hold fetched names
+
+  // State to hold fetched names
+  const [p1Name, setP1Name] = useState("Player 1")
+  const [p2Name, setP2Name] = useState("Player 2")
 
   useEffect(() => {
-    // Fetch opponent name for both Tournament and Live 1-on-1 modes
-    if (isOnlineMode && matchRoom.participants && matchRoom.participants.length > 1 && user?.id) {
-      const opponentId = matchRoom.participants.find((p: string) => p !== user.id)
-      if (opponentId) {
-        apiClient.getUserById(opponentId).then((res) => {
-          if (res.success && res.data) {
-            setOpponentName(res.data.fullName || res.data.name || res.data.email || "Opponent")
-          }
-        })
-      }
-    }
-  }, [isOnlineMode, matchRoom.participants, user?.id])
+    const resolveNames = async () => {
+      if (!isOnlineMode) return;
 
-  const player1 = user ? getUserDisplayName(user) : "Player 1"
+      console.log("[BattleGround] Resolving names...", { matchState: matchRoom.matchState, participants: matchRoom.participants })
+
+      let p1Display = "Player 1"
+      let p2Display = "Player 2"
+
+      // 1. Try to get from Match Object (if populated)
+      // Note: matchState might have partial data
+      if (matchRoom.matchState) {
+        const m = matchRoom.matchState
+        // Player 1
+        if (m.player1 && typeof m.player1 === 'object') {
+          p1Display = m.player1.fullName || m.player1.name || m.player1.username || m.player1.email || "Player 1"
+        } else if (m.player1Heading) {
+          p1Display = m.player1Heading
+        }
+
+        // Player 2
+        if (m.player2 && typeof m.player2 === 'object') {
+          p2Display = m.player2.fullName || m.player2.name || m.player2.username || m.player2.email || "Player 2"
+        } else if (m.player2Heading) {
+          p2Display = m.player2Heading
+        }
+      }
+
+      // 2. If we still have defaults and have participants list (IDs), fetch them
+      // Host (p1) is always participants[0], Joiner (p2) is participants[1]
+      // This relies on the useMatchRoom order fix: [P1, P2]
+      if (matchRoom.participants && matchRoom.participants.length > 0) {
+        // Only fetch if we still have default names or need to confirm
+        if (p1Display === "Player 1" && matchRoom.participants[0]) {
+          try {
+            // Avoid re-fetching if it's me
+            if (user?.id === matchRoom.participants[0]) {
+              p1Display = getUserDisplayName(user)
+            } else {
+              const u = await apiClient.getUserById(matchRoom.participants[0])
+              if (u.success && u.data) p1Display = u.data.fullName || u.data.name || "Player 1"
+            }
+          } catch { }
+        }
+        if (p2Display === "Player 2" && matchRoom.participants[1]) {
+          try {
+            if (user?.id === matchRoom.participants[1]) {
+              p2Display = getUserDisplayName(user)
+            } else {
+              const u = await apiClient.getUserById(matchRoom.participants[1])
+              if (u.success && u.data) p2Display = u.data.fullName || u.data.name || "Player 2"
+            }
+          } catch { }
+        }
+      }
+
+      setP1Name(p1Display)
+      setP2Name(p2Display)
+    }
+
+    resolveNames()
+  }, [isOnlineMode, matchRoom.matchState, matchRoom.participants, user])
+
+  // Logic to display correct names based on ROLE (X vs O) not just "Me vs Them"
+  // Player 1 is ALWAYS X. Player 2 is ALWAYS O.
+  const player1 = (gameMode === "ai" || (gameMode as string) === "player-vs-computer")
+    ? (user ? getUserDisplayName(user) : "You")
+    : isOnlineMode ? p1Name : (user ? getUserDisplayName(user) : "Player 1")
+
   const player2 = (gameMode === "ai" || (gameMode as string) === "player-vs-computer")
     ? "Computer"
     : isOnlineMode
-      ? opponentName || "Opponent"
+      ? p2Name
       : "Player 2"
 
   // Livestream Prompt - Moved to Pre-Match Overlay
@@ -394,11 +473,21 @@ export function BattleGround({
     onMoveMade?.(row, col, currentPlayer)
 
     if (serverAuthoritative && matchId) {
-      // Set pending move to true to PAUSE POLLING and prevent state overwrite lag
       setPendingMove(true)
 
+      console.log("[BattleGround] Sending move:", {
+        matchId,
+        userId: user?.id,
+        row,
+        col,
+        symbol: currentPlayer,
+        participants: matchRoom.participants
+      })
+
       try {
-        const res = await apiClient.makeMove(matchId, { row, col, player: currentPlayer })
+        // Updated to match backend spec: pass symbol as 5th argument
+        const res = await apiClient.makeGameMove(user?.id || "", row, col, matchId, currentPlayer)
+        console.log("[BattleGround] Move response:", res)
         if (!res.success) {
           // Revert move on failure (simple reload or undo logic could be added here)
           // For now, we just show error and maybe force a re-sync if possible
@@ -605,7 +694,10 @@ export function BattleGround({
         </div>
 
         {/* Game Board Area */}
-        <div className="flex items-center justify-center w-full px-2">
+        <div className="flex flex-col items-center justify-center w-full px-2 gap-4">
+
+          {/* Debug / Fail-safe Force Start removed as per user request */}
+
           <div className="relative bg-white rounded-xl shadow-2xl border-[1.5px] border-green-800 select-none w-full max-w-fit aspect-square">
             <div
               className="grid gap-[1px] bg-gray-200"
@@ -656,7 +748,14 @@ export function BattleGround({
             ((gameMode as string) === "player-vs-computer" && currentPlayer !== "X") ||
             (serverAuthoritative && pendingMove)
           }
-          playerSymbol={currentPlayer}
+          playerSymbol={
+            // Determine MY symbol.
+            // If offline/AI: use currentPlayer (shared device or me vs pc)
+            // If online:
+            isOnlineMode && user?.id && matchRoom.participants.includes(user.id)
+              ? (matchRoom.participants.indexOf(user.id) === 0 ? 'X' : 'O')
+              : currentPlayer // Fallback
+          }
         />
       </div>
 

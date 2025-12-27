@@ -29,12 +29,14 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
   const [manualTxId, setManualTxId] = useState("")
 
   const handleManualVerify = async (txId: string) => {
-    if (!user || !txId) return
+    const cleanTxId = txId.trim()
+    if (!cleanTxId) return
+
     setLoading(true)
     setError(null)
     try {
       // Verify
-      const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+      const ver = await apiClient.verifyWalletTransaction({ transactionId: cleanTxId })
       if (!ver.success) throw new Error(ver.error || "Verification failed. Please check the ID.")
 
       // Join
