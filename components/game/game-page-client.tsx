@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 
 export default function GamePageClient() {
   const searchParams = useSearchParams()
+  const mode = searchParams?.get('mode') || undefined
   const isLive = searchParams?.get('live') === 'true'
   const matchId = searchParams?.get('id') || undefined
 
