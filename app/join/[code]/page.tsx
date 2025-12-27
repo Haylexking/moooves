@@ -34,8 +34,9 @@ export default function JoinTournamentPage() {
         } else {
           setError(res.error || "Tournament not found")
         }
-      } catch (err) {
-        setError("Failed to load tournament details")
+      } catch (err: any) {
+        console.error("Join error:", err)
+        setError("Failed to load tournament details: " + (err.message || String(err)))
       } finally {
         setLoading(false)
       }

@@ -477,8 +477,14 @@ class ApiClient {
 
   async getAllTournaments(): Promise<ApiResponse<any[]>> {
     const res = await this.request<any[]>("/tournaments")
-    if (res.success && Array.isArray(res.data)) {
-      res.data = res.data.map(t => this._normalizeTournament(t))
+    if (res.success) {
+      // Handle wrapped response { tournaments: [...] } or { data: [...] }
+      const raw = res.data as any
+      const list = Array.isArray(raw)
+        ? raw
+        : (Array.isArray(raw?.tournaments) ? raw.tournaments : (Array.isArray(raw?.data) ? raw.data : []))
+
+      res.data = list.map((t: any) => this._normalizeTournament(t))
     }
     return res
   }
