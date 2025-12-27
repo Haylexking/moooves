@@ -407,7 +407,7 @@ class ApiClient {
   async createLiveMatch(userId: string): Promise<ApiResponse<any>> {
     return this.request("/match-rooms", {
       method: "POST",
-      body: JSON.stringify({ userId, gameType: "p2p" }), // Changed from "1v1" to match GameMode type enum
+      body: JSON.stringify({ userId, gameType: "TicTacToe" }), // Updated to "TicTacToe" per backend requirement
     })
   }
 

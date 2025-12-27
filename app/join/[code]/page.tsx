@@ -48,7 +48,16 @@ export default function JoinTournamentPage() {
   const [showManualVerify, setShowManualVerify] = useState(false)
   const [manualTxId, setManualTxId] = useState("")
   const handleManualVerify = async (txId: string) => {
-    if (!user || !txId) return
+    if (!user) {
+      toast({ title: "Login Required", description: "You must be logged in to verify payment.", variant: "destructive" })
+      if (typeof window !== "undefined") {
+        localStorage.setItem("return_to", window.location.pathname)
+        router.push("/onboarding")
+      }
+      return
+    }
+    if (!txId) return
+
     setLoading(true)
     try {
       const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
@@ -67,7 +76,15 @@ export default function JoinTournamentPage() {
   }
 
   const handleJoin = async () => {
-    if (!user || !tournament) return
+    if (!user) {
+      toast({ title: "Login Required", description: "You must be logged in to join.", variant: "destructive" })
+      if (typeof window !== "undefined") {
+        localStorage.setItem("return_to", window.location.pathname)
+        router.push("/onboarding")
+      }
+      return
+    }
+    if (!tournament) return
 
     setJoining(true)
     try {
