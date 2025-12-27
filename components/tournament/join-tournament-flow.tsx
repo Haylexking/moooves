@@ -40,6 +40,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       if (!ver.success) throw new Error(ver.error || "Verification failed. Please check the ID.")
 
       // Join
+      if (!user) throw new Error("You must be logged in to join.")
       const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
       if (!join.success) throw new Error(join.error || "Failed to join tournament")
 

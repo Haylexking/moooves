@@ -13,6 +13,7 @@
 # Debug / Logs
 npm-debug.log*
 *.log
+.txt
 
 # Env files (local environment variables)
 .env
