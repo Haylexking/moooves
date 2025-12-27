@@ -24,7 +24,7 @@ export default function TournamentDashboard() {
   const [joinLoading, setJoinLoading] = useState(false)
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [leaderboard, setLeaderboard] = useState<{ userId: string; name: string; prize: number; rank: number }[]>([])
+  const [leaderboard, setLeaderboard] = useState<{ userId: string; name: string; prize: number; rank: number; paidOut?: boolean }[]>([])
   const [matches, setMatches] = useState<BracketMatch[]>([])
   const [payouts, setPayouts] = useState<any[]>([])
   const [manualBankCode, setManualBankCode] = useState("")
@@ -145,18 +145,8 @@ export default function TournamentDashboard() {
         )
         setMatches(allMatches)
         if (data?.status === "completed") {
-          const verify = await apiClient.verifyTournamentPayouts(id)
-          if (verify.success) {
-            const payload: any = verify.data || {}
-            const nextPayouts = payload?.payouts || []
-            setPayouts(nextPayouts)
-            const failed = nextPayouts.find((p: any) => (p?.status || "").toLowerCase() === "failed")
-            if (failed) {
-              setManualBankCode(failed.bankCode || failed.bank_code || "000")
-              setManualAccountNumber(failed.accountNumber || failed.account_number || failed.account || "")
-              setManualAmount(typeof failed.amount === "number" ? failed.amount : Number(failed.amount || 0))
-            }
-          }
+          // Payouts display logic moved to rely on leaderboard data or manual fetch if needed
+          // For now, we clear payouts state as it was relying on verifyTournamentPayouts
         } else {
           setPayouts([])
         }
@@ -170,6 +160,7 @@ export default function TournamentDashboard() {
             name: winner.username || winner.userId || `Player ${idx + 1}`,
             prize: winner.prize || 0,
             rank: winner.rank || idx + 1,
+            paidOut: winner.paidOut,
           })),
         )
       } else {
@@ -227,6 +218,43 @@ export default function TournamentDashboard() {
       toast({ title: "Reschedule failed", description: err.message || "Could not reschedule tournament", variant: "destructive" })
     } finally {
       setRescheduling(false)
+    }
+  }
+
+  const handleDistributePayouts = async () => {
+    if (!selectedTournament) return
+    if (leaderboard.length === 0) {
+      toast({ title: "No winners", description: "Cannot distribute payouts without winners.", variant: "destructive" })
+      return
+    }
+
+    const first = leaderboard.find((p) => p.rank === 1)?.userId
+    const second = leaderboard.find((p) => p.rank === 2)?.userId
+    const third = leaderboard.find((p) => p.rank === 3)?.userId
+
+    if (!first) {
+      toast({ title: "Missing 1st Place", description: "First place winner is required.", variant: "destructive" })
+      return
+    }
+
+    setSendingPayout(true)
+    try {
+      const winnersPayload = { first, second, third }
+      const res = await apiClient.distributePayouts(selectedTournament.id, winnersPayload)
+      if (res.success) {
+        toast({ title: "Payouts Distributed", description: "Winnings have been sent to players." })
+        // Update local state simply or refresh
+        const payoutSummary = res.data?.payouts || {}
+        // Transform summary to list if needed, or just refresh details
+        // For alignment, we'll refresh to get updated 'paidOut' flags if backend supports it
+        await refreshSelectedTournament()
+      } else {
+        toast({ title: "Distribution Failed", description: res.message || "Failed to distribute payouts.", variant: "destructive" })
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to connect", variant: "destructive" })
+    } finally {
+      setSendingPayout(false)
     }
   }
 
@@ -360,13 +388,29 @@ export default function TournamentDashboard() {
                   <h2 className="text-2xl font-bold text-green-900">{selectedTournament.name}</h2>
                   <p className="text-sm text-gray-600">Status: {selectedTournament.status}</p>
                 </div>
-                <button
-                  onClick={() => navigator.clipboard.writeText(selectedTournament.inviteCode)}
-                  className="inline-flex items-center gap-2 text-sm text-green-800 hover:text-green-900"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Copy invite code
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedTournament.inviteCode)
+                      toast({ title: "Copied!", description: "Invite code copied" })
+                    }}
+                    className="inline-flex items-center gap-2 text-sm text-green-800 hover:text-green-900 bg-green-50 px-3 py-1.5 rounded-md border border-green-200 transition-colors"
+                  >
+                    <Share2 className="w-3 h-3" />
+                    Copy Code
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = `${window.location.origin}/join/${selectedTournament.inviteCode}`
+                      navigator.clipboard.writeText(link)
+                      toast({ title: "Copied!", description: "Invite link copied to clipboard" })
+                    }}
+                    className="inline-flex items-center gap-2 text-sm text-white hover:text-green-50 bg-green-700 hover:bg-green-800 px-3 py-1.5 rounded-md transition-colors shadow-sm"
+                  >
+                    <Share2 className="w-3 h-3" />
+                    Copy Link
+                  </button>
+                </div>
               </div>
 
               <div className="p-4 bg-white rounded-xl border border-green-100 space-y-3">
@@ -399,6 +443,24 @@ export default function TournamentDashboard() {
                   </div>
                 )}
               </div>
+
+              {isHost && selectedTournament.status === "completed" && leaderboard.length > 0 && (
+                <div className="bg-white rounded-xl border border-green-100 p-4 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-green-900">Prize Distribution</h4>
+                    <p className="text-sm text-gray-500">
+                      {leaderboard.every(l => l.paidOut)
+                        ? "All winners have been paid."
+                        : "Distribute prizes to winners."}
+                    </p>
+                  </div>
+                  {!leaderboard.every(l => l.paidOut) && (
+                    <GameButton onClick={handleDistributePayouts} disabled={sendingPayout}>
+                      {sendingPayout ? "Processing..." : "Distribute Payouts"}
+                    </GameButton>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 {["leaderboard", "matches", "rules"].map((tab) => (

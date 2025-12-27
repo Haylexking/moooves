@@ -407,7 +407,7 @@ class ApiClient {
   async createLiveMatch(userId: string): Promise<ApiResponse<any>> {
     return this.request("/match-rooms", {
       method: "POST",
-      body: JSON.stringify({ userId, gameType: "1v1" }),
+      body: JSON.stringify({ userId, gameType: "p2p" }), // Changed from "1v1" to match GameMode type enum
     })
   }
 
@@ -463,66 +463,70 @@ class ApiClient {
     })
   }
 
+  private _normalizeTournament(t: any): any {
+    if (!t) return t
+    return {
+      ...t,
+      id: t.id || t._id,
+      maxPlayers: t.maxPlayers || t.maxParticipants || 50,
+      currentPlayers: t.currentPlayers || (t.participants ? t.participants.length : 0) || 0,
+      participants: t.participants || [],
+      inviteCode: t.inviteCode || t.invite_code,
+    }
+  }
+
   async getAllTournaments(): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>("/tournaments")
+    const res = await this.request<any[]>("/tournaments")
+    if (res.success && Array.isArray(res.data)) {
+      res.data = res.data.map(t => this._normalizeTournament(t))
+    }
+    return res
   }
 
   async getTournament(id: string): Promise<ApiResponse<any>> {
     console.log(`[getTournament] Fetching tournament ${id}...`)
-    // Try direct endpoint first, but fallback to filtering all tournaments if it fails (e.g. 404 or "Invalid role")
     try {
       const res = await this.request(`/tournaments/${id}`)
       if (res.success) {
-        console.log(`[getTournament] Direct fetch success for ${id}`)
-        return res
+        return { ...res, data: this._normalizeTournament(res.data) }
       }
-      // If success is false, we intentionally fall through to the fallback
-      console.warn(`[getTournament] Direct fetch failed for ${id}, falling back to list. Error:`, res.error)
     } catch (e) {
-      // Ignore error and try fallback
-      console.warn(`[getTournament] Direct fetch threw for ${id}, falling back to list.`, e)
+      console.warn(`[getTournament] Direct fetch threw for ${id}`, e)
     }
 
-    // Fallback: Fetch all and find by ID
     console.log(`[getTournament] Fallback: Fetching all tournaments...`)
     const res = await this.getAllTournaments()
-    if (!res.success) {
-      console.error(`[getTournament] Fallback fetch failed.`, res.error)
-      return res
-    }
+    // getAllTournaments now returns normalized data
+    if (!res.success) return res
 
     const payload: any = res.data || []
     const list = Array.isArray(payload)
       ? payload
       : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
-    console.log(`[getTournament] Fallback: Found ${list.length} tournaments. Searching for ${id}...`)
 
     const match = list.find((t: any) => t.id === id || t._id === id)
 
     if (match) {
-      console.log(`[getTournament] Fallback: Match found for ${id}`)
-      return { success: true, data: match }
+      return { success: true, data: match } // Already normalized by getAllTournaments
     }
 
-    console.warn(`[getTournament] Fallback: No match found for ${id}`)
     return { success: false, error: "Tournament not found" }
   }
 
   async findTournamentByInviteCode(inviteCode: string): Promise<ApiResponse<any>> {
     const res = await this.getAllTournaments()
     if (!res.success) return res
-    const payload: any = res.data || []
-    const tournaments: any[] = Array.isArray(payload)
-      ? payload
-      : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
+    // res.data is already normalized
+    const tournaments: any[] = res.data || []
+
     const match = tournaments.find((t: any) => {
-      const code = (t?.inviteCode || t?.invite_code || "").toString().toLowerCase()
+      const code = (t?.inviteCode || "").toString().toLowerCase()
       return code === inviteCode.toLowerCase()
     })
     if (match) {
       return {
         success: true,
-        data: { ...match, id: match.id || match._id },
+        data: match,
       }
     }
     return {
@@ -567,11 +571,14 @@ class ApiClient {
   }
 
   // Payment / Payout methods
-  async verifyTournamentPayouts(tournamentId: string): Promise<ApiResponse<any>> {
-    // The backend exposes /distribute/{tournamentId} which returns payouts summary and status
+  async distributePayouts(
+    tournamentId: string,
+    winners: { first: string; second?: string; third?: string }
+  ): Promise<ApiResponse<any>> {
+    // The backend exposes /distribute/{tournamentId} which calculates and transfers payouts
     return this.request(`/distribute/${tournamentId}`, {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({ winners }),
     })
   }
 

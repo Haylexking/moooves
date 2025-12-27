@@ -44,6 +44,27 @@ export default function JoinTournamentPage() {
     fetchTournament()
   }, [inviteCode])
 
+  const [showManualVerify, setShowManualVerify] = useState(false)
+  const [manualTxId, setManualTxId] = useState("")
+  const handleManualVerify = async (txId: string) => {
+    if (!user || !txId) return
+    setLoading(true)
+    try {
+      const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+      if (!ver.success) throw new Error(ver.error || "Verification failed")
+
+      const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
+      if (!join.success) throw new Error(join.error || "Failed to join tournament")
+
+      toast({ title: "Success", description: "Payment verified! You have joined." })
+      router.push(`/tournaments/${tournament?.id}`)
+    } catch (e: any) {
+      toast({ title: "Verification Failed", description: e.message, variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleJoin = async () => {
     if (!user || !tournament) return
 
@@ -213,6 +234,44 @@ export default function JoinTournamentPage() {
           >
             Cancel
           </button>
+
+          <div className="pt-4 border-t border-gray-800 mt-4">
+            {!showManualVerify ? (
+              <button
+                type="button"
+                onClick={() => setShowManualVerify(true)}
+                className="w-full text-center text-xs text-green-500/80 hover:text-green-400 underline"
+              >
+                I&apos;ve already paid, but wasn&apos;t joined
+              </button>
+            ) : (
+              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 space-y-3">
+                <p className="text-sm font-semibold text-gray-300">Manual Verification</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Transaction ID / Ref"
+                    className="flex-1 px-3 py-2 text-sm bg-gray-900 border border-gray-700 rounded text-white"
+                    value={manualTxId}
+                    onChange={(e) => setManualTxId(e.target.value)}
+                  />
+                  <GameButton
+                    onClick={() => handleManualVerify(manualTxId)}
+                    disabled={loading || !manualTxId}
+                    className="py-1 px-3 text-sm h-auto"
+                  >
+                    Verify
+                  </GameButton>
+                </div>
+                <button
+                  onClick={() => setShowManualVerify(false)}
+                  className="text-xs text-gray-500 hover:text-gray-400 w-full text-center mt-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>

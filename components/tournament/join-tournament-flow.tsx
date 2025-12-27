@@ -9,6 +9,7 @@ import { useState, useEffect } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
 import { useRouter, useSearchParams } from "next/navigation"
+import { toast } from "@/hooks/use-toast"
 
 interface JoinTournamentFlowProps {
   tournament: Tournament;
@@ -24,6 +25,35 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
   const searchParams = useSearchParams()
 
   // Handle return from payment gateway
+  const [showManualVerify, setShowManualVerify] = useState(false)
+  const [manualTxId, setManualTxId] = useState("")
+
+  const handleManualVerify = async (txId: string) => {
+    if (!user || !txId) return
+    setLoading(true)
+    setError(null)
+    try {
+      // Verify
+      const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+      if (!ver.success) throw new Error(ver.error || "Verification failed. Please check the ID.")
+
+      // Join
+      const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
+      if (!join.success) throw new Error(join.error || "Failed to join tournament")
+
+      setTicket({
+        reference: txId,
+        joinedAt: new Date().toISOString()
+      })
+      try { await refreshUser() } catch { }
+      toast({ title: "Success", description: "Payment verified! You have joined." })
+    } catch (e: any) {
+      setError(e.message || "Failed to verify transaction")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useState(() => {
     const checkPaymentReturn = async () => {
       const pendingJoin = localStorage.getItem("pending_tournament_join")
@@ -86,6 +116,15 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
       const txId = searchParams.get("transaction_id") || searchParams.get("tx_ref") || searchParams.get("reference")
       if (!txId) return
 
+      // Logic: If user is logged out, we must stop here and ask them to log in.
+      // We shouldn't try verifyWalletTransaction because we might lose the "ticket" if it fails due to auth.
+      // Or if verify works but join fails, we're stuck.
+      if (!user) {
+        setLoading(false)
+        console.log("User session lost on return. Waiting for login.")
+        return
+      }
+
       try {
         const { tournamentId: pendingId, inviteCode: pendingCode } = JSON.parse(pendingJoin)
         if (pendingId !== tournament.id) return
@@ -96,21 +135,22 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
         if (!ver.success) throw new Error(ver.error || "Payment verification failed")
 
         // Join
-        if (user?.id) {
-          const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
-          if (!join.success) throw new Error(join.error || "Failed to join tournament")
+        const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
+        if (!join.success) throw new Error(join.error || "Failed to join tournament")
 
-          setTicket({
-            reference: txId,
-            joinedAt: new Date().toISOString()
-          })
-          try { await refreshUser() } catch { }
-        }
+        setTicket({
+          reference: txId,
+          joinedAt: new Date().toISOString()
+        })
+        try { await refreshUser() } catch { }
 
         localStorage.removeItem("pending_tournament_join")
         router.replace(window.location.pathname)
       } catch (e: any) {
         setError(e.message || "Payment verification failed")
+        // Only remove pending join if it was a critical failure (like invalid code or already joined), 
+        // but if it was network/auth, maybe keep it? 
+        // For now, we clear it to prevent loops, unless it was "User session required" (which we caught above).
         localStorage.removeItem("pending_tournament_join")
       } finally {
         setLoading(false)
@@ -256,6 +296,31 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
     )
   }
 
+  // If we have a pending payment return but no user session
+  if (searchParams.get("transaction_id") && !user && !ticket) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-2 border-yellow-500 shadow-xl">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+              <Users className="w-8 h-8 text-yellow-600" />
+            </div>
+            <CardTitle className="text-2xl">Login Required</CardTitle>
+            <p className="text-gray-600">We verified your payment start, but need you to log in to complete the registration.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
+              className="w-full py-4 text-lg"
+              onClick={() => router.push(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
+            >
+              Log In to Finish
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -338,6 +403,53 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
           <p className="text-xs text-gray-500 text-center">
             By joining, you agree to pay the entry fee and tournament rules.
           </p>
+          <div className="pt-2">
+            {!showManualVerify ? (
+              <button
+                type="button"
+                onClick={() => setShowManualVerify(true)}
+                className="w-full text-center text-sm text-green-600 hover:text-green-700 underline"
+              >
+                I&apos;ve already paid, but wasn&apos;t joined
+              </button>
+            ) : (
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
+                <p className="text-sm font-semibold text-gray-700">Manual Verification</p>
+                <p className="text-xs text-gray-500">
+                  Enter the Transaction Reference from your bank/email receipt (e.g. numbers or FLW-...)
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Transaction Ref / ID"
+                    className="flex-1 px-3 py-2 text-sm border rounded"
+                    value={manualTxId}
+                    onChange={(e) => setManualTxId(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!manualTxId) return
+                      // Trigger verification logic manually
+                      const fakeParams = new URLSearchParams()
+                      fakeParams.set("transaction_id", manualTxId)
+                      // We can't easily injection into the existing hook, so we'll make a dedicated handler
+                      handleManualVerify(manualTxId)
+                    }}
+                    disabled={loading || !manualTxId}
+                  >
+                    Verify
+                  </Button>
+                </div>
+                <button
+                  onClick={() => setShowManualVerify(false)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
