@@ -12,7 +12,7 @@ import { StartGameModal } from "../ui/start-game-modal"
 import { GameResultModal } from "./game-result-modal"
 import { useGameRules } from "./GameRulesProvider"
 import { cn } from "@/lib/utils"
-import { Clock, RotateCcw, BookOpen, User, Trophy } from "lucide-react"
+import { Clock, RotateCcw, BookOpen, User, Trophy, Copy } from "lucide-react"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRouter } from "next/navigation"
@@ -321,23 +321,35 @@ export function BattleGround({
 
   // Opponent Waiting Logic (Tournament)
   useEffect(() => {
-    if (localMode === "tournament" && (!matchRoom.participants || matchRoom.participants.length < 2)) {
+    if (localMode === "tournament" && matchId && (!matchRoom.participants || matchRoom.participants.length < 2)) {
       setWaitingForOpponent(true)
+
+      // Poll for opponent join
+      const pollTimer = setInterval(() => {
+        matchRoom.getRoomDetails(matchId).catch(() => { })
+      }, 2000)
+
+      // Countdown timer for auto-win
       const timer = setInterval(() => {
         setWaitingTimer((prev) => {
           if (prev <= 1) {
             clearInterval(timer)
+            clearInterval(pollTimer)
             setWinByDefault(true)
             return 0
           }
           return prev - 1
         })
       }, 1000)
-      return () => clearInterval(timer)
+
+      return () => {
+        clearInterval(timer)
+        clearInterval(pollTimer)
+      }
     } else {
       setWaitingForOpponent(false)
     }
-  }, [localMode, matchRoom.participants])
+  }, [localMode, matchRoom.participants, matchId])
 
   // Handle Win By Default
   useEffect(() => {
@@ -474,7 +486,23 @@ export function BattleGround({
               <User className="w-16 h-16 text-gray-500 mx-auto" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Waiting for Opponent</h2>
-            <p className="text-gray-400 mb-6">Your opponent has 15 minutes to join the match.</p>
+
+            {matchRoom.roomCode && (
+              <div className="bg-green-900/40 border border-green-500/50 rounded-lg p-3 my-4 flex items-center justify-between gap-3 group cursor-pointer hover:bg-green-900/60 transition-colors"
+                onClick={() => {
+                  navigator.clipboard.writeText(matchRoom.roomCode!)
+                  toast({ description: "Code copied!" })
+                }}
+              >
+                <div className="flex flex-col items-start">
+                  <span className="text-xs text-green-400 uppercase tracking-widest font-bold">Match Code</span>
+                  <span className="text-2xl font-mono mobile-font-fix text-white tracking-widest">{matchRoom.roomCode}</span>
+                </div>
+                <Copy className="w-5 h-5 text-green-400 opacity-70 group-hover:opacity-100" />
+              </div>
+            )}
+
+            <p className="text-gray-400 mb-6">Your opponent has until the timer runs out to join.</p>
             <div className="bg-black/40 rounded-lg p-4 border border-gray-800 mb-6">
               <div className="text-sm text-gray-500 uppercase tracking-widest mb-1">Time Remaining</div>
               <div className={`text-3xl font-mono font-bold ${waitingTimer < 60 ? "text-red-500" : "text-green-400"}`}>

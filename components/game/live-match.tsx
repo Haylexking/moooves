@@ -62,8 +62,12 @@ export function LiveMatch() {
             if (res.success && res.data) {
                 // Swagger: { roomId, matchCode }
                 setMatchCode(res.data.matchCode || res.data.roomCode)
-                setActiveMatchId(res.data.roomId || res.data.matchId || res.data.id)
-                setView("create")
+                const newMatchId = res.data.roomId || res.data.matchId || res.data.id
+                setActiveMatchId(newMatchId)
+                if (newMatchId) {
+                    router.push(`/game?live=true&id=${newMatchId}`)
+                }
+                // setView("create") // No longer showing manual create view, going straight to lobby
             } else {
                 toast({ title: "Error", description: res.error, variant: "destructive" })
             }

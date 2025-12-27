@@ -161,6 +161,7 @@ export function useMatchRoom(initialMatchId?: string) {
         ...prev,
         participants: response.data.participants || [],
         matchState: response.data.match,
+        roomCode: response.data.match?.roomCode || response.data.roomCode || prev.roomCode,
       }))
 
       return response.data
