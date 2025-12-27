@@ -371,6 +371,13 @@ export function BattleGround({
     if (serverAuthoritative && pendingMove) return
 
     // Optimistic update: Apply move locally immediately
+    // BUT only if it is my turn (in online modes)
+    if (serverAuthoritative && matchRoom.participants && user?.id) {
+      const myIndex = matchRoom.participants.indexOf(user.id)
+      const myRole = myIndex === 0 ? 'X' : myIndex === 1 ? 'O' : null
+      if (myRole && currentPlayer !== myRole) return
+    }
+
     makeMove(row, col)
     onMoveMade?.(row, col, currentPlayer)
 

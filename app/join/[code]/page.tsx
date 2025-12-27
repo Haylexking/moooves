@@ -234,15 +234,17 @@ export default function JoinTournamentPage() {
           <GameButton
             onClick={handleJoin}
             disabled={joining}
-            className="w-full py-4 text-lg"
+            className="w-full py-4 text-lg h-auto whitespace-normal leading-tight min-h-[3.5rem]"
             variant="default"
           >
             {joining ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" /> Processing...
+              <span className="flex items-center gap-2 justify-center">
+                <Loader2 className="w-5 h-5 animate-spin shrink-0" /> <span className="text-sm sm:text-lg">Processing...</span>
               </span>
             ) : (
-              `Join Tournament ${tournament.entryFee > 0 ? `(Pay ₦${tournament.entryFee})` : ""}`
+              <span className="text-sm sm:text-lg">
+                Join Tournament {tournament.entryFee > 0 ? <span className="block sm:inline whitespace-nowrap">(Pay ₦{tournament.entryFee.toLocaleString()})</span> : ""}
+              </span>
             )}
           </GameButton>
 
@@ -265,18 +267,18 @@ export default function JoinTournamentPage() {
             ) : (
               <div className="bg-black/40 p-3 rounded-lg border border-gray-800 space-y-3">
                 <p className="text-sm font-semibold text-gray-300">Manual Verification</p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     placeholder="Transaction ID / Ref"
-                    className="flex-1 px-3 py-2 text-sm bg-gray-900 border border-gray-700 rounded text-white"
+                    className="flex-1 px-3 py-3 sm:py-2 text-sm bg-gray-900 border border-gray-700 rounded text-white w-full"
                     value={manualTxId}
                     onChange={(e) => setManualTxId(e.target.value)}
                   />
                   <GameButton
                     onClick={() => handleManualVerify(manualTxId)}
                     disabled={loading || !manualTxId}
-                    className="py-1 px-3 text-sm h-auto"
+                    className="py-2 sm:py-1 px-3 text-sm h-auto w-full sm:w-auto shrink-0"
                   >
                     Verify
                   </GameButton>

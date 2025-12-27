@@ -21,95 +21,42 @@ export function LiveMatch() {
     // Create State
     const [matchCode, setMatchCode] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
-    const [waiting, setWaiting] = useState(false)
 
     // Join State
     const [joinCode, setJoinCode] = useState("")
     const [error, setError] = useState<string | null>(null)
 
+    const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
+
     // Polling for opponent when hosting
     useEffect(() => {
-        let interval: NodeJS.Timeout
-        if (waiting && matchCode) {
-            interval = setInterval(async () => {
-                // Poll backend to check if someone joined
-                // For now, we reuse getMatchRoom logic or expect a push update
-                // Since we don't have the matchID readily exposed in this simple view, 
-                // we'd typically return it from createLiveMatch.
-            }, 3000)
-        }
+        if (!activeMatchId) return
+
+        const interval = setInterval(async () => {
+            try {
+                const res = await apiClient.getMatchRoom(activeMatchId)
+                if (res.success && res.data) {
+                    // Check if opponent joined (participants > 1) or status is active
+                    const parts = res.data.participants || []
+                    const matchStatus = res.data.match?.status
+
+                    if (parts.length > 1 || matchStatus === 'active') {
+                        clearInterval(interval)
+                        router.push(`/game?live=true&id=${activeMatchId}`)
+                    }
+                }
+            } catch (e) {
+                console.error("Polling error:", e)
+            }
+        }, 3000)
+
         return () => clearInterval(interval)
-    }, [waiting, matchCode])
+    }, [activeMatchId, router])
 
     const handleCreate = async () => {
         if (!user) return
         setLoading(true)
         setError(null)
-        try {
-            const res = await apiClient.createLiveMatch(user.id)
-            if (res.success && res.data) {
-                setMatchCode(res.data.roomCode)
-                setWaiting(true)
-                setView("create")
-
-                // Start polling logic here or use a hook that takes the matchId
-                const matchId = res.data.matchId
-                if (matchId) {
-                    pollForJoin(matchId)
-                }
-            } else {
-                setError(res.error || "Failed to create match")
-            }
-        } catch (err) {
-            setError("Connection failed")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const pollForJoin = (matchId: string) => {
-        const interval = setInterval(async () => {
-            try {
-                const res = await apiClient.getMatchRoom(matchId)
-                if (res.success && res.data) {
-                    // If we have 2 participants or status is active
-                    const parts = res.data.participants || []
-                    if (parts.length > 1 || res.data.match?.status === 'active') {
-                        clearInterval(interval)
-                        router.push(`/game?live=true&id=${matchId}`)
-                    }
-                }
-            } catch (e) { }
-        }, 2000)
-
-        // Cleanup interval on unmount handled by useEffect usually, 
-        // but here we just let it run until redirect.
-        // Ideally this should be in a useEffect dependent on matchId state.
-    }
-
-    // Effect to handle polling via state to be cleaner
-    const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
-    useEffect(() => {
-        if (!activeMatchId) return
-        const interval = setInterval(async () => {
-            try {
-                const res = await apiClient.getMatchRoom(activeMatchId)
-                if (res.success && res.data) {
-                    const parts = res.data.participants || []
-                    if (parts.length > 1 || res.data.match?.status === 'active') {
-                        router.push(`/game?live=true&id=${activeMatchId}`)
-                    }
-                }
-            } catch (e) { }
-        }, 2000)
-        return () => clearInterval(interval)
-    }, [activeMatchId, router])
-
-
-    // Updated create handler to use state
-    const handleCreate2 = async () => {
-        if (!user) return
-        setLoading(true)
         try {
             const res = await apiClient.createLiveMatch(user.id)
             if (res.success && res.data) {
@@ -163,7 +110,7 @@ export function LiveMatch() {
     if (view === "menu") {
         return (
             <div className="flex flex-col gap-4 w-full max-w-sm">
-                <GameButton onClick={handleCreate2} disabled={loading} className="w-full py-6 text-lg">
+                <GameButton onClick={handleCreate} disabled={loading} className="w-full py-6 text-lg">
                     {loading ? <Loader2 className="animate-spin mr-2" /> : null}
                     Create Match
                 </GameButton>

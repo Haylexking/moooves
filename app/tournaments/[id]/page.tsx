@@ -8,7 +8,7 @@ import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { Button } from "@/components/ui/button"
-import { Trophy, HelpCircle, Calendar, Users, Play, CalendarClock, Swords } from "lucide-react"
+import { Trophy, HelpCircle, Calendar, Users, Play, CalendarClock, Swords, ArrowLeft } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { TournamentBracket } from "@/components/tournament/tournament-bracket"
 import { TournamentFAQModal } from "@/components/tournament/tournament-faq-modal"
@@ -159,6 +159,16 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                 <Trophy className="w-64 h-64 text-green-500" />
                             </div>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-4 right-16 text-white/50 hover:text-white hover:bg-white/10 z-20"
+                                onClick={() => router.push('/dashboard')}
+                                title="Leave Lobby"
+                            >
+                                <ArrowLeft className="w-6 h-6" />
+                            </Button>
 
                             <Button
                                 variant="ghost"

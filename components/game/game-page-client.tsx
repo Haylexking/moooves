@@ -11,14 +11,15 @@ import { useRouter } from 'next/navigation'
 
 export default function GamePageClient() {
   const searchParams = useSearchParams()
-  const mode = searchParams?.get('mode') || undefined
+  const isLive = searchParams?.get('live') === 'true'
+  const matchId = searchParams?.get('id') || undefined
 
   let localMode: 'ai' | 'p2p' | 'tournament' | undefined = undefined
   if (mode === 'ai') {
     localMode = 'ai'
   } else if (mode === 'p2p') {
     localMode = 'p2p'
-  } else if (mode === 'tournament') {
+  } else if (mode === 'tournament' || isLive) {
     localMode = 'tournament'
   }
 
@@ -55,7 +56,7 @@ export default function GamePageClient() {
 
   return (
     <ProtectedRoute>
-      <BattleGround gameMode="player-vs-player" localMode={localMode as any} />
+      <BattleGround gameMode="player-vs-player" localMode={localMode as any} matchId={matchId} />
       <GameResultModal
         open={gameStatus === "completed"}
         onClose={handleBackToMenu}
