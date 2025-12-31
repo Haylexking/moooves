@@ -150,9 +150,15 @@ export const useGameStore = create<GameStore>()(
           // OR a flat object depending on the endpoint. We prioritize nested 'gameState'.
           const data = match.gameState || match
 
+          console.log("[GameStore] Applying Server State. Data source keys:", Object.keys(data), "CurrentTurn in Data:", data.currentTurn, "CurrentTurn in Match:", match.currentTurn)
+
           // Board
           if (data.board) {
-            set({ board: data.board })
+            // Normalize board: ensure empty strings are null
+            const normalizedBoard = data.board.map((row: any[]) =>
+              row.map((cell: any) => (cell === "" ? null : cell))
+            )
+            set({ board: normalizedBoard })
           }
 
           // Scores
@@ -182,16 +188,27 @@ export const useGameStore = create<GameStore>()(
             set({ moveHistory: data.moveHistory })
           }
 
-          // Current player (might be in top-level match or gameState)
-          if (data.currentTurn || match.currentTurn) {
-            set({ currentPlayer: data.currentTurn || match.currentTurn })
+          // Current player (Map UserID to X/O)
+          const turnId = data.currentTurn || match.currentTurn
+          if (turnId) {
+            if (turnId === match.player1) {
+              set({ currentPlayer: "X" })
+            } else if (turnId === match.player2) {
+              set({ currentPlayer: "O" })
+            } else if (turnId === "X" || turnId === "O") {
+              // Fallback if API actually sends "X"/"O"
+              set({ currentPlayer: turnId })
+            }
           } else if (data.currentPlayer) {
+            // Fallback for older API format
             set({ currentPlayer: data.currentPlayer })
           }
 
           // Game status (usually top-level)
           if (match.status) {
-            set({ gameStatus: match.status })
+            let status = match.status
+            if (status === 'ongoing') status = 'playing'
+            set({ gameStatus: status })
           }
         } catch (error) {
           // Use structured debug logger

@@ -28,6 +28,10 @@ export function useGameTimer(initialTime: number) {
     }
   }, [initialTime])
 
+  const setTime = useCallback((time: number) => {
+    setTimeLeft(time)
+  }, [])
+
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -58,6 +62,7 @@ export function useGameTimer(initialTime: number) {
     isRunning,
     startTimer,
     stopTimer,
+    setTime,
     resetTimer,
   }
 }

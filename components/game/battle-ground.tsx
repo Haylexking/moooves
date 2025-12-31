@@ -12,7 +12,7 @@ import { StartGameModal } from "../ui/start-game-modal"
 import { GameResultModal } from "./game-result-modal"
 import { useGameRules } from "./GameRulesProvider"
 import { cn } from "@/lib/utils"
-import { Clock, RotateCcw, BookOpen, User, Trophy, Copy } from "lucide-react"
+import { Clock, RotateCcw, BookOpen, User, Trophy, Copy, LogOut } from "lucide-react"
 import { useGameTimer } from "@/lib/hooks/use-game-timer"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRouter } from "next/navigation"
@@ -188,7 +188,7 @@ export function BattleGround({
   }, [])
 
   // Timer logic
-  const { timeLeft, startTimer, stopTimer, resetTimer } = useGameTimer(600)
+  const { timeLeft, startTimer, stopTimer, resetTimer, setTime } = useGameTimer(600)
 
   // Handle Timer Expiry
   useEffect(() => {
@@ -249,15 +249,21 @@ export function BattleGround({
             const serverMatch = (details && details.match) ? details.match : details
 
             if (serverMatch) {
-              console.log("[BattleGround] Server State:", {
-                status: serverMatch.status,
-                turn: serverMatch.currentTurn,
-                player1: serverMatch.player1,
-                player2: serverMatch.player2,
-                gameStateTurn: serverMatch.gameState?.currentTurn
-              })
+              if (serverMatch) {
+                // Sync Timer if possible
+                if (serverMatch.createdAt && gameStatus === 'playing') {
+                  const elapsed = Math.floor((Date.now() - new Date(serverMatch.createdAt).getTime()) / 1000)
+                  const totalTime = 600 // 10 mins default
+                  const remaining = Math.max(0, totalTime - elapsed)
+                  // Only sync if significant drift (> 3s)
+                  if (Math.abs(timeLeft - remaining) > 3) {
+                    setTime(remaining)
+                  }
+                }
 
-              useGameStore.getState().applyServerMatchState?.(serverMatch)
+                // Apply Match State
+                useGameStore.getState().applyServerMatchState?.(serverMatch)
+              }
             }
           } catch (e) {
             console.error("Polling error:", e)
@@ -301,6 +307,40 @@ export function BattleGround({
       initializeGame("p2p")
     }
   }
+
+  // Handle Quit
+  const handleQuit = async () => {
+    // Confirmation
+    if (isOnlineMode && gameStatus === 'playing') {
+      if (!window.confirm("Are you sure you want to quit? You will forfeit the match.")) return
+
+      if (matchId && user?.id) {
+        toast({ title: "Resigning...", description: "Submitting result." })
+        // Try to find opponent ID to declare them winner
+        const opponentId = matchRoom.participants.find(p => p !== user.id)
+        if (opponentId) {
+          await apiClient.submitMatchResult(matchId, opponentId)
+        } else {
+          // Fallback
+          await apiClient.deleteMatchRoom(matchId)
+        }
+      }
+    }
+    router.push("/dashboard")
+  }
+
+  // Protect against accidental navigation/refresh
+  useEffect(() => {
+    if (isOnlineMode && gameStatus === 'playing') {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+      window.addEventListener('beforeunload', handleBeforeUnload)
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [isOnlineMode, gameStatus])
 
   // State to hold fetched names
 
@@ -631,7 +671,10 @@ export function BattleGround({
       <GlobalSidebar showTrigger={false} />
       <TopNavigation username={displayUsername} />
 
-      {/* Floating Controls (Timer, Rules, Restart) - Draggable */}
+      <GlobalSidebar showTrigger={false} />
+      <TopNavigation username={displayUsername} />
+
+      {/* Floating Controls (Timer, Rules, Restart, Quit) - Draggable */}
       <div
         ref={controlsRef}
         className="fixed flex flex-col gap-3 z-40 touch-none cursor-move active:scale-95 transition-transform"
@@ -675,6 +718,16 @@ export function BattleGround({
           >
             <RotateCcw className="w-5 h-5 lg:w-6 lg:h-6 mb-0.5" />
             <span className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider">Restart</span>
+          </button>
+
+          {/* Quit Button */}
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={handleQuit}
+            className="flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
+          >
+            <LogOut className="w-5 h-5 lg:w-6 lg:h-6 mb-0.5" />
+            <span className="text-[8px] lg:text-[10px] font-bold uppercase tracking-wider">Quit</span>
           </button>
         </div>
       </div>
