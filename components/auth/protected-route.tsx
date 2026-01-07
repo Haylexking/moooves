@@ -40,8 +40,9 @@ export function ProtectedRoute({ children, redirectTo = "/onboarding", allowUnve
     }
   }, [rehydrated, isAuthenticated])
 
-  // If the persisted store hasn't rehydrated, show a splash to avoid blank screens
-  if (!rehydrated || isLoading) {
+  // If the persisted store hasn't rehydrated, or we are loading initial auth state, show splash.
+  // We do NOT show splash if we are already authenticated and just refreshing in bg.
+  if (!rehydrated || (isLoading && !isAuthenticated)) {
     return <SplashScreen progress={0.5} />
   }
 

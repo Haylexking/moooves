@@ -21,7 +21,7 @@ type GameStore = GameBoardSlice &
     cursorPosition: [number, number] | null
     setCursorPosition: (pos: [number, number] | null) => void
     moveCursor: (dr: number, dc: number) => void
-    winner: "X" | "O" | null
+    winner: "X" | "O" | "draw" | null
     serverAuthoritative?: boolean
     setServerAuthoritative: (enabled: boolean) => void
     applyServerMatchState?: (match: any) => void
@@ -150,10 +150,33 @@ export const useGameStore = create<GameStore>()(
           // OR a flat object depending on the endpoint. We prioritize nested 'gameState'.
           const data = match.gameState || match
 
-          console.log("[GameStore] Applying Server State. Data source keys:", Object.keys(data), "CurrentTurn in Data:", data.currentTurn, "CurrentTurn in Match:", match.currentTurn)
+          // Prevent overwriting local optimistic updates with stale server data
+          // ONLY if we are strictly playing and NOT resyncing from an error
+          const currentMoves = get().moveHistory.length
+          const serverMoves = data.movesMade
+
+          // If server is behind local, ignore (stale poll)
+          if (typeof serverMoves === 'number' && typeof currentMoves === 'number') {
+            if (serverMoves < currentMoves) {
+              return
+            }
+          }
+
+          // Proceed to apply state...
+          console.log("[GameStore] Syncing State. Moves:", serverMoves)
+          console.log("[GameStore] Server Scores:", data.scores)
+
 
           // Board
           if (data.board) {
+            // Count symbols for debug
+            let xCount = 0, oCount = 0
+            data.board.forEach((row: any[]) => row.forEach((c: any) => {
+              if (c === 'X') xCount++
+              if (c === 'O') oCount++
+            }))
+            console.log(`[GameStore] Board Update: X=${xCount}, O=${oCount}`)
+
             // Normalize board: ensure empty strings are null
             const normalizedBoard = data.board.map((row: any[]) =>
               row.map((cell: any) => (cell === "" ? null : cell))
@@ -162,8 +185,12 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Scores
-          if (data.scores) {
+          if (typeof data.scores === 'object' && data.scores) {
+            console.log("[GameStore] Updating Scores:", data.scores)
             set({ scores: data.scores })
+          } else if (match.scores) {
+            console.log("[GameStore] Updating Scores (fallback):", match.scores)
+            set({ scores: match.scores })
           }
 
           // usedPositions (array of "r,c")
@@ -183,9 +210,11 @@ export const useGameStore = create<GameStore>()(
             set({ usedSequences: parsed })
           }
 
-          // Move history
+          // Move history (Map 'moves' from server to 'moveHistory')
           if (data.moveHistory) {
             set({ moveHistory: data.moveHistory })
+          } else if (data.moves) {
+            set({ moveHistory: data.moves })
           }
 
           // Current player (Map UserID to X/O)
@@ -202,6 +231,14 @@ export const useGameStore = create<GameStore>()(
           } else if (data.currentPlayer) {
             // Fallback for older API format
             set({ currentPlayer: data.currentPlayer })
+          }
+
+          // Winner Sync
+          if (match.winner === 'draw' || data.winner === 'draw') {
+            set({ winner: 'draw' })
+          } else if (match.winner) {
+            if (match.winner === match.player1) set({ winner: 'X' })
+            else if (match.winner === match.player2) set({ winner: 'O' })
           }
 
           // Game status (usually top-level)
@@ -232,12 +269,12 @@ export const useGameStore = create<GameStore>()(
 
       getGameResult: (): GameResult => {
         const state = get();
-        const winner = state.getWinner();
-        const isDraw = state.isDraw();
+        const winner = state.winner; // Now can be "draw"
+        const isDraw = winner === "draw" || state.isDraw();
         const gameDuration = state.gameStartTime ? Date.now() - state.gameStartTime : 0;
 
         return {
-          winnerId: winner === null ? undefined : winner,
+          winnerId: (winner === "X" || winner === "O") ? winner : undefined,
           player1Score: state.scores.X,
           player2Score: state.scores.O,
           isDraw,

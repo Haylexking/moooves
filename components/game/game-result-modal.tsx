@@ -66,7 +66,6 @@ export function GameResultModal({
       onPlayAgain()
     } else {
       // Fallback: go back to dashboard
-      const router = useRouter()
       router.push('/dashboard')
     }
     onClose()

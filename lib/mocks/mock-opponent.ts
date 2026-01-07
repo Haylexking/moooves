@@ -70,9 +70,14 @@ export function mockOpponentMove(
     }
   }
 
-  // 6. Fallback: Random move (prefer center area)
-  const randomMove = getRandomMove(availableMoves)
-  return randomMove
+  // 6. Fallback: Random move (prefer center area), strictly observing forbidden spots
+  const safeRandomMoves = availableMoves.filter(([r, c]) => !forbidden.has(`${r},${c}`))
+  if (safeRandomMoves.length > 0) {
+    return getRandomMove(safeRandomMoves)
+  }
+
+  // Absolute last resort: just pick anything valid if everything is exhausted
+  return availableMoves[0] || null
 }
 
 function getAvailableMoves(board: GameBoard): Position[] {

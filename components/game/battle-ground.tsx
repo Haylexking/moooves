@@ -10,6 +10,7 @@ import { MobileControls } from "./mobile-controls"
 import { GameStartAlert } from "./game-start-alert"
 import { StartGameModal } from "../ui/start-game-modal"
 import { GameResultModal } from "./game-result-modal"
+import { QuitConfirmationModal } from "./quit-confirmation-modal"
 import { useGameRules } from "./GameRulesProvider"
 import { cn } from "@/lib/utils"
 import { Clock, RotateCcw, BookOpen, User, Trophy, Copy, LogOut } from "lucide-react"
@@ -249,27 +250,35 @@ export function BattleGround({
             const serverMatch = (details && details.match) ? details.match : details
 
             if (serverMatch) {
-              if (serverMatch) {
-                // Sync Timer if possible
-                if (serverMatch.createdAt && gameStatus === 'playing') {
-                  const elapsed = Math.floor((Date.now() - new Date(serverMatch.createdAt).getTime()) / 1000)
-                  const totalTime = 600 // 10 mins default
-                  const remaining = Math.max(0, totalTime - elapsed)
-                  // Only sync if significant drift (> 3s)
-                  if (Math.abs(timeLeft - remaining) > 3) {
-                    setTime(remaining)
-                  }
-                }
-
-                // Apply Match State
-                useGameStore.getState().applyServerMatchState?.(serverMatch)
+              if (serverMatch.status === 'completed' && gameStatus !== 'completed') {
+                console.log("[BattleGround] Synced Game Over from Server", serverMatch)
+                useGameStore.setState({
+                  gameStatus: 'completed',
+                  winner: serverMatch.winner === 'draw' ? 'draw' :
+                    (serverMatch.winner === matchRoom.participants[0] ? 'X' : 'O')
+                })
+                setResultModalOpen(true)
+                stopTimer()
               }
+              // Sync Timer if possible
+              if (serverMatch.createdAt && gameStatus === 'playing') {
+                const elapsed = Math.floor((Date.now() - new Date(serverMatch.createdAt).getTime()) / 1000)
+                const totalTime = 600 // 10 mins default
+                const remaining = Math.max(0, totalTime - elapsed)
+                // Only sync if significant drift (> 3s)
+                if (Math.abs(timeLeft - remaining) > 3) {
+                  setTime(remaining)
+                }
+              }
+
+              // Apply Match State
+              useGameStore.getState().applyServerMatchState?.(serverMatch)
             }
           } catch (e) {
             console.error("Polling error:", e)
           }
         }
-      }, 2000) // Poll every 2 seconds
+      }, 500) // Poll every 500ms for near-real-time feel
       return () => clearInterval(interval)
     }
   }, [localMode, matchId, currentPlayer, pendingMove, matchRoom, isOnlineMode])
@@ -308,39 +317,57 @@ export function BattleGround({
     }
   }
 
-  // Handle Quit
-  const handleQuit = async () => {
-    // Confirmation
-    if (isOnlineMode && gameStatus === 'playing') {
-      if (!window.confirm("Are you sure you want to quit? You will forfeit the match.")) return
+  const [showQuitModal, setShowQuitModal] = useState(false)
 
-      if (matchId && user?.id) {
-        toast({ title: "Resigning...", description: "Submitting result." })
-        // Try to find opponent ID to declare them winner
-        const opponentId = matchRoom.participants.find(p => p !== user.id)
-        if (opponentId) {
-          await apiClient.submitMatchResult(matchId, opponentId)
-        } else {
-          // Fallback
-          await apiClient.deleteMatchRoom(matchId)
-        }
+  // Trigger Modal
+  const handleQuitRequest = () => {
+    if (gameStatus === 'playing') {
+      setShowQuitModal(true)
+    } else {
+      router.push("/dashboard")
+    }
+  }
+
+  // Actual Action
+  const handleConfirmQuit = async () => {
+    setShowQuitModal(false)
+
+    if (isOnlineMode && matchId && user?.id) {
+      toast({ title: "Resigning...", description: "Submitting result." })
+      // Try to find opponent ID to declare them winner
+      const opponentId = matchRoom.participants.find(p => p !== user.id)
+      if (opponentId) {
+        await apiClient.submitMatchResult(matchId, opponentId)
+      } else {
+        // Fallback
+        await apiClient.deleteMatchRoom(matchId)
       }
     }
     router.push("/dashboard")
   }
 
-  // Protect against accidental navigation/refresh
+
+  // Protect against accidental navigation/refresh - GLOBALLY & Auto-Forfeit on Unmount
   useEffect(() => {
-    if (isOnlineMode && gameStatus === 'playing') {
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    // 1. Browser Native Protection (Refresh/Tab Close)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (gameStatus === 'playing') {
         e.preventDefault()
         e.returnValue = ''
         return ''
       }
-      window.addEventListener('beforeunload', handleBeforeUnload)
-      return () => window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [isOnlineMode, gameStatus])
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    // 2. Component Unmount / Navigation Protection
+    // 2. Component Unmount / Navigation Protection
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+
+      // REMOVED: Auto-forfeit on unmount caused immediate match deletion during React Strict Mode / Re-renders.
+      // We rely on the Quit button for clean exits.
+    }
+  }, [gameStatus, isOnlineMode, matchId, user?.id])
 
   // State to hold fetched names
 
@@ -497,9 +524,21 @@ export function BattleGround({
   }, [gameMode, currentPlayer, gameStatus, board, usedSequences, scores, makeMove])
 
   const executeMove = async (row: number, col: number) => {
-    if (board[row][col] !== null) return
-    if ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") return
-    if (serverAuthoritative && pendingMove) return
+    // Debug entry
+    console.log("[BattleGround] executeMove called:", { row, col, currentPlayer, gameMode, serverAuthoritative, pendingMove })
+
+    if (board[row][col] !== null) {
+      console.log("[BattleGround] Move rejected: Cell occupied")
+      return
+    }
+    if ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") {
+      console.log("[BattleGround] Move rejected: Not X turn in AI mode")
+      return
+    }
+    if (serverAuthoritative && pendingMove) {
+      console.log("[BattleGround] Move rejected: Move pending")
+      return
+    }
 
     // Optimistic update: Apply move locally immediately
     // BUT only if it is my turn (in online modes)
@@ -524,9 +563,19 @@ export function BattleGround({
         participants: matchRoom.participants
       })
 
+      // Safety to clear pendingMove if stuck
+      const safetyTimeout = setTimeout(() => {
+        if (useGameStore.getState().serverAuthoritative) { // Check current state to be safe
+          console.warn("[BattleGround] Pending move timeout - unlocking UI")
+          setPendingMove(false)
+        }
+      }, 5000)
+
       try {
         // Updated to match backend spec: pass symbol as 5th argument
         const res = await apiClient.makeGameMove(user?.id || "", row, col, matchId, currentPlayer)
+        clearTimeout(safetyTimeout)
+
         console.log("[BattleGround] Move response:", res)
         if (!res.success) {
           // Revert move on failure (simple reload or undo logic could be added here)
@@ -723,7 +772,7 @@ export function BattleGround({
           {/* Quit Button */}
           <button
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={handleQuit}
+            onClick={handleQuitRequest}
             className="flex flex-col items-center justify-center w-12 h-12 lg:w-16 lg:h-16 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
           >
             <LogOut className="w-5 h-5 lg:w-6 lg:h-6 mb-0.5" />
@@ -731,6 +780,12 @@ export function BattleGround({
           </button>
         </div>
       </div>
+
+      <QuitConfirmationModal
+        open={showQuitModal}
+        onOpenChange={setShowQuitModal}
+        onConfirm={handleConfirmQuit}
+      />
 
       <div className="pt-20 sm:pt-24 px-4 max-w-4xl mx-auto w-full flex flex-col gap-6">
         {/* Top Score Bar */}
@@ -768,9 +823,13 @@ export function BattleGround({
                       value={cell}
                       onClick={() => handleCellClick(rIndex, cIndex)}
                       disabled={
-                        ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") ||
-                        gameStatus !== "playing" ||
-                        (serverAuthoritative && pendingMove)
+                        (() => {
+                          const isDisabled = ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") ||
+                            gameStatus !== "playing" ||
+                            (serverAuthoritative && pendingMove)
+
+                          return isDisabled
+                        })()
                       }
                       isHighlighted={false}
                       isUsed={isUsed}

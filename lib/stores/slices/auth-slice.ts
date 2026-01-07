@@ -311,7 +311,9 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
       if (current.role === 'host' || current.canHost) {
         res = await apiClient.getHostById(current.id)
       } else {
-        res = await apiClient.getCurrentUser()
+        // Fix: /users/me returns 400 Bad Request (likely backend doesn't support 'me' alias).
+        // Since we have the ID, use getUserById directly.
+        res = await apiClient.getUserById(current.id)
       }
 
       if (res.success && res.data) {
@@ -332,12 +334,15 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
         }
         set({ user: updated, isLoading: false })
       } else {
-        // Only logout for explicit "User not found" (deleted account)
-        // Ignore "Invalid role" or "Invalid user ID" as they might just be endpoint mismatches
-        if (res.error && (
+        // Strict session validation: Logout on ANY auth failure or 404
+        // Use loose typing to check for status if available, otherwise check error text
+        const status = (res as any).status
+        if (status === 401 || status === 403 || (res.error && (
           res.error.toLowerCase().includes("not found") ||
-          res.error.includes("404")
-        )) {
+          res.error.includes("404") ||
+          res.error.toLowerCase().includes("unauthorized") ||
+          res.error.toLowerCase().includes("forbidden")
+        ))) {
           get().logout()
         }
         set({ isLoading: false })

@@ -183,13 +183,27 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
         (matchObj.player1._id === user.id)
       )
 
-      setState((prev) => ({
-        ...prev,
-        participants: parts,
-        matchState: matchObj,
-        roomCode: matchObj?.roomCode || response.data.roomCode || prev.roomCode,
-        isHost: !!isHost || prev.isHost, // Keep existing isHost if true (from create), otherwise calc
-      }))
+      setState((prev) => {
+        const newIsHost = !!isHost || prev.isHost
+        const newRoomCode = matchObj?.roomCode || response.data.roomCode || prev.roomCode
+        
+        // Simple optimization: Avoid re-render if deep state is identical
+        // We focus on the big objects: participants and matchState
+        const isMatchStateEqual = JSON.stringify(prev.matchState) === JSON.stringify(matchObj)
+        const isParticipantsEqual = JSON.stringify(prev.participants) === JSON.stringify(parts)
+        
+        if (isMatchStateEqual && isParticipantsEqual && prev.isHost === newIsHost && prev.roomCode === newRoomCode) {
+            return prev
+        }
+
+        return {
+            ...prev,
+            participants: parts,
+            matchState: matchObj,
+            roomCode: newRoomCode,
+            isHost: newIsHost,
+        }
+      })
 
       return response.data
     } catch (error) {

@@ -28,35 +28,54 @@ export function LiveMatch() {
     const [error, setError] = useState<string | null>(null)
 
     const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
+    const [isHost, setIsHost] = useState(false)
 
-    // Polling for opponent when hosting
+    // Polling for opponent when hosting OR waiting for host to start match
     useEffect(() => {
         if (!activeMatchId) return
 
         const interval = setInterval(async () => {
             try {
-                // If we are the host, we need to POLL to see if we can "create" the match (start it).
-                // The backend requires "Both players must join first" before /matches POST works.
-                // So we repeatedly try to create it.
-                // If it returns 201, we are good.
-                // If it returns 400 (waiting), we ignore.
-                // If invalid role/error, we log.
-
-                // Poll to create the match. This will fail (waiting) until opponent joins.
-                const res = await apiClient.create1v1Match(activeMatchId)
-                if (res.success) {
-                    clearInterval(interval)
-                    // The create response structure is { message, match: { _id, ... } }
-                    // We must access res.data.match._id to get the actual match ID.
-                    const finalMatchId = res.data?.match?._id || res.data?.match?.id || res.data?.matchId || res.data?._id || activeMatchId
-                    console.log("[LiveMatch] Match started! Redirecting to:", finalMatchId)
-                    router.push(`/game?live=true&id=${finalMatchId}&code=${matchCode || ''}`)
+                if (isHost) {
+                    // HOST LOGIC: Poll to create the match. This will fail (waiting) until opponent joins.
+                    const res = await apiClient.create1v1Match(activeMatchId)
+                    if (res.success) {
+                        clearInterval(interval)
+                        const finalMatchId = res.data?.match?._id || res.data?.match?.id || res.data?.matchId || res.data?._id || activeMatchId
+                        console.log("[LiveMatch] Match started (Host)! Redirecting to:", finalMatchId)
+                        router.push(`/game?live=true&id=${finalMatchId}&code=${matchCode || ''}`)
+                    } else {
+                        // console.log("[LiveMatch] Host Polling status:", res.error) 
+                    }
                 } else {
-                    console.log("[LiveMatch] Polling status:", res.error)
-                    // If the error is NOT "waiting for players", we should verify it breaks or continues
-                    if (res.error && !res.error.toLowerCase().includes("players")) {
-                        // It might be "Room not found" or something fatal
-                        console.error("Unexpected polling error:", res.error)
+                    // JOINER LOGIC: Poll via "List All Rooms" (GET /match-rooms)
+                    // This avoids 400 errors from direct ID lookups and 400 errors from re-joining.
+                    const res = await apiClient.getMatchRoomsList()
+
+                    if (res.success && Array.isArray(res.data)) {
+                        // Find our room in the list
+                        // The /matches endpoint returns Match objects, which contain 'matchRoomId'.
+                        const myRoom = res.data.find((r: any) =>
+                            (r.matchRoomId === activeMatchId) ||
+                            (r._id === activeMatchId) || (r.id === activeMatchId) ||
+                            (r.roomId === activeMatchId) ||
+                            (r.room && (r.room._id === activeMatchId || r.room.id === activeMatchId)) ||
+                            (r.code === matchCode) || (r.inviteCode === matchCode)
+                        )
+
+                        if (myRoom) {
+                            // Check for Match ID in the found room object
+                            // If myRoom is the Match object itself (which it is for /matches), the ID is _id
+                            const matchObj = myRoom.match || myRoom
+                            const finalMatchId = (matchObj._id || matchObj.id || matchObj.matchId)
+
+                            // If the match ID is valid and different from the room ID
+                            if (finalMatchId && finalMatchId !== activeMatchId) {
+                                clearInterval(interval)
+                                console.log("[LiveMatch] Match started (Joiner)! Redirecting to:", finalMatchId)
+                                router.push(`/game?live=true&id=${finalMatchId}&code=${matchCode || ''}`)
+                            }
+                        }
                     }
                 }
             } catch (e) {
@@ -65,7 +84,7 @@ export function LiveMatch() {
         }, 3000)
 
         return () => clearInterval(interval)
-    }, [activeMatchId, router])
+    }, [activeMatchId, router, isHost, matchCode])
 
     const handleCreate = async () => {
         if (!user) return
@@ -88,6 +107,7 @@ export function LiveMatch() {
 
                 setMatchCode(code)
                 setActiveMatchId(newMatchId)
+                setIsHost(true)
 
                 // Do NOT redirect yet. Wait for polling (create1v1Match) to succeed.
                 // This ensures the match exists in the /matches endpoint before we send the user there.
@@ -130,6 +150,7 @@ export function LiveMatch() {
                     console.log("[LiveMatch] Joined Room, switching to polling mode for Match ID...")
                     setMatchCode(joinCode) // Show the code they joined with
                     setActiveMatchId(roomId)
+                    setIsHost(false)
                     setView("create") // Show the "Waiting..." screen which triggers polling
                 } else {
                     setError("Invalid server response - No Room ID")

@@ -25,6 +25,11 @@ export default function GamePageClient() {
     localMode = 'p2p'
   } else if (mode === 'tournament' || isLive) {
     localMode = 'tournament'
+    // Prevent confusing state: if live but no ID, go back to dashboard
+    if (!matchId) {
+      if (typeof window !== 'undefined') window.location.href = '/dashboard'
+      return null
+    }
   }
 
   const { gameStatus, initializeGame, scores } = useGameStore();
@@ -38,7 +43,15 @@ export default function GamePageClient() {
     } else if (localMode === 'tournament') {
       useGameStore.setState({ serverAuthoritative: true })
     }
+
+    // Cleanup on unmount: Reset game state to prevent staying "stuck" in a game
+    // when navigating back or to another page.
+    return () => {
+      useGameStore.getState().resetGame()
+    }
   }, [localMode])
+
+  const router = useRouter()
 
   const handlePlayAgain = () => {
     // Restart a fresh timed game (local). If this page was tournament/server-authoritative, redirect to start menu.
@@ -46,8 +59,7 @@ export default function GamePageClient() {
       initializeGame("timed")
     } else {
       // Redirect to menu to choose mode
-      const r = useRouter()
-      r.push('/dashboard')
+      router.push('/dashboard')
     }
   };
 

@@ -433,6 +433,15 @@ class ApiClient {
     return this.request(MATCHROOM_ENDPOINTS.GET_BY_ID.replace(':id', roomId))
   }
 
+  // Explicitly get the "Room" (Lobby) state, distinct from the Match (Game) state
+  async getRoom(roomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/matchroom/${roomId}`)
+  }
+
+  async getMatchRoomsList(): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>(MATCHROOM_ENDPOINTS.LIST, { method: "GET" })
+  }
+
   async deleteMatchRoom(roomId: string): Promise<ApiResponse<any>> {
     return this.request(MATCHROOM_ENDPOINTS.DELETE.replace(':id', roomId), {
       method: "DELETE",
