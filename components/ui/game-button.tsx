@@ -1,12 +1,15 @@
 import React from "react"
 
+import { ChevronRight, Loader2 } from "lucide-react"
+
 interface GameButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode
   variant?: "default" | "pressed"
+  isLoading?: boolean
 }
 
 export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
-  ({ children, variant = "default", disabled, className, ...props }, ref) => {
+  ({ children, variant = "default", disabled, isLoading, className, ...props }, ref) => {
     // Default: MUCH DARKER Gray background with white text
     // Pressed: Green gradient background with white text (only during click)
     let bg = "bg-gradient-to-br from-[#4A5A4A] to-[#1A2A1A]" // Much darker grey gradient
@@ -31,7 +34,7 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
     return (
       <button
         ref={ref}
-        disabled={disabled}
+        disabled={disabled || isLoading}
         className={[
           "relative w-full h-12 sm:h-[52px] px-4 sm:px-8 flex items-center justify-center font-extrabold text-base sm:text-lg transition-all duration-150 active:scale-95 touch-manipulation",
           "rounded-[12px] outline-none focus:outline-none",
@@ -39,7 +42,7 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
           text,
           bg,
           shadow,
-          disabled
+          (disabled || isLoading)
             ? "opacity-60 cursor-not-allowed"
             : [
               // Hover state - GREEN GRADIENT with specified colors
@@ -59,7 +62,16 @@ export const GameButton = React.forwardRef<HTMLButtonElement, GameButtonProps>(
         }}
         {...props}
       >
-        <span className="relative z-10 w-full select-none whitespace-nowrap flex items-center justify-center gap-2">{children}</span>
+        <span className="relative z-10 w-full select-none whitespace-nowrap flex items-center justify-center gap-2">
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Loading...</span>
+            </>
+          ) : (
+            children
+          )}
+        </span>
       </button>
     )
   },

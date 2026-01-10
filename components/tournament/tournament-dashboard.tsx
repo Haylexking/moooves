@@ -442,6 +442,22 @@ export default function TournamentDashboard() {
                     </GameButton>
                   </div>
                 )}
+
+                {/* Metrics Section for Hosts */}
+                <div className="grid grid-cols-3 gap-2 border-t border-green-100 pt-3 mt-2">
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs uppercase text-gray-500">Players</p>
+                    <p className="font-semibold text-green-900">{selectedTournament.currentPlayers} / {selectedTournament.maxPlayers}</p>
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs uppercase text-gray-500">Entry Fee</p>
+                    <p className="font-semibold text-green-900">₦{(selectedTournament.entryFee || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs uppercase text-gray-500">Total Pool</p>
+                    <p className="font-semibold text-green-900">₦{(selectedTournament.totalPool || 0).toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
 
               {isHost && selectedTournament.status === "completed" && leaderboard.length > 0 && (

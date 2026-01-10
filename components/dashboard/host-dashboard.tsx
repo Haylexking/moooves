@@ -30,7 +30,8 @@ export function HostDashboard() {
 
   // Store already filters tournaments for us
   const hostedTournaments: Tournament[] = userTournaments as Tournament[]
-  const totalEarnings = 0 // TODO: Calculate from completed tournaments
+  // Calculate total volume (sum of all pools) instead of earnings
+  const totalVolume = hostedTournaments.reduce((sum, t) => sum + (t.totalPool || (t.currentPlayers * t.entryFee) || 0), 0)
 
   const hostName = user?.fullName || user?.email || "Host"
 
@@ -81,9 +82,9 @@ export function HostDashboard() {
           <Card className="bg-green-100/95 border border-green-600 shadow-sm">
             <CardContent className="p-3 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Earnings</p>
+                <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Total Pool</p>
                 <p className="text-lg font-bold text-green-900">
-                  ₦{totalEarnings.toLocaleString()}
+                  ₦{totalVolume.toLocaleString()}
                 </p>
               </div>
               <DollarSign className="w-5 h-5 text-green-600 opacity-70" />
@@ -127,10 +128,13 @@ export function HostDashboard() {
                         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
                           <div className="flex-1 w-full sm:w-auto">
                             <h3 className="text-base sm:text-lg font-semibold text-green-900">{tournament.name}</h3>
-                            <p className="text-xs sm:text-sm text-green-700 mt-1">
-                              {tournament.currentPlayers || 0}/{tournament.maxPlayers || 0} players • ₦
-                              {(tournament.totalPool || 0).toLocaleString()} pool
-                            </p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm text-green-700 mt-1">
+                              <span><span className="font-semibold text-green-800">{tournament.currentPlayers || 0}</span> / {tournament.maxPlayers || 0} players</span>
+                              <span>•</span>
+                              <span>Entry: <span className="font-semibold text-green-800">₦{(tournament.entryFee || 0).toLocaleString()}</span></span>
+                              <span>•</span>
+                              <span>Pool: <span className="font-semibold text-green-800">₦{(tournament.totalPool || 0).toLocaleString()}</span></span>
+                            </div>
                             <p className="text-xs text-green-600 mt-1">Invite Code: {tournament.inviteCode}</p>
                           </div>
 

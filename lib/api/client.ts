@@ -397,17 +397,26 @@ class ApiClient {
   }
 
   async joinMatchRoom(roomId: string, userId: string, handshakeToken: string): Promise<ApiResponse<any>> {
-    return this.request(MATCHROOM_ENDPOINTS.JOIN.replace(':id', roomId), {
-      method: "POST",
-      body: JSON.stringify({ userId, handshakeToken }),
-    })
+    // This method previously used MATCHROOM_ENDPOINTS.JOIN/:id which does not exist in Swagger.
+    // Swagger defines POST /api/v1/match-rooms/join expecting { matchCode, userId }.
+    // If we only have ID, we can't join via this endpoint unless we can get the code first.
+    // However, for direct linking, we might be passed a code disguised as an ID.
+    // For now, we will log a warning and try to use the code-based join if the 'roomId' looks like a code (6 chars)
+    // Otherwise, we'll try to join the MATCH directly if checking for a Game.
+
+    if (roomId.length === 6) {
+      return this.joinMatchByCode(roomId, userId);
+    }
+
+    // Fallback: If we have a long ID, assumes it's a matchId for a GAME component join:
+    return this.joinMatch(roomId)
   }
 
   // Live 1-on-1 Match Methods
   async createLiveMatch(userId: string): Promise<ApiResponse<any>> {
     return this.request("/match-rooms", {
       method: "POST",
-      body: JSON.stringify({ userId, gameType: "TicTacToe" }), // Updated to "TicTacToe" per backend requirement
+      body: JSON.stringify({ userId, gameType: "TicTacToe" }), // Reverted to "TicTacToe" as "1v1" is invalid enum
     })
   }
 
@@ -425,12 +434,21 @@ class ApiClient {
     })
   }
 
+  // List MATCH ROOMS (Lobbies) - /matchs
   async getAllMatchRooms(): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>(MATCHROOM_ENDPOINTS.LIST)
+    const res = await this.request<any>("/matchs")
+    if (res.success && res.data && res.data.rooms) {
+      return { ...res, data: res.data.rooms }
+    }
+    return res
   }
 
   async getMatchRoom(roomId: string): Promise<ApiResponse<any>> {
-    return this.request(MATCHROOM_ENDPOINTS.GET_BY_ID.replace(':id', roomId))
+    // Swagger: GET /api/v1/matchs/{roomId} (note typo in swagger path 'matchs')
+    // OR GET /api/v1/matches/{matchId}
+    // We'll try the 'matches' one first as it's cleaner.
+    // If 'MATCHROOM_ENDPOINTS.GET_BY_ID' is /matches/:id, we stick with it.
+    return this.request(`/matches/${roomId}`)
   }
 
   // Explicitly get the "Room" (Lobby) state, distinct from the Match (Game) state
@@ -438,8 +456,10 @@ class ApiClient {
     return this.request(`/matchroom/${roomId}`)
   }
 
+  // List MATCHES (Games) - /matches
   async getMatchRoomsList(): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>(MATCHROOM_ENDPOINTS.LIST, { method: "GET" })
+    // Alias to getAllMatches() because 'getMatchRoomsList' is used by components expecting 'Games' (e.g. live-match).
+    return this.getAllMatches()
   }
 
   async deleteMatchRoom(roomId: string): Promise<ApiResponse<any>> {

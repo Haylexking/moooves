@@ -37,11 +37,11 @@ export function checkWinConditions(
       // Only check the first valid 5-in-a-row in this direction
       // to avoid multiple points for overlapping sequences
       const block = sequence.slice(0, 5)
-      
+
       // Check if any position in this block is already used
       const hasUsed = block.some(([r, c]) => previouslyUsed.has(`${r},${c}`))
       if (hasUsed) continue
-      
+
       // Any 5-in-a-row sequence is valid, regardless of being boxed in by opponent
       // We only need to check if the sequence is already used
 
@@ -133,4 +133,170 @@ export function getAvailableMoves(board: GameBoard): Position[] {
   }
 
   return moves
+}
+
+export function calculateGameStateFromBoard(board: GameBoard): {
+  scores: Record<Player, number>;
+  usedSequences: Sequence[];
+  usedPositions: Set<string>;
+} {
+  const scores: Record<Player, number> = { X: 0, O: 0 };
+  const usedSequences: Sequence[] = [];
+  const usedPositions = new Set<string>();
+  const awardedKeys = new Set<string>();
+
+  // Helper to process a potential sequence
+  const processSequence = (player: Player, sequence: Position[]) => {
+    if (sequence.length < 5) return;
+
+    // Only take the first 5 for the scoring unit (as per checkWinConditions logic)
+    // In a full scan, we might find 6-long sequences. 
+    // The rule says "For sequences of 5 or more... Only check the first valid 5-in-a-row"
+    // Ideally we iterate through all 5-blocks in the sequence?
+    // The original logic only checked the sequence *containing the last move*.
+    // Here we scan the whole board. Let's simplify: 
+    // A 5-in-a-row is valid if none of its positions are used.
+
+    // We treat the sequence as a contiguous line. 
+    // If we have X X X X X X (6), is it 1 point or 2? 
+    // Usually in 5-in-row games, it's 1 point (or sometimes 0 for overline). 
+    // Assuming 5+ counts as 1 point per distinct non-overlapping set? 
+    // The current checkWinConditions logic:
+    // "Check if any position in this block is already used" -> "if (hasUsed) continue"
+    // It implies minimal overlap.
+
+    // Greedy approach: Take the first 5, mark used. 
+    // If length > 5, check next 5? 
+    // checkWinConditions implementation only checks `sequence.slice(0, 5)`. 
+    // So distinct 5-blocks.
+
+    // Iterate through all possible 5-sub-segments
+    for (let i = 0; i <= sequence.length - 5; i++) {
+      const block = sequence.slice(i, i + 5);
+      const blockKey = canonicalSeqKey(block);
+
+      // Check usage
+      const hasUsed = block.some(([r, c]) => usedPositions.has(`${r},${c}`));
+      if (!hasUsed && !awardedKeys.has(blockKey)) {
+        // Valid score
+        scores[player]++;
+        usedSequences.push(canonicalSeqFromKey(blockKey));
+        awardedKeys.add(blockKey);
+        block.forEach(([r, c]) => usedPositions.add(`${r},${c}`));
+
+        // Once a block consumes these positions, they can't be used again
+        // So we jump index? The loop continues but `hasUsed` will be true for overlapping.
+      }
+    }
+  };
+
+  // We need to scan all rows, cols, and diagonals.
+  // 1. Horizontal
+  for (let r = 0; r < 30; r++) {
+    let currentLen = 0;
+    let currentPlayer: Player | null = null;
+    let startC = 0;
+    for (let c = 0; c < 30; c++) {
+      const cell = board[r][c];
+      if (cell === currentPlayer && cell !== null) {
+        currentLen++;
+      } else {
+        if (currentLen >= 5 && currentPlayer) {
+          // Found a sequence ending at c-1
+          const seq: Position[] = [];
+          for (let k = 0; k < currentLen; k++) seq.push([r, startC + k]);
+          processSequence(currentPlayer, seq);
+        }
+        currentLen = cell ? 1 : 0;
+        currentPlayer = cell;
+        startC = c;
+      }
+    }
+    // End of row check
+    if (currentLen >= 5 && currentPlayer) {
+      const seq: Position[] = [];
+      for (let k = 0; k < currentLen; k++) seq.push([r, startC + k]);
+      processSequence(currentPlayer, seq);
+    }
+  }
+
+  // 2. Vertical
+  for (let c = 0; c < 30; c++) {
+    let currentLen = 0;
+    let currentPlayer: Player | null = null;
+    let startR = 0;
+    for (let r = 0; r < 30; r++) {
+      const cell = board[r][c];
+      if (cell === currentPlayer && cell !== null) {
+        currentLen++;
+      } else {
+        if (currentLen >= 5 && currentPlayer) {
+          const seq: Position[] = [];
+          for (let k = 0; k < currentLen; k++) seq.push([startR + k, c]);
+          processSequence(currentPlayer, seq);
+        }
+        currentLen = cell ? 1 : 0;
+        currentPlayer = cell;
+        startR = r;
+      }
+    }
+    if (currentLen >= 5 && currentPlayer) {
+      const seq: Position[] = [];
+      for (let k = 0; k < currentLen; k++) seq.push([startR + k, c]);
+      processSequence(currentPlayer, seq);
+    }
+  }
+
+  // 3. Diagonals (Down-Right)
+  // Starts from first column (rows 0-29) and first row (cols 1-29)
+  const checkDiag = (startR: number, startC: number, dr: number, dc: number) => {
+    let r = startR;
+    let c = startC;
+    let currentLen = 0;
+    let currentPlayer: Player | null = null;
+    let seqStartR = r;
+    let seqStartC = c;
+
+    while (r >= 0 && r < 30 && c >= 0 && c < 30) {
+      const cell = board[r][c];
+      if (cell === currentPlayer && cell !== null) {
+        currentLen++;
+      } else {
+        if (currentLen >= 5 && currentPlayer) {
+          const seq: Position[] = [];
+          for (let k = 0; k < currentLen; k++) seq.push([seqStartR + k * dr, seqStartC + k * dc]);
+          processSequence(currentPlayer, seq);
+        }
+        currentLen = cell ? 1 : 0;
+        currentPlayer = cell;
+        seqStartR = r; // reset start of next potential sequence
+        seqStartC = c; // Note: this logic needs care. `r` is current. 
+        // Simplification: just collect the whole diagonal line segments?
+        // Re-implement: Just push position to buffer if match.
+        if (cell) { // started new
+          seqStartR = r;
+          seqStartC = c;
+        }
+      }
+      r += dr;
+      c += dc;
+    }
+    if (currentLen >= 5 && currentPlayer) {
+      const seq: Position[] = [];
+      for (let k = 0; k < currentLen; k++) seq.push([seqStartR + k * dr, seqStartC + k * dc]);
+      processSequence(currentPlayer, seq);
+    }
+  };
+
+  // TL to BR diagonals
+  for (let r = 0; r < 30; r++) checkDiag(r, 0, 1, 1);
+  for (let c = 1; c < 30; c++) checkDiag(0, c, 1, 1);
+
+  // TR to BL diagonals
+  // Starts from last column (rows 0-29) and first row (cols 0-28)
+  // dr = 1, dc = -1
+  for (let r = 0; r < 30; r++) checkDiag(r, 29, 1, -1);
+  for (let c = 0; c < 29; c++) checkDiag(0, c, 1, -1);
+
+  return { scores, usedSequences, usedPositions };
 }

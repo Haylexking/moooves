@@ -68,52 +68,26 @@ export function BattleGround({
 
   const isOnlineMode = localMode === "tournament" || localMode === "p2p" // p2p used for live 1-on-1
 
-  // Rematch State
   const [rematchLoading, setRematchLoading] = useState(false)
-  const [isRematchRedirecting, setIsRematchRedirecting] = useState(false)
   const [rematchInviteId, setRematchInviteId] = useState<string | null>(null)
 
-  const handleAcceptRematch = () => {
-    if (rematchInviteId) {
-      router.push(`/game?live=true&id=${rematchInviteId}`)
-    }
-  }
+  // Hoisted state to prevent ReferenceError in polling useEffect
+  const [resultModalOpen, setResultModalOpen] = useState(false)
+  const [resultType, setResultType] = useState<"win" | "lose" | "draw">("draw")
+  const [waitingForOpponent, setWaitingForOpponent] = useState(false)
+  const [waitingTimer, setWaitingTimer] = useState(900) // 15 minutes
+  const [winByDefault, setWinByDefault] = useState(false)
+  const [pendingMove, setPendingMove] = useState(false)
+  const [opponentName, setOpponentName] = useState<string | null>(null)
+  const [gameStarted, setGameStarted] = useState(false)
+  const [showStartModal, setShowStartModal] = useState(localMode !== "ai" && localMode !== "tournament")
+  const [showGameStartAlert, setShowGameStartAlert] = useState(false)
 
-  const handleDeclineRematch = async () => {
-    if (rematchInviteId && user?.id) {
-      await apiClient.declineRematch(rematchInviteId, user.id)
-      setRematchInviteId(null)
-      toast({ title: "Declined", description: "You declined the rematch." })
-    }
-  }
 
-  const handleRematch = async () => {
-    if (!matchId || !user?.id) return
-    setRematchLoading(true)
-    try {
-      const res = await apiClient.requestRematch(matchId, user.id)
-      if (res.success && res.data) {
-        toast({ title: "Rematch Requested", description: "Waiting for opponent..." })
-        // If the backend returns the new match ID immediately (e.g. created), 
-        // we might wait for the opponent to join or just redirect.
-        // Assuming standard flow: The SERVER links them. We wait for poll to redirect us.
-        // OR: If specific newMatchId returned:
-        if (res.data.newMatchId) {
-          router.push(`/game?live=true&id=${res.data.newMatchId}`)
-        }
-      } else {
-        toast({ title: "Failed", description: res.error || "Could not request rematch", variant: "destructive" })
-        setRematchLoading(false)
-      }
-    } catch (e) {
-      toast({ title: "Error", description: "Network error", variant: "destructive" })
-      setRematchLoading(false)
-    }
-  }
 
   // Poll for Rematch ID when game is over
   useEffect(() => {
-    if (localMode === "p2p" && matchId && gameStatus === "completed" && !isRematchRedirecting) {
+    if (localMode === "p2p" && matchId && gameStatus === "completed") {
       const interval = setInterval(async () => {
         try {
           const res = await apiClient.getMatchRoom(matchId)
@@ -125,7 +99,7 @@ export function BattleGround({
               // Don't auto redirect. Set invite ID so modal shows "Accept"
               if (!rematchInviteId) {
                 setRematchInviteId(nextMatchId)
-                setResultModalOpen(true) // Re-open modal if it was closed
+                if (!resultModalOpen) setResultModalOpen(true) // Re-open modal if it was closed
                 toast({ title: "Rematch Requested!", description: "Opponent wants to play again." })
               }
             }
@@ -134,19 +108,50 @@ export function BattleGround({
       }, 3000)
       return () => clearInterval(interval)
     }
-  }, [localMode, matchId, gameStatus, isRematchRedirecting])
+  }, [localMode, matchId, gameStatus, rematchInviteId, resultModalOpen])
 
-  const [showStartModal, setShowStartModal] = useState(localMode !== "ai" && localMode !== "tournament")
-  const [showGameStartAlert, setShowGameStartAlert] = useState(false)
-  const [resultModalOpen, setResultModalOpen] = useState(false)
-  const [resultType, setResultType] = useState<"win" | "lose" | "draw">("draw")
-  const [waitingForOpponent, setWaitingForOpponent] = useState(false)
-  const [waitingTimer, setWaitingTimer] = useState(900) // 15 minutes
-  const [winByDefault, setWinByDefault] = useState(false)
-  const [pendingMove, setPendingMove] = useState(false)
-  const [opponentName, setOpponentName] = useState<string | null>(null)
-  const [gameStarted, setGameStarted] = useState(false) // Control Pre-Match Overlay
-  const overlayRef = useRef<HTMLDivElement>(null)
+
+
+  const handleRematch = async () => {
+    if (!matchId || !user?.id) return
+
+    setRematchLoading(true)
+    try {
+      const res = await apiClient.requestRematch(matchId, user.id)
+      console.log("[BattleGround] Rematch requested:", res)
+
+      if (res.success) {
+        toast({ title: "Rematch Requested", description: "Waiting for opponent..." })
+        // Check if a new match was immediately created (e.g. opponent already requested)
+        if (res.data?.newMatchId) {
+          toast({ title: "Rematch Accepted!", description: "Starting new game..." })
+          window.location.href = `/game/${res.data.newMatchId}` // Force reload to new room
+        }
+      }
+    } catch (error) {
+      console.error("[BattleGround] Rematch error:", error)
+      toast({ title: "Failed to request rematch", description: String(error), variant: "destructive" })
+    } finally {
+      setRematchLoading(false)
+    }
+  }
+
+  const handleDeclineRematch = async () => {
+    if (!matchId || !user?.id) return
+    try {
+      await apiClient.declineRematch(matchId, user.id)
+      setRematchInviteId(null)
+      toast({ title: "Rematch Declined" })
+    } catch (e) { console.error(e) }
+  }
+
+  const handleAcceptRematch = async () => {
+    // Logic for accepting is technically just "Requesting" it back
+    // If the other person already requested, my request creates the match.
+    await handleRematch()
+  }
+
+
 
   // Draggable Controls State
   const controlsRef = useRef<HTMLDivElement>(null)

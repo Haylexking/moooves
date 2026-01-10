@@ -420,6 +420,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/matches/{matchId}/rematch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        post: {
+            parameters: {
+                path: {
+                    matchId: string;
+                };
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        userId: string;
+                    };
+                };
+            };
+            responses: {
+                201: {
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                            data: {
+                                newMatchId: string;
+                            };
+                        };
+                    };
+                };
+                400: {
+                    content: { "application/json": unknown };
+                };
+                404: {
+                    content: { "application/json": unknown };
+                };
+                500: {
+                    content: { "application/json": unknown };
+                };
+            };
+        };
+    };
+    "/api/v1/match-rooms/join": {
+        parameters: { query?: never; header?: never; path?: never; cookie?: never; };
+        post: {
+            requestBody: {
+                content: {
+                    "application/json": {
+                        matchCode: string;
+                        userId: string;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    content: {
+                        "application/json": { message: string };
+                    };
+                };
+                404: { content: { "application/json": unknown } };
+            };
+        };
+    };
+    "/api/v1/matches/{matchId}/join": {
+        parameters: { query?: never; header?: never; path?: never; cookie?: never; };
+        post: {
+            parameters: {
+                path: { matchId: string };
+            };
+            responses: {
+                200: { content: { "application/json": unknown } };
+                400: { content: { "application/json": unknown } };
+                404: { content: { "application/json": unknown } };
+            };
+        };
+    };
     "/api/v1/matches/{matchId}": {
         parameters: {
             query?: never;

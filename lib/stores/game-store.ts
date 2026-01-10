@@ -8,7 +8,7 @@ import type { ScoreSlice } from "./slices/score-slice"
 import { createGameBoardSlice } from "./slices/game-board-slice"
 import { createGameStateSlice } from "./slices/game-state-slice"
 import { createScoreSlice } from "./slices/score-slice"
-import { checkWinConditions } from "@/lib/utils/game-logic"
+import { checkWinConditions, calculateGameStateFromBoard } from "@/lib/utils/game-logic"
 import { mockOpponentMove } from "@/lib/mocks/mock-opponent"
 import { serializeUsedPositions, serializeUsedSequences } from "@/lib/utils/game-serialize"
 import type { GameMode, GameResult, Move } from "@/lib/types"
@@ -182,33 +182,22 @@ export const useGameStore = create<GameStore>()(
               row.map((cell: any) => (cell === "" ? null : cell))
             )
             set({ board: normalizedBoard })
+
+            // The server does not track scores! We must calculate them locally from the board.
+            const calculated = calculateGameStateFromBoard(normalizedBoard)
+            console.log("[GameStore] Calculated State:", calculated)
+            set({
+              scores: calculated.scores,
+              usedSequences: calculated.usedSequences,
+              usedPositions: calculated.usedPositions
+            })
           }
 
-          // Scores
-          if (typeof data.scores === 'object' && data.scores) {
-            console.log("[GameStore] Updating Scores:", data.scores)
-            set({ scores: data.scores })
-          } else if (match.scores) {
-            console.log("[GameStore] Updating Scores (fallback):", match.scores)
-            set({ scores: match.scores })
-          }
+          /* 
+             Legacy Score/Used logic removed because server data is incomplete.
+             We strictly trust calculateGameStateFromBoard(normalizedBoard).
+          */
 
-          // usedPositions (array of "r,c")
-          if (data.usedPositions) {
-            const newUsed = new Set<string>(data.usedPositions)
-            set({ usedPositions: newUsed })
-          }
-
-          // usedSequences
-          if (data.usedSequences) {
-            const parsed: Array<Array<[number, number]>> = data.usedSequences.map((seq: string[]) =>
-              seq.map((s: string) => {
-                const [r, c] = s.split(",")
-                return [Number(r), Number(c)] as [number, number]
-              }),
-            )
-            set({ usedSequences: parsed })
-          }
 
           // Move history (Map 'moves' from server to 'moveHistory')
           if (data.moveHistory) {
