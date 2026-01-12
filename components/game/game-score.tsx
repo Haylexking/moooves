@@ -10,11 +10,24 @@ interface GameScoreProps {
   currentPlayer: "X" | "O"
   gameStatus: string
   gameMode: string
+  userRole?: "X" | "O" | null
 }
 
-export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gameStatus, gameMode }: GameScoreProps) {
+export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gameStatus, gameMode, userRole }: GameScoreProps) {
   const getInitials = (name: string) => name.charAt(0).toUpperCase()
-  console.log("[GameScore] Rendering:", { player1, player2, scoreX, scoreO, currentPlayer, gameStatus })
+
+  const getTurnText = (role: "X" | "O") => {
+    if (userRole) {
+      // Online mode: verify against my role
+      return userRole === role ? "Your Turn" : "Opponent"
+    }
+    // Offline/AI mode:
+    if (gameMode === "ai" || gameMode === "player-vs-computer") {
+      return role === "X" ? "Your Turn" : "AI Thinking"
+    }
+    // Shared screen (offline PVP)
+    return "Turn"
+  }
 
   return (
     <div className="w-full max-w-3xl mx-auto px-2 sm:px-0">
@@ -45,7 +58,7 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
               </span>
               {currentPlayer === "X" && gameStatus === "playing" && (
                 <span className="text-[10px] sm:text-xs font-bold text-blue-500 animate-pulse">
-                  Your Turn
+                  {getTurnText("X")}
                 </span>
               )}
             </div>
@@ -78,7 +91,7 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
               </span>
               {currentPlayer === "O" && gameStatus === "playing" && (
                 <span className="text-[10px] sm:text-xs font-bold text-red-500 animate-pulse">
-                  Turn
+                  {getTurnText("O")}
                 </span>
               )}
             </div>

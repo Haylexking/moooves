@@ -85,6 +85,8 @@ export function BattleGround({
 
 
 
+
+
   // Poll for Rematch ID when game is over
   useEffect(() => {
     if (localMode === "p2p" && matchId && gameStatus === "completed") {
@@ -206,6 +208,14 @@ export function BattleGround({
   // Match Room Hook (for tournament/online play)
   const matchRoom = useMatchRoom(matchId, initialRoomCode)
 
+  // Determine User Role (X or O)
+  const userRole = React.useMemo(() => {
+    if (!isOnlineMode) return null
+    if (!matchRoom.participants || !user?.id) return null
+    const index = matchRoom.participants.indexOf(user.id)
+    return index === 0 ? "X" : index === 1 ? "O" : null
+  }, [isOnlineMode, matchRoom.participants, user?.id])
+
   // Initialize Game
   useEffect(() => {
     if (localMode === "tournament" && matchId) {
@@ -301,11 +311,26 @@ export function BattleGround({
   // Game Over Handling
   useEffect(() => {
     if (gameStatus === "completed") {
-      setResultType(winner === "X" ? "win" : winner === "O" ? "lose" : "draw")
+      let result: "win" | "lose" | "draw" = "draw"
+      if (winner === "draw") {
+        result = "draw"
+      } else if (isOnlineMode) {
+        // Online: Compare winner (X/O) with my role
+        if (winner === userRole) {
+          result = "win"
+        } else {
+          result = "lose" // If I'm not the winner and it's not a draw, I lost
+        }
+      } else {
+        // Offline/AI: "X" is always the local player
+        result = winner === "X" ? "win" : "lose"
+      }
+
+      setResultType(result)
       setResultModalOpen(true)
       stopTimer()
     }
-  }, [gameStatus, winner, stopTimer])
+  }, [gameStatus, winner, stopTimer, isOnlineMode, userRole])
 
   // Reset Game
   const resetGame = () => {
@@ -803,6 +828,7 @@ export function BattleGround({
             currentPlayer={currentPlayer}
             gameStatus={gameStatus}
             gameMode={gameMode}
+            userRole={userRole}
           />
         </div>
 
