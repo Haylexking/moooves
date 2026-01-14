@@ -12,6 +12,7 @@ import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/hooks/use-toast"
+import { TournamentFAQModal } from "./tournament-faq-modal"
 
 type TabView = "leaderboard" | "matches" | "rules"
 
@@ -28,6 +29,7 @@ export default function TournamentDashboard() {
   const [matches, setMatches] = useState<BracketMatch[]>([])
   const [payouts, setPayouts] = useState<any[]>([])
   const [manualBankCode, setManualBankCode] = useState("")
+  const [showFaq, setShowFaq] = useState(false)
   const [manualAccountNumber, setManualAccountNumber] = useState("")
   const [manualAmount, setManualAmount] = useState<number | "">("")
   const [sendingPayout, setSendingPayout] = useState(false)
@@ -551,6 +553,16 @@ export default function TournamentDashboard() {
                                     You missed your match — you forfeit this round.
                                   </p>
                                 )}
+                                {isParticipant && (match.status === 'waiting' || match.status === 'active') && (
+                                  <div className="pt-2">
+                                    <GameButton
+                                      className="w-full text-xs h-8"
+                                      onClick={() => router.push(`/tournaments/${selectedTournament.id}/play?matchId=${match.id}`)}
+                                    >
+                                      Play Match
+                                    </GameButton>
+                                  </div>
+                                )}
                               </div>
                             )
                           })}
@@ -565,6 +577,10 @@ export default function TournamentDashboard() {
                       <p>- Players have 15 minutes to join; solo arrivals advance by default.</p>
                       <p>- If neither joins, the match is forfeited and bracket adjusts.</p>
                       <p>- Notifications alert players for starts and no-show advances.</p>
+
+                      <button onClick={() => setShowFaq(true)} className="text-green-700 underline font-semibold mt-2">
+                        View Full Tournament Guide
+                      </button>
                     </div>
                   )}
 
@@ -640,6 +656,8 @@ export default function TournamentDashboard() {
           </div>
         </div>
       )}
+
+      <TournamentFAQModal open={showFaq} onOpenChange={setShowFaq} />
     </>
   )
 }
