@@ -312,7 +312,7 @@ export default function TournamentDashboard() {
           <header className="space-y-1">
             <h1 className="text-3xl font-bold text-white drop-shadow-md">My Tournaments</h1>
             <p className="text-sm text-gray-300">
-              Join via invite code, keep track of brackets, and manage tournaments you host.
+              Join via invite code, keep track of draws, and manage tournaments you host.
             </p>
           </header>
 
@@ -519,9 +519,9 @@ export default function TournamentDashboard() {
 
                   {activeTab === "matches" && (
                     <div>
-                      <h3 className="font-semibold text-green-900 mb-3">Bracket</h3>
+                      <h3 className="font-semibold text-green-900 mb-3">Draw</h3>
                       {matches.length === 0 ? (
-                        <p className="text-sm text-gray-600">Matches will appear once the host starts the bracket.</p>
+                        <p className="text-sm text-gray-600">Matches will appear once the host starts the draw.</p>
                       ) : (
                         <div className="space-y-3">
                           {matches.map((match) => {
@@ -575,7 +575,7 @@ export default function TournamentDashboard() {
                     <div className="space-y-3 text-sm text-gray-700">
                       <p>- Hosts set a start time and may start early or reschedule if needed.</p>
                       <p>- Players have 15 minutes to join; solo arrivals advance by default.</p>
-                      <p>- If neither joins, the match is forfeited and bracket adjusts.</p>
+                      <p>- If neither joins, the match is forfeited and draw adjusts.</p>
                       <p>- Notifications alert players for starts and no-show advances.</p>
 
                       <button onClick={() => setShowFaq(true)} className="text-green-700 underline font-semibold mt-2">

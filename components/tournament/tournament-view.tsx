@@ -24,7 +24,7 @@ export function TournamentView({ tournament }: TournamentViewProps) {
     try {
       const res = await apiClient.startTournament(tournament.id)
       if (res.success) {
-        toast({ title: "Tournament Started", description: "The bracket has been generated." })
+        toast({ title: "Tournament Started", description: "The draws have been generated." })
         router.refresh()
       } else {
         toast({ title: "Error", description: res.error || "Failed to start tournament", variant: "destructive" })
@@ -170,7 +170,7 @@ export function TournamentView({ tournament }: TournamentViewProps) {
                 </>
               ) : (
                 <p className="text-sm text-gray-600">
-                  No match assigned yet. Hang tight while the bracket gets ready.
+                  No match assigned yet. Hang tight while the draw gets ready.
                 </p>
               )}
             </CardContent>
@@ -348,7 +348,7 @@ const EmptyState = ({ isHost, onStart }: { isHost: boolean; onStart: () => void 
     <p className="mb-4">
       {isHost
         ? "You haven't started the tournament yet."
-        : "The host hasn't started the bracket yet. Check back closer to kickoff."}
+        : "The host hasn't started the draw yet. Check back closer to kickoff."}
     </p>
     {isHost && (
       <Button onClick={onStart} className="bg-green-600 hover:bg-green-700 text-white">

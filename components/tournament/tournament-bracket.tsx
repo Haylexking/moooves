@@ -13,7 +13,7 @@ export function TournamentBracket({ bracket, currentUserId }: TournamentBracketP
     if (!bracket || !bracket.rounds || bracket.rounds.length === 0) {
         return (
             <div className="text-center py-12 text-gray-500">
-                <p>Bracket not generated yet.</p>
+                <p>Draw not generated yet.</p>
             </div>
         )
     }
@@ -57,8 +57,9 @@ export function TournamentBracket({ bracket, currentUserId }: TournamentBracketP
 }
 
 function MatchCard({ match, isCurrentUser }: { match: BracketMatch; isCurrentUser: boolean }) {
-    const getPlayerName = (id: string) => {
+    const getPlayerName = (id: string | null | undefined) => {
         // In a real app, we'd look up the user name from a map or the match object would have it populated
+        if (!id) return "Waiting..."
         if (id === "bye") return "BYE"
         return id.slice(0, 8) // Truncate ID for display if no name
     }

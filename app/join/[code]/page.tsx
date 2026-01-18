@@ -100,7 +100,8 @@ export default function JoinTournamentPage() {
           name: user.fullName,
           userId: user.id,
           redirectUrl: `${window.location.origin}/tournaments/${tournament.id}?join=${inviteCode}`,
-          tournamentId: tournament.id
+          tournamentId: tournament.id,
+          payment_options: "card,ussd,banktransfer"
         })
 
         if (res.success && res.data?.payment_link) {

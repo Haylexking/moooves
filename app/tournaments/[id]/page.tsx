@@ -377,7 +377,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             <p className="text-gray-400">
                                                 {currentTournament.status === "waiting"
                                                     ? "Waiting for tournament to start..."
-                                                    : "You don't have an active match right now. Check back later or view the bracket."}
+                                                    : "You don't have an active match right now. Check back later or view the draw."}
                                             </p>
                                         </div>
                                     )
@@ -398,7 +398,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                 <TournamentBracket bracket={currentTournament.bracket} currentUserId={user?.id} />
                             ) : (
                                 <div className="text-center py-12 text-gray-500">
-                                    <p>Bracket will be generated when the tournament starts.</p>
+                                    <p>Draw will be generated when the tournament starts.</p>
                                 </div>
                             )}
                         </div>

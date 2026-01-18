@@ -39,7 +39,7 @@ export function TournamentFAQModal({ open, onOpenChange }: TournamentFAQModalPro
             <ul className="list-disc pl-5 space-y-2 text-gray-300">
               <li>Each pairing gets a 15-minute window to show up once the match goes live.</li>
               <li>If one player is present and the other is not, the present player wins by default and advances.</li>
-              <li>If neither player shows, both forfeit and the bracket adjusts automatically.</li>
+              <li>If neither player shows, both forfeit and the draw adjusts automatically.</li>
               <li>Waiting room copy makes the status clear (win by default or forfeit notice).</li>
             </ul>
           </section>
