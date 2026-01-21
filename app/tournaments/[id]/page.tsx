@@ -8,6 +8,7 @@ import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy, HelpCircle, Calendar, Users, Play, CalendarClock, Swords, ArrowLeft } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { TournamentBracket } from "@/components/tournament/tournament-bracket"
@@ -140,86 +141,87 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-black relative overflow-hidden">
+            <div className="min-h-screen bg-black relative overflow-hidden font-sans text-white">
                 {/* Dashboard Background */}
                 <Image
                     src="/images/dashboard-background.png"
                     alt="Dashboard Background"
                     fill
-                    className="object-cover object-center z-0 opacity-50"
+                    className="object-cover object-center z-0 opacity-40 fixed inset-0"
                     priority
                 />
                 <div className="relative z-10">
                     <GlobalSidebar showTrigger={false} />
                     <TopNavigation />
 
-                    <div className="pt-24 sm:pt-28 px-6 sm:px-8 max-w-7xl mx-auto pb-12">
+                    <div className="pt-24 sm:pt-28 px-4 sm:px-6 max-w-6xl mx-auto pb-24">
                         {/* Header Section */}
-                        <div className="bg-gradient-to-br from-green-900/40 to-black border border-green-800/50 rounded-3xl p-6 sm:p-10 mb-8 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <div className="bg-gray-900/80 backdrop-blur-md border border-green-800/50 rounded-3xl p-6 sm:p-10 mb-8 relative overflow-hidden shadow-2xl">
+                            {/* Background Accents */}
+                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                                 <Trophy className="w-64 h-64 text-green-500" />
                             </div>
+                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-green-600/20 blur-3xl rounded-full pointer-events-none"></div>
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute top-4 right-16 text-white/50 hover:text-white hover:bg-white/10 z-20"
-                                onClick={() => router.push('/dashboard')}
-                                title="Leave Lobby"
-                            >
-                                <ArrowLeft className="w-6 h-6" />
-                            </Button>
+                            {/* Header Controls */}
+                            <div className="flex justify-between items-start absolute top-4 left-4 right-4 z-20">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-white/50 hover:text-white hover:bg-white/10 gap-2"
+                                    onClick={() => router.push(isHost ? '/host-dashboard' : '/dashboard')}
+                                >
+                                    <ArrowLeft className="w-4 h-4" /> Back
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-green-400 hover:text-green-300 hover:bg-green-900/50"
+                                    onClick={() => setShowFAQ(true)}
+                                >
+                                    <HelpCircle className="w-5 h-5" />
+                                </Button>
+                            </div>
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute top-4 right-4 text-green-400 hover:text-green-300 hover:bg-green-900/50 z-20"
-                                onClick={() => setShowFAQ(true)}
-                            >
-                                <HelpCircle className="w-6 h-6" />
-                            </Button>
-
-                            <div className="relative z-10">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-bold border border-green-500/30 uppercase tracking-wider">
+                            <div className="relative z-10 mt-6 sm:mt-0 max-w-3xl">
+                                <div className="flex flex-wrap items-center gap-3 mb-4">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border flex items-center gap-2 ${currentTournament.status === 'active'
+                                        ? 'bg-green-500 text-black border-green-400 animate-pulse'
+                                        : currentTournament.status === 'completed'
+                                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+                                            : 'bg-white/10 text-gray-300 border-white/20'
+                                        }`}>
+                                        {currentTournament.status === 'active' && <span className="w-2 h-2 rounded-full bg-black animate-ping"></span>}
                                         {currentTournament.status}
                                     </span>
-                                    <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-sm font-bold border border-blue-500/30">
-                                        {currentTournament.gameMode}
+                                    <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+                                        {currentTournament.gameMode} Mode
                                     </span>
                                 </div>
 
-                                <h1 className="text-3xl sm:text-5xl font-black text-white mb-6 tracking-tight">
+                                <h1 className="text-3xl sm:text-5xl font-black text-white mb-2 tracking-tight uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 drop-shadow-sm">
                                     {currentTournament.name}
                                 </h1>
+                                <p className="text-gray-400 text-sm max-w-xl">
+                                    Compete for the ₦{(currentTournament.totalPool || 0).toLocaleString()} prize pool.
+                                    {currentTournament.status === 'waiting' && " Use the invite code below to bring more players."}
+                                </p>
 
-                                {/* Completion View */}
-                                {currentTournament.status === "completed" && (
-                                    <div className="mb-8 p-6 bg-gradient-to-r from-yellow-900/40 to-black border border-yellow-600/50 rounded-2xl relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-4 opacity-20">
-                                            <Trophy className="w-32 h-32 text-yellow-500" />
-                                        </div>
-                                        <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
-                                            <Trophy className="w-6 h-6" /> Tournament Complete!
-                                        </h2>
-                                        <div className="space-y-4 relative z-10">
-                                            {currentTournament.winners?.map((winner) => (
-                                                <div key={winner.rank} className="flex items-center justify-between bg-black/40 p-4 rounded-xl border border-yellow-500/20">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
-                                                        ${winner.rank === 1 ? "bg-yellow-500 text-black" :
-                                                                winner.rank === 2 ? "bg-gray-400 text-black" :
-                                                                    "bg-orange-700 text-white"}`}>
-                                                            #{winner.rank}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-white">Player ID: {winner.userId.slice(0, 8)}</p>
-                                                            <p className="text-xs text-gray-400">Rank {winner.rank}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-green-400 font-bold">₦{winner.prize.toLocaleString()}</p>
-                                                        <p className="text-xs text-gray-500">{winner.paidOut ? "Paid" : "Processing"}</p>
+                                {/* Post-Tournament Winners Podium (Hero) */}
+                                {currentTournament.status === "completed" && currentTournament.winners?.length > 0 && (
+                                    <div className="mt-8 p-4 bg-gradient-to-r from-yellow-900/20 to-black/50 border border-yellow-500/30 rounded-xl relative">
+                                        <h3 className="text-yellow-500 font-bold uppercase tracking-widest text-xs mb-3 flex items-center gap-2">
+                                            <Trophy className="w-4 h-4" /> Champions
+                                        </h3>
+                                        <div className="flex flex-wrap gap-4">
+                                            {currentTournament.winners.slice(0, 3).map((w, i) => (
+                                                <div key={w.userId} className="flex items-center gap-3 bg-black/40 px-3 py-2 rounded-lg border border-yellow-500/20">
+                                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${w.rank === 1 ? 'bg-yellow-500 text-black' :
+                                                        w.rank === 2 ? 'bg-gray-400 text-black' : 'bg-orange-700 text-white'
+                                                        }`}>#{w.rank}</span>
+                                                    <div>
+                                                        <p className="font-bold text-sm text-yellow-100">Player {w.userId.slice(0, 4)}</p>
+                                                        <p className="text-[10px] text-yellow-500">₦{w.prize.toLocaleString()}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -227,180 +229,212 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6 text-gray-300 mb-8">
-                                    <div className="flex items-center gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
-                                        <Calendar className="w-6 h-6 text-green-500" />
+                                {/* Metrics Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
+                                    <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                                            <Users className="w-5 h-5 text-green-500" />
+                                        </div>
                                         <div>
-                                            <p className="text-xs text-gray-500 uppercase font-bold">Start Time</p>
-                                            <p className="font-semibold">
+                                            <p className="text-[10px] text-gray-500 uppercase font-bold">Players</p>
+                                            <p className="font-bold text-lg">{currentTournament.currentPlayers}/{currentTournament.maxPlayers}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                                            <Trophy className="w-5 h-5 text-yellow-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-gray-500 uppercase font-bold">Pool</p>
+                                            <p className="font-bold text-lg text-yellow-500">₦{(currentTournament.totalPool || 0).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                            <Calendar className="w-5 h-5 text-blue-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-gray-500 uppercase font-bold">Start</p>
+                                            <p className="font-bold text-sm text-gray-300">
                                                 {new Date(currentTournament.startTime || currentTournament.createdAt).toLocaleDateString()}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
-                                        <Users className="w-6 h-6 text-green-500" />
-                                        <div>
-                                            <p className="text-xs text-gray-500 uppercase font-bold">Players</p>
-                                            <p className="font-semibold">
-                                                {currentTournament.currentPlayers} / {currentTournament.maxPlayers}
+                                    <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center justify-center">
+                                        {/* Countdown or Status */}
+                                        <div className="text-center">
+                                            <p className="text-[10px] text-gray-500 uppercase font-bold">
+                                                {currentTournament.status === 'created' ? 'Starts In' : 'Round'}
                                             </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
-                                        <Trophy className="w-6 h-6 text-green-500" />
-                                        <div>
-                                            <p className="text-xs text-gray-500 uppercase font-bold">Prize Pool</p>
-                                            <p className="font-semibold text-green-400">₦{(currentTournament.totalPool || 0).toLocaleString()}</p>
+                                            <p className="font-mono font-bold text-lg text-white">
+                                                {currentTournament.status === 'created' ? (timeLeft || "Soon") : currentTournament.bracket?.currentRound || 1}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Host Console - Only visible to Host */}
-                                {isHost && (
-                                    <div className="mb-8 bg-yellow-950/20 border border-yellow-600/30 rounded-2xl p-6 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-4 opacity-5">
-                                            <Users className="w-32 h-32 text-yellow-500" />
-                                        </div>
-
-                                        <h2 className="text-xl font-bold text-yellow-500 mb-6 flex items-center gap-2">
-                                            <Users className="w-6 h-6" /> Host Management Console
-                                        </h2>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                                            {/* Actions */}
-                                            <div>
-                                                <h3 className="text-xs font-bold text-yellow-700 uppercase tracking-wider mb-4">Quick Actions</h3>
-                                                <div className="flex flex-wrap gap-3">
-                                                    {(currentTournament.status === "created" || currentTournament.status === "waiting") && (
-                                                        <Button
-                                                            onClick={handleStartTournament}
-                                                            className="bg-yellow-600 hover:bg-yellow-700 text-white border-none"
-                                                        >
-                                                            <Play className="w-4 h-4 mr-2" /> Start Tournament
-                                                        </Button>
-                                                    )}
-
-                                                    <Button
-                                                        variant="outline"
-                                                        className="border-yellow-600/50 text-yellow-500 hover:bg-yellow-900/20"
-                                                        onClick={() => setShowAdmin(true)}
-                                                    >
-                                                        <Users className="w-4 h-4 mr-2" /> Admin Tools
-                                                    </Button>
-
-                                                    <Button
-                                                        variant="outline"
-                                                        className="border-yellow-600/50 text-yellow-500 hover:bg-yellow-900/20"
-                                                        onClick={async () => {
-                                                            const dateStr = prompt("Enter new start date (YYYY-MM-DD HH:mm):", new Date(currentTournament.startTime || Date.now()).toISOString().slice(0, 16).replace('T', ' '))
-                                                            if (dateStr) {
-                                                                try {
-                                                                    const newDate = new Date(dateStr).toISOString()
-                                                                    await apiClient.rescheduleTournament(tournamentId, newDate)
-                                                                    loadTournament(tournamentId)
-                                                                    toast({
-                                                                        title: "Success",
-                                                                        description: "Tournament rescheduled successfully",
-                                                                        variant: "default",
-                                                                    })
-                                                                } catch (e) {
-                                                                    toast({
-                                                                        title: "Error",
-                                                                        description: "Invalid date format or server error",
-                                                                        variant: "destructive",
-                                                                    })
-                                                                }
-                                                            }
-                                                        }}
-                                                    >
-                                                        <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            {/* Overview Stats */}
-                                            <div>
-                                                <h3 className="text-xs font-bold text-yellow-700 uppercase tracking-wider mb-4">Live Overview</h3>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="bg-black/40 border border-yellow-900/30 p-3 rounded-lg">
-                                                        <span className="text-xs text-gray-500 block mb-1">Status</span>
-                                                        <span className="font-bold text-white capitalize">{currentTournament.status}</span>
-                                                    </div>
-                                                    <div className="bg-black/40 border border-yellow-900/30 p-3 rounded-lg">
-                                                        <span className="text-xs text-gray-500 block mb-1">Registered</span>
-                                                        <span className="font-bold text-white">{currentTournament.currentPlayers} / {currentTournament.maxPlayers}</span>
-                                                    </div>
-                                                    <div className="bg-black/40 border border-yellow-900/30 p-3 rounded-lg col-span-2">
-                                                        <span className="text-xs text-gray-500 block mb-1">Current Round</span>
-                                                        <span className="font-bold text-white">
-                                                            Round {currentTournament.bracket?.currentRound || 1}
-                                                            <span className="text-gray-500 font-normal ml-2">
-                                                                ({currentTournament.bracket?.rounds?.find(r => r.roundNumber === currentTournament.bracket?.currentRound)?.matches.filter(m => m.status === 'active').length || 0} Active Matches)
-                                                            </span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Countdown */}
-                                {currentTournament.status === "created" && timeLeft && timeLeft !== "Started" && (
-                                    <div className="mb-8 text-center">
-                                        <p className="text-green-400 text-sm uppercase tracking-widest mb-2">Tournament Starts In</p>
-                                        <div className="text-4xl sm:text-6xl font-mono font-bold text-white tracking-wider">
-                                            {timeLeft}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Player Status - Only visible if Participant */}
-                                {isParticipant && (
-                                    activeMatch ? (
-                                        <div className="bg-green-600/20 border border-green-500/50 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/20">
-                                                    <Swords className="w-6 h-6 text-white" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-bold text-white">Your Match is Ready!</h3>
-                                                    <p className="text-green-200">Round {activeMatch.roundNumber} • vs Opponent</p>
-                                                </div>
-                                            </div>
-                                            <GameButton onClick={handlePlayMatch} className="w-full sm:w-auto min-w-[200px]">
-                                                Play Match Now
-                                            </GameButton>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
-                                            <p className="text-gray-400">
-                                                {currentTournament.status === "waiting"
-                                                    ? "Waiting for tournament to start..."
-                                                    : "You don't have an active match right now. Check back later or view the draw."}
-                                            </p>
-                                        </div>
-                                    )
-                                )}
                             </div>
                         </div>
 
-                        {/* Bracket Section */}
-                        <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-10 overflow-hidden">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold text-white">Tournament Draw</h2>
-                                <span className="text-sm text-gray-500">
-                                    Round {currentTournament.bracket?.currentRound || 1} of {currentTournament.bracket?.rounds?.length || 1}
-                                </span>
-                            </div>
-
-                            {currentTournament.bracket ? (
-                                <TournamentBracket bracket={currentTournament.bracket} currentUserId={user?.id} />
-                            ) : (
-                                <div className="text-center py-12 text-gray-500">
-                                    <p>Draw will be generated when the tournament starts.</p>
+                        {/* Host Controls (If Host) */}
+                        {isHost && (
+                            <div className="mb-6 p-1">
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                    {(currentTournament.status === "created" || currentTournament.status === "waiting") && (
+                                        <Button onClick={handleStartTournament} className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/20 whitespace-nowrap">
+                                            <Play className="w-4 h-4 mr-2" /> Start Tournament
+                                        </Button>
+                                    )}
+                                    <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800 whitespace-nowrap" onClick={() => setShowAdmin(true)}>
+                                        <Users className="w-4 h-4 mr-2" /> Manage Players
+                                    </Button>
+                                    <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800 whitespace-nowrap" onClick={() => {
+                                        const dateStr = prompt("Enter new start date (YYYY-MM-DD HH:mm):", new Date(currentTournament.startTime || Date.now()).toISOString().slice(0, 16).replace('T', ' '))
+                                        if (dateStr) {
+                                            apiClient.rescheduleTournament(tournamentId, new Date(dateStr).toISOString()).then(() => {
+                                                toast({ title: "Rescheduled", description: "Tournament start time updated." })
+                                                loadTournament(tournamentId)
+                                            }).catch(() => toast({ title: "Error", description: "Failed to reschedule", variant: "destructive" }))
+                                        }
+                                    }}>
+                                        <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
+                                    </Button>
                                 </div>
-                            )}
+                            </div>
+                        )}
+
+                        {/* Player Action (If Participant) */}
+                        {isParticipant && activeMatch && (
+                            <div className="mb-8 bg-gradient-to-r from-green-900/80 to-black border border-green-500/50 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.15)] relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors"></div>
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/30 animate-pulse">
+                                        <Swords className="w-7 h-7 text-black" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-white">Your Match is Live!</h3>
+                                        <p className="text-green-300 font-medium">Round {activeMatch.roundNumber}</p>
+                                    </div>
+                                </div>
+                                <GameButton onClick={handlePlayMatch} className="w-full md:w-auto min-w-[200px] relative z-10 shadow-xl shadow-green-900/50">
+                                    Enter Match Room
+                                </GameButton>
+                            </div>
+                        )}
+
+                        {/* Main Content Tabs */}
+                        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden min-h-[500px] backdrop-blur-sm">
+                            <Tabs defaultValue="draw" className="w-full">
+                                <div className="border-b border-gray-800 bg-black/20">
+                                    <TabsList className="bg-transparent p-0 h-auto w-full justify-start rounded-none">
+                                        <TabsTrigger value="draw" className="flex-1 py-4 text-sm font-bold uppercase tracking-widest rounded-none data-[state=active]:bg-green-900/10 data-[state=active]:text-green-400 data-[state=active]:border-b-2 data-[state=active]:border-green-500 transition-all text-gray-500">
+                                            Draw
+                                        </TabsTrigger>
+                                        <TabsTrigger value="leaderboard" className="flex-1 py-4 text-sm font-bold uppercase tracking-widest rounded-none data-[state=active]:bg-green-900/10 data-[state=active]:text-green-400 data-[state=active]:border-b-2 data-[state=active]:border-green-500 transition-all text-gray-500">
+                                            Leaderboard
+                                        </TabsTrigger>
+                                        <TabsTrigger value="rules" className="flex-1 py-4 text-sm font-bold uppercase tracking-widest rounded-none data-[state=active]:bg-green-900/10 data-[state=active]:text-green-400 data-[state=active]:border-b-2 data-[state=active]:border-green-500 transition-all text-gray-500">
+                                            Rules
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </div>
+
+                                <TabsContent value="draw" className="p-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-xl font-bold text-white">Tournament Bracket</h2>
+                                        <span className="text-xs font-mono text-gray-500 bg-gray-800 px-2 py-1 rounded">
+                                            {currentTournament.bracket?.rounds?.reduce((acc, r) => acc + r.matches.length, 0) || 0} Matches Total
+                                        </span>
+                                    </div>
+                                    {currentTournament.bracket ? (
+                                        <TournamentBracket bracket={currentTournament.bracket} currentUserId={user?.id} />
+                                    ) : (
+                                        <div className="text-center py-20 bg-black/20 rounded-xl border border-dashed border-gray-800">
+                                            <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                                            <p className="text-gray-400 font-medium">Draw Pending</p>
+                                            <p className="text-sm text-gray-600">The bracket will be generated when the tournament starts.</p>
+                                        </div>
+                                    )}
+                                </TabsContent>
+
+                                <TabsContent value="leaderboard" className="p-6">
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-white mb-1">Projected Payouts</h2>
+                                            <p className="text-sm text-gray-500">Prize distribution based on current pool.</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {/* 1st Place */}
+                                            <div className="flex items-center justify-between p-4 rounded-xl border border-yellow-500/30 bg-yellow-900/10 relative overflow-hidden">
+                                                <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none"></div>
+                                                <div className="flex items-center gap-4 relative z-10">
+                                                    <div className="w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold shadow-[0_0_15px_rgba(234,179,8,0.4)]">1</div>
+                                                    <div>
+                                                        <p className="font-bold text-white text-lg">Champion</p>
+                                                        <p className="text-yellow-500 text-xs font-mono">
+                                                            {currentTournament.winners?.[0] ? `Winner: Player ${currentTournament.winners[0].userId.slice(0, 4)}` : "TBD"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-2xl font-bold text-yellow-400 font-mono">
+                                                    ₦{Math.floor((currentTournament.totalPool || 0) * 0.20).toLocaleString()}
+                                                </p>
+                                            </div>
+
+                                            {/* 2nd Place */}
+                                            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-600/30 bg-gray-800/20">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full bg-gray-400 text-black flex items-center justify-center font-bold">2</div>
+                                                    <div>
+                                                        <p className="font-bold text-white">Runner Up</p>
+                                                        <p className="text-gray-500 text-xs font-mono">
+                                                            {currentTournament.winners?.[1] ? `Winner: Player ${currentTournament.winners[1].userId.slice(0, 4)}` : "TBD"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xl font-bold text-gray-300 font-mono">
+                                                    ₦{Math.floor((currentTournament.totalPool || 0) * 0.12).toLocaleString()}
+                                                </p>
+                                            </div>
+
+                                            {/* 3rd Place */}
+                                            <div className="flex items-center justify-between p-4 rounded-xl border border-orange-700/30 bg-orange-900/10">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full bg-orange-700 text-white flex items-center justify-center font-bold">3</div>
+                                                    <div>
+                                                        <p className="font-bold text-white">Third Place</p>
+                                                        <p className="text-orange-500 text-xs font-mono">
+                                                            {currentTournament.winners?.[2] ? `Winner: Player ${currentTournament.winners[2].userId.slice(0, 4)}` : "TBD"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-lg font-bold text-orange-400 font-mono">
+                                                    ₦{Math.floor((currentTournament.totalPool || 0) * 0.08).toLocaleString()}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="text-center pt-8 border-t border-gray-800 mt-8">
+                                            <p className="text-xs text-gray-600 uppercase tracking-widest mb-2">Total Prize Pool</p>
+                                            <p className="text-4xl font-black text-green-500 font-mono">₦{(currentTournament.totalPool || 0).toLocaleString()}</p>
+                                            <p className="text-[10px] text-gray-500 mt-2">Payouts are processed automatically to your wallet after tournament completion.</p>
+                                        </div>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="rules" className="p-0">
+                                    <div className="p-6">
+                                        <h3 className="text-lg font-bold text-white mb-4">Official Rules</h3>
+                                        <div className="prose prose-invert max-w-none text-sm text-gray-400 space-y-4">
+                                            <p>1. <strong className="text-white">Fair Play:</strong> Any use of bots or external assistance will result in immediate disqualification.</p>
+                                            <p>2. <strong className="text-white">Format:</strong> Single Elimination. If you lose a match, you are out.</p>
+                                            <p>3. <strong className="text-white">Time Limit:</strong> Each player has a set time per game. Running out of time results in a loss.</p>
+                                            <p>4. <strong className="text-white">Disconnects:</strong> If you disconnect for more than 30 seconds, you may forfeit the match.</p>
+                                            <p>5. <strong className="text-white">Payouts:</strong> Prizes are distributed to the top 3 players as shown in the Leaderboard tab.</p>
+                                        </div>
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     </div>
                 </div>
@@ -417,4 +451,5 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
             )}
         </ProtectedRoute>
     )
+
 }

@@ -241,8 +241,19 @@ export function BattleGround({
 
       // Update local UI state based on server match state
       if (serverMatch.status === 'completed') {
-        const isWinner = serverMatch.winner === user?.id
-        setResultType(isWinner ? 'win' : 'lose')
+        const winnerVal = serverMatch.winner
+        // Handle if winner is populated object or ID string
+        const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : winnerVal
+
+        // Robust draw check
+        const isDraw = winnerId === 'draw' || serverMatch.isDraw || serverMatch.result === 'draw'
+
+        if (isDraw) {
+          setResultType('draw')
+        } else {
+          const isWinner = winnerId === user?.id
+          setResultType(isWinner ? 'win' : 'lose')
+        }
         setResultModalOpen(true)
       }
     }
