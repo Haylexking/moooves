@@ -181,6 +181,39 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
         }
     }, [searchParams, user, isLoading])
 
+    // Manual Verification Logic
+    const [showManualVerify, setShowManualVerify] = useState(false)
+    const [manualTxId, setManualTxId] = useState("")
+    const [verifyingManual, setVerifyingManual] = useState(false)
+
+    const handleManualVerify = async () => {
+        if (!user || !manualTxId.trim()) return
+        setVerifyingManual(true)
+        try {
+            // 1. Verify Transaction
+            const ver = await apiClient.verifyWalletTransaction({ transactionId: manualTxId.trim() })
+            if (!ver.success) throw new Error(ver.error || "Verification failed")
+
+            // 2. Join Tournament
+            // We need the invite code. If it's not in the object (it should be normalized), we might fallback or error.
+            // But usually normalized tournament has inviteCode.
+            const code = currentTournament?.inviteCode
+            if (!code) throw new Error("Could not retrieve invite code to join.")
+
+            const join = await apiClient.joinTournamentWithCode(code, user.id)
+            if (!join.success) throw new Error(join.error || "Failed to join tournament")
+
+            toast({ title: "Success", description: "Payment verified! You have joined." })
+            setShowManualVerify(false)
+            setManualTxId("")
+            loadTournament(tournamentId)
+        } catch (e: any) {
+            toast({ title: "Verification Failed", description: e.message, variant: "destructive" })
+        } finally {
+            setVerifyingManual(false)
+        }
+    }
+
     if (isLoading || verifyingPayment || !currentTournament) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -327,6 +360,46 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Manual Verification (For users who paid but aren't in) */}
+                        {!isParticipant && !isHost && (currentTournament.status === 'created' || currentTournament.status === 'waiting') && (
+                            <div className="mb-6 flex justify-center">
+                                {!showManualVerify ? (
+                                    <button
+                                        onClick={() => setShowManualVerify(true)}
+                                        className="text-xs text-green-500/70 hover:text-green-400 underline flex items-center gap-1"
+                                    >
+                                        <HelpCircle className="w-3 h-3" />
+                                        Already paid? Verify transaction manually
+                                    </button>
+                                ) : (
+                                    <div className="bg-black/60 backdrop-blur-md border border-gray-800 rounded-xl p-4 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <p className="text-sm font-bold text-gray-200">Manual Payment Verification</p>
+                                            <button onClick={() => setShowManualVerify(false)} className="text-gray-500 hover:text-white">&times;</button>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mb-3">Enter the Transaction ID (starts with 'tournament_') from your receipt.</p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. tournament_123..."
+                                                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none"
+                                                value={manualTxId}
+                                                onChange={(e) => setManualTxId(e.target.value)}
+                                            />
+                                            <Button
+                                                size="sm"
+                                                className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+                                                onClick={handleManualVerify}
+                                                disabled={verifyingManual || !manualTxId}
+                                            >
+                                                {verifyingManual ? "Checking..." : "Verify"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Host Controls (If Host) */}
                         {isHost && (
@@ -504,5 +577,4 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
             )}
         </ProtectedRoute>
     )
-
 }
