@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useTournamentStore } from "@/lib/stores/tournament-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { GlobalSidebar } from "@/components/ui/global-sidebar"
@@ -131,10 +131,63 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
         }
     }
 
-    if (isLoading || !currentTournament) {
+    const searchParams = useSearchParams()
+    const [verifyingPayment, setVerifyingPayment] = useState(false)
+
+    // Handle Payment Verification on Return
+    useEffect(() => {
+        const verifyPayment = async () => {
+            const reference = searchParams.get('reference') || searchParams.get('trxref')
+            const joinCode = searchParams.get('join')
+
+            if (reference && !verifyingPayment) {
+                setVerifyingPayment(true)
+                try {
+                    toast({ title: "Verifying Payment...", description: "Please wait while we confirm your transaction." })
+
+                    const res = await apiClient.verifyWalletTransaction({ transactionId: reference })
+
+                    if (res.success) {
+                        toast({ title: "Payment Verified!", description: "Joining tournament..." })
+
+                        // If we have a join code, explicitly join now
+                        if (joinCode && user) {
+                            const joinRes = await apiClient.joinTournamentWithCode(joinCode, user.id)
+                            if (joinRes.success) {
+                                toast({ title: "Success!", description: "You have successfully joined the tournament." })
+                                router.replace(`/tournaments/${tournamentId}`) // Clear params
+                                loadTournament(tournamentId) // Refresh data
+                            } else {
+                                toast({ title: "Joined Failed", description: joinRes.error || "Payment was successful but could not join.", variant: "destructive" })
+                            }
+                        } else {
+                            // Just refresh, maybe verification auto-added them?
+                            router.replace(`/tournaments/${tournamentId}`)
+                            loadTournament(tournamentId)
+                        }
+                    } else {
+                        toast({ title: "Verification Failed", description: res.error || "Could not verify payment.", variant: "destructive" })
+                    }
+                } catch (err) {
+                    toast({ title: "Error", description: "Payment verification error.", variant: "destructive" })
+                } finally {
+                    setVerifyingPayment(false)
+                }
+            }
+        }
+
+        if (user && !isLoading) {
+            verifyPayment()
+        }
+    }, [searchParams, user, isLoading])
+
+    if (isLoading || verifyingPayment || !currentTournament) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-black text-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                    {verifyingPayment && <p className="text-green-500 font-mono animate-pulse">Verifying Payment...</p>}
+                </div>
             </div>
         )
     }
