@@ -45,36 +45,7 @@ export default function JoinTournamentPage() {
     fetchTournament()
   }, [inviteCode])
 
-  const [showManualVerify, setShowManualVerify] = useState(false)
-  const [manualTxId, setManualTxId] = useState("")
-  const handleManualVerify = async (txId: string) => {
-    if (!user) {
-      toast({ title: "Login Required", description: "You must be logged in to verify payment.", variant: "destructive" })
-      if (typeof window !== "undefined") {
-        localStorage.setItem("return_to", window.location.pathname)
-        router.push("/onboarding")
-      }
-      return
-    }
-    const cleanTxId = txId.trim()
-    if (!cleanTxId) return
 
-    setLoading(true)
-    try {
-      const ver = await apiClient.verifyWalletTransaction({ transactionId: cleanTxId })
-      if (!ver.success) throw new Error(ver.error || "Verification failed")
-
-      const join = await apiClient.joinTournamentWithCode(inviteCode, user.id)
-      if (!join.success) throw new Error(join.error || "Failed to join tournament")
-
-      toast({ title: "Success", description: "Payment verified! You have joined." })
-      router.push(`/tournaments/${tournament?.id}`)
-    } catch (e: any) {
-      toast({ title: "Verification Failed", description: e.message, variant: "destructive" })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleJoin = async () => {
     if (!user) {
@@ -99,7 +70,7 @@ export default function JoinTournamentPage() {
           email: user.email,
           name: user.fullName,
           userId: user.id,
-          redirectUrl: `${window.location.origin}/tournaments/${tournament.id}?join=${inviteCode}`,
+          redirectUrl: `${window.location.origin}/payment-return`,
           tournamentId: tournament.id,
           payment_options: "card,ussd,banktransfer"
         })
@@ -258,44 +229,15 @@ export default function JoinTournamentPage() {
           </button>
 
           <div className="pt-4 border-t border-gray-800 mt-4">
-            {!showManualVerify ? (
-              <button
-                type="button"
-                onClick={() => setShowManualVerify(true)}
-                className="w-full text-center text-xs text-green-500/80 hover:text-green-400 underline"
-              >
-                I&apos;ve already paid, but wasn&apos;t joined
-              </button>
-            ) : (
-              <div className="bg-black/40 p-3 rounded-lg border border-gray-800 space-y-3">
-                <p className="text-sm font-semibold text-gray-300">Manual Verification</p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="text"
-                    placeholder="Transaction ID / Ref"
-                    className="flex-1 px-3 py-3 sm:py-2 text-sm bg-gray-900 border border-gray-700 rounded text-white w-full"
-                    value={manualTxId}
-                    onChange={(e) => setManualTxId(e.target.value)}
-                  />
-                  <GameButton
-                    onClick={() => handleManualVerify(manualTxId)}
-                    disabled={loading || !manualTxId}
-                    className="py-2 sm:py-1 px-3 text-sm h-auto w-full sm:w-auto shrink-0"
-                  >
-                    Verify
-                  </GameButton>
-                </div>
-                <button
-                  onClick={() => setShowManualVerify(false)}
-                  className="text-xs text-gray-500 hover:text-gray-400 w-full text-center mt-1"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
+            <p className="text-xs text-center text-gray-500">
+              Secure payment handling via Flutterwave.
+              <br />
+              You will be automatically registered after payment.
+            </p>
           </div>
         </div>
       </main>
     </div>
   )
 }
+

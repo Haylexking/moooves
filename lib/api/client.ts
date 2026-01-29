@@ -727,6 +727,8 @@ class ApiClient {
       userId: payload.userId,
       payment_options: payload.payment_options || "card,ussd,banktransfer,mobilemoney", // Default ensuring card is top
       redirectUrl: payload.redirectUrl,
+      // Ensure backend gets the callback url in the format it might expect for the gateway
+      callback_url: payload.redirectUrl,
       ...(payload.tournamentId ? { tournamentId: payload.tournamentId } : {}),
     }
     console.log(`[initWalletTransaction] Sending payload to /initial:`, body)

@@ -111,57 +111,9 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
   /**
    * Handle return from payment gateway
    */
-  useEffect(() => {
-    const handleReturn = async () => {
-      const pendingJoin = localStorage.getItem("pending_tournament_join")
-      if (!pendingJoin) return
-
-      const txId = searchParams.get("transaction_id") || searchParams.get("tx_ref") || searchParams.get("reference")
-      if (!txId) return
-
-      // Logic: If user is logged out, we must stop here and ask them to log in.
-      // We shouldn't try verifyWalletTransaction because we might lose the "ticket" if it fails due to auth.
-      // Or if verify works but join fails, we're stuck.
-      if (!user) {
-        setLoading(false)
-        console.log("User session lost on return. Waiting for login.")
-        return
-      }
-
-      try {
-        const { tournamentId: pendingId, inviteCode: pendingCode } = JSON.parse(pendingJoin)
-        if (pendingId !== tournament.id) return
-
-        setLoading(true)
-        // Verify
-        const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
-        if (!ver.success) throw new Error(ver.error || "Payment verification failed")
-
-        // Join
-        const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
-        if (!join.success) throw new Error(join.error || "Failed to join tournament")
-
-        setTicket({
-          reference: txId,
-          joinedAt: new Date().toISOString()
-        })
-        try { await refreshUser() } catch { }
-
-        localStorage.removeItem("pending_tournament_join")
-        router.replace(window.location.pathname)
-      } catch (e: any) {
-        setError(e.message || "Payment verification failed")
-        // Only remove pending join if it was a critical failure (like invalid code or already joined), 
-        // but if it was network/auth, maybe keep it? 
-        // For now, we clear it to prevent loops, unless it was "User session required" (which we caught above).
-        localStorage.removeItem("pending_tournament_join")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    handleReturn()
-  }, [searchParams, tournament.id, user, inviteCode, router, refreshUser])
+  // Legacy payment handling removed. 
+  // Payment return is now handled by /app/payment-return/page.tsx
+  // which separates the verification logic from this component.
 
   const handleJoin = async () => {
     setLoading(true);
@@ -174,7 +126,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
         email: user?.email || "",
         name: user?.fullName || "",
         userId: user?.id || "",
-        redirectUrl: window.location.href,
+        redirectUrl: `${window.location.origin}/payment-return`,
         tournamentId: tournament.id
       })
 
