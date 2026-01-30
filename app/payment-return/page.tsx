@@ -4,11 +4,11 @@
 import { usePaymentReturn } from "@/lib/hooks/use-payment-return"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 
-export default function PaymentReturnPage() {
+function PaymentReturnContent() {
     const { status, error, data, retry } = usePaymentReturn()
     const { user, isLoading: authLoading } = useAuthStore()
     const router = useRouter()
@@ -153,5 +153,17 @@ export default function PaymentReturnPage() {
                 Secure Payment Verification by Moooves
             </p>
         </div>
+    )
+}
+
+export default function PaymentReturnPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+            </div>
+        }>
+            <PaymentReturnContent />
+        </Suspense>
     )
 }
