@@ -88,14 +88,16 @@ export function BattleGround({
 
 
   // Poll for Rematch ID when game is over
+  // Poll for Rematch ID when game is over
   useEffect(() => {
     if (localMode === "p2p" && matchId && gameStatus === "completed") {
       const interval = setInterval(async () => {
         try {
           const res = await apiClient.getMatchRoom(matchId)
-          if (res.success && res.data && res.data.match) {
+          if (res.success && res.data) {
+            const matchData = res.data.match || res.data
             // Check if rematchId exists in payload (assuming backend adds it)
-            const nextMatchId = res.data.match.rematchId
+            const nextMatchId = matchData.rematchId
             if (nextMatchId && nextMatchId !== matchId) { // Ensure it's not the same ID
               // Found a rematch!
               // Don't auto redirect. Set invite ID so modal shows "Accept"
@@ -251,6 +253,7 @@ export function BattleGround({
         if (isDraw) {
           setResultType('draw')
         } else {
+          // CRITICAL FIX: Ensure precise ID comparison
           const isWinner = winnerId === user?.id
           setResultType(isWinner ? 'win' : 'lose')
         }
@@ -285,6 +288,16 @@ export function BattleGround({
                 })
                 setResultModalOpen(true)
                 stopTimer()
+
+                // CRITICAL FIX: Ensure Result Type is set here from Polling as well
+                const winnerVal = serverMatch.winner
+                const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : winnerVal
+                const isDraw = winnerId === 'draw' || serverMatch.isDraw || serverMatch.result === 'draw'
+                if (isDraw) {
+                  setResultType('draw')
+                } else {
+                  setResultType(winnerId === user?.id ? 'win' : 'lose')
+                }
               }
               // Sync Timer if possible
               if (serverMatch.createdAt && gameStatus === 'playing') {
@@ -321,17 +334,12 @@ export function BattleGround({
 
   // Game Over Handling
   useEffect(() => {
-    if (gameStatus === "completed") {
+    // CRITICAL FIX: For Online Mode, we strictly rely on the Server Sync effect (lines ~250) to determine the result.
+    // relying on local 'winner' state here causes race conditions because 'userRole' might be null or desynced.
+    if (gameStatus === "completed" && !isOnlineMode) {
       let result: "win" | "lose" | "draw" = "draw"
       if (winner === "draw") {
         result = "draw"
-      } else if (isOnlineMode) {
-        // Online: Compare winner (X/O) with my role
-        if (winner === userRole) {
-          result = "win"
-        } else {
-          result = "lose" // If I'm not the winner and it's not a draw, I lost
-        }
       } else {
         // Offline/AI: "X" is always the local player
         result = winner === "X" ? "win" : "lose"
@@ -341,7 +349,7 @@ export function BattleGround({
       setResultModalOpen(true)
       stopTimer()
     }
-  }, [gameStatus, winner, stopTimer, isOnlineMode, userRole])
+  }, [gameStatus, winner, stopTimer, isOnlineMode])
 
   // Reset Game
   const resetGame = () => {
