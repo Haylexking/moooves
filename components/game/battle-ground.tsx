@@ -253,9 +253,17 @@ export function BattleGround({
         if (isDraw) {
           setResultType('draw')
         } else {
-          // CRITICAL FIX: Ensure precise ID comparison
-          const isWinner = winnerId === user?.id
-          setResultType(isWinner ? 'win' : 'lose')
+          // CRITICAL FIX: Robust String Comparison & Logging
+          const wId = String(winnerId || "")
+          const uId = String(user?.id || "")
+          console.log(`[Result Check Sync] Winner=${wId}, Me=${uId}`)
+
+          if (!uId) {
+            console.warn("[Result Check] User ID missing, skipping result set")
+          } else {
+            const isWinner = wId === uId
+            setResultType(isWinner ? 'win' : 'lose')
+          }
         }
         setResultModalOpen(true)
       }
@@ -296,7 +304,12 @@ export function BattleGround({
                 if (isDraw) {
                   setResultType('draw')
                 } else {
-                  setResultType(winnerId === user?.id ? 'win' : 'lose')
+                  const wId = String(winnerId || "")
+                  const uId = String(user?.id || "")
+                  console.log(`[Result Check Poll] Winner=${wId}, Me=${uId}`)
+                  if (uId) {
+                    setResultType(wId === uId ? 'win' : 'lose')
+                  }
                 }
               }
               // Sync Timer if possible
