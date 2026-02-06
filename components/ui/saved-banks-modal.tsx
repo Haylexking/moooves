@@ -140,7 +140,7 @@ export function SavedBanksModal({
     fetchBanks()
   }, [open, reloadToken, user?.id, user?.role, user?.bankAccount])
 
-  const handleRemoveBanks = async () => {
+  const handleRemoveBanks = async (bank: SavedBank) => {
     if (!user?.id || !user?.role) {
       setError("You must be signed in to remove bank details.")
       return
@@ -150,12 +150,25 @@ export function SavedBanksModal({
       setRemoving(true)
       setError(null)
       setStatus(null)
-      const res = await apiClient.removeBank({ userId: user.id, role })
+
+      let res
+      if (bank.id === "primary") {
+        // Remove from user profile
+        res = await apiClient.removeBank({ userId: user.id, role })
+      } else if (bank.id) {
+        // Remove from saved beneficiaries
+        res = await apiClient.deleteSavedBank(bank.id)
+      } else {
+        throw new Error("Invalid bank selection")
+      }
+
       if (!res.success) {
         const data: any = res.data || {}
         throw new Error(res.error || data?.message || "Failed to remove bank details")
       }
-      setBanks([])
+
+      // Update local state by filtering out the removed bank
+      setBanks((prev) => prev.filter((b) => b.accountNumber !== bank.accountNumber))
       setStatus("Bank details removed successfully.")
       toast.success("Bank details removed successfully.")
     } catch (err: any) {
@@ -204,7 +217,7 @@ export function SavedBanksModal({
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        handleRemoveBanks()
+                        handleRemoveBanks(b)
                       }}
                       disabled={removing}
                     >

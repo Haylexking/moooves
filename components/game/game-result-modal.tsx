@@ -160,7 +160,7 @@ export function GameResultModal({
             </button>
           </div>
           <button
-            onClick={() => router.push('/tournaments')}
+            onClick={() => window.open('https://chat.whatsapp.com/FD1BmxFTU1KLr65PnhDB6T', '_blank')}
             className="text-sm text-green-700 hover:text-green-900 underline mt-1 font-semibold"
           >
             Join Upcoming Tournaments
