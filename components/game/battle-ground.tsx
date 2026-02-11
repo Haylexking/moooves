@@ -282,7 +282,6 @@ export function BattleGround({
         if (!pendingMove) {
           try {
             const details = await matchRoom.getRoomDetails(matchId!)
-            console.log("[BattleGround] Polled details:", details)
             // Fix: API returns match object directly in 'details' sometimes
             const serverMatch = (details && details.match) ? details.match : details
 
@@ -301,33 +300,41 @@ export function BattleGround({
                 const winnerVal = serverMatch.winner
                 const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : winnerVal
                 const isDraw = winnerId === 'draw' || serverMatch.isDraw || serverMatch.result === 'draw'
+
                 if (isDraw) {
                   setResultType('draw')
                 } else {
                   const wId = String(winnerId || "")
                   const uId = String(user?.id || "")
-                  console.log(`[Result Check Poll] Winner=${wId}, Me=${uId}`)
                   if (uId) {
                     setResultType(wId === uId ? 'win' : 'lose')
                   }
                 }
               }
+
               // Sync Timer if possible
               if (serverMatch.createdAt && gameStatus === 'playing') {
                 const elapsed = Math.floor((Date.now() - new Date(serverMatch.createdAt).getTime()) / 1000)
-                const totalTime = 600 // 10 mins default
+                const totalTime = 600
                 const remaining = Math.max(0, totalTime - elapsed)
-                // Only sync if significant drift (> 3s)
                 if (Math.abs(timeLeft - remaining) > 3) {
                   setTime(remaining)
                 }
               }
 
               // Apply Match State
-              useGameStore.getState().applyServerMatchState?.(serverMatch)
+              const store = useGameStore.getState()
+              if (store.applyServerMatchState) {
+                store.applyServerMatchState(serverMatch)
+              }
             }
           } catch (e) {
             console.error("Polling error:", e)
+            const errStr = String(e).toLowerCase()
+            if (errStr.includes("not found") || errStr.includes("404")) {
+              console.warn("Match appears deleted, treating as opponent forfeit")
+              setWinByDefault(true)
+            }
           }
         }
       }, 500) // Poll every 500ms for near-real-time feel

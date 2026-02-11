@@ -12,15 +12,11 @@ function PaymentReturnContent() {
     const { status, error, data, retry } = usePaymentReturn()
     const { user, isLoading: authLoading } = useAuthStore()
     const router = useRouter()
-
-    // Local fallback state for "Manual Entry" if auto-verify fails hard
     const [manualId, setManualId] = useState("")
 
     // Handle Auth Redirects
     useEffect(() => {
-        // If auth finishes loading and no user found, redirect to login
         if (!authLoading && !user) {
-            // Save current URL to return after login
             const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
             router.replace(`/login?redirect=${returnUrl}`)
         }
@@ -28,23 +24,22 @@ function PaymentReturnContent() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
             </div>
         )
     }
 
-    // If we ended up here but not logged in, show a friendly message (useEffect above will redirect, but just in case)
     if (!user) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center border border-yellow-200">
+            <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+                <div className="max-w-md w-full bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 text-center border border-yellow-500/30">
                     <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h1>
-                    <p className="text-gray-600 mb-6">
+                    <h1 className="text-2xl font-bold text-white mb-2">Login Required</h1>
+                    <p className="text-gray-400 mb-6">
                         We verified your payment session, but we need you to log in to finish the registration.
                     </p>
-                    <Button onClick={() => window.location.reload()} className="w-full">
+                    <Button onClick={() => window.location.reload()} className="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-bold">
                         Refresh Page
                     </Button>
                 </div>
@@ -53,22 +48,25 @@ function PaymentReturnContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-            <div className="max-w-md w-full bg-white rounded-xl shadow-xl overflow-hidden transition-all duration-300">
+        <div className="min-h-screen bg-black relative overflow-hidden font-sans text-white flex items-center justify-center p-4">
+            {/* Background Effects */}
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-black to-black pointer-events-none" />
+
+            <div className="max-w-md w-full bg-gray-900/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-800 relative z-10 overflow-hidden">
 
                 {/* STATUS: VERIFYING / JOINING */}
                 {(status === "verifying" || status === "joining") && (
-                    <div className="p-12 text-center space-y-6">
-                        <div className="relative w-20 h-20 mx-auto">
-                            <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
-                            <div className="absolute inset-0 border-4 border-green-500 rounded-full border-t-transparent animate-spin"></div>
+                    <div className="p-12 text-center space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                        <div className="relative w-24 h-24 mx-auto">
+                            <div className="absolute inset-0 border-4 border-gray-800 rounded-full"></div>
+                            <div className="absolute inset-0 border-4 border-green-500 rounded-full border-t-transparent animate-spin shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900">
-                                {status === "verifying" ? "Verifying Payment..." : "Securing Your Spot..."}
+                            <h2 className="text-2xl font-black text-white uppercase tracking-wide">
+                                {status === "verifying" ? "Verifying..." : "Joining..."}
                             </h2>
-                            <p className="text-gray-500 mt-2">
-                                Please wait while we confirm your transaction and register you for the tournament.
+                            <p className="text-gray-400 mt-2 text-sm">
+                                Securing your spot in the tournament.
                             </p>
                         </div>
                     </div>
@@ -76,64 +74,67 @@ function PaymentReturnContent() {
 
                 {/* STATUS: SUCCESS */}
                 {status === "success" && (
-                    <div className="p-12 text-center space-y-6">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-in zoom-in duration-300">
-                            <CheckCircle className="w-10 h-10 text-green-600" />
+                    <div className="p-12 text-center space-y-8 animate-in fade-in zoom-in-90 duration-500">
+                        <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto ring-1 ring-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+                            <CheckCircle className="w-12 h-12 text-green-400" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900">You're In!</h2>
-                            <p className="text-gray-600 mt-2">
-                                Registration successful. Redirecting you to the lobby...
+                            <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">You're In!</h2>
+                            <p className="text-green-400/80 mt-2 font-medium">
+                                Payment Confirmed.
                             </p>
+                            <p className="text-gray-500 text-xs mt-1">Redirecting to lobby...</p>
                         </div>
-                        <div className="text-xs text-gray-400 font-mono bg-gray-50 p-2 rounded">
-                            Ref: {data?.reference}
-                        </div>
+                        {data?.reference && (
+                            <div className="text-[10px] text-gray-600 font-mono bg-black/40 p-2 rounded border border-gray-800">
+                                Ref: {data.reference}
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {/* STATUS: ERROR */}
                 {status === "error" && (
-                    <div className="p-8 space-y-6">
+                    <div className="p-8 space-y-6 animate-in slide-in-from-bottom-4 duration-300">
                         <div className="text-center">
-                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <XCircle className="w-8 h-8 text-red-600" />
+                            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                                <XCircle className="w-10 h-10 text-red-500" />
                             </div>
-                            <h2 className="text-xl font-bold text-gray-900">Verification Failed</h2>
-                            <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-lg border border-red-100">
+                            <h2 className="text-xl font-bold text-white">Verification Failed</h2>
+                            <p className="text-sm text-red-400 mt-2 bg-red-950/30 p-3 rounded-xl border border-red-900/50">
                                 {error}
                             </p>
                         </div>
 
-                        <div className="space-y-3 pt-4 border-t border-gray-100">
-                            <Button onClick={retry} variant="default" className="w-full">
+                        <div className="space-y-3 pt-4">
+                            <Button onClick={retry} className="w-full bg-white text-black hover:bg-gray-200 font-bold">
                                 Try Again
                             </Button>
                             <Button
                                 onClick={() => router.push("/dashboard")}
                                 variant="ghost"
-                                className="w-full text-gray-500"
+                                className="w-full text-gray-500 hover:text-white"
                             >
                                 Return to Dashboard
                             </Button>
                         </div>
 
-                        {/* Manual Override (Only show if it's a verification/API error, not session error) */}
+                        {/* Manual Override */}
                         {error?.includes("verification") && (
-                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                <p className="text-xs text-gray-500 mb-2 font-medium">Manual Backup</p>
+                            <div className="mt-6 pt-6 border-t border-gray-800/50">
+                                <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wider">Manual Verification</p>
                                 <div className="flex gap-2">
                                     <input
-                                        className="flex-1 text-sm border rounded px-3 py-2"
+                                        className="flex-1 text-sm bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-green-500 outline-none transition-colors"
                                         placeholder="Transaction Reference"
                                         value={manualId}
                                         onChange={(e) => setManualId(e.target.value)}
                                     />
                                     <Button
-                                        variant="outline"
+                                        variant="outline" // Changed to outline for better contrast
                                         size="sm"
+                                        className="border-gray-600 text-gray-300 hover:text-white hover:bg-gray-800"
                                         onClick={() => {
-                                            // Force a retry with new params by reloading with query param
                                             const url = new URL(window.location.href)
                                             url.searchParams.set("transaction_id", manualId)
                                             window.location.href = url.toString()
@@ -149,8 +150,8 @@ function PaymentReturnContent() {
                 )}
             </div>
 
-            <p className="mt-8 text-xs text-gray-400">
-                Secure Payment Verification by Moooves
+            <p className="absolute bottom-8 text-[10px] text-gray-600 uppercase tracking-widest">
+                Secured by Moooves
             </p>
         </div>
     )
@@ -159,8 +160,8 @@ function PaymentReturnContent() {
 export default function PaymentReturnPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
             </div>
         }>
             <PaymentReturnContent />

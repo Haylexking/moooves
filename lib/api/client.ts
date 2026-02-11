@@ -612,6 +612,10 @@ class ApiClient {
     return this.request(`/tournaments/${tournamentId}/winners`)
   }
 
+  async getTournamentWaitingRoom(tournamentId: string): Promise<ApiResponse<any>> {
+    return this.request(`/tournaments/${tournamentId}/waiting-room`)
+  }
+
   // Payment / Payout methods
   async distributePayouts(
     tournamentId: string,

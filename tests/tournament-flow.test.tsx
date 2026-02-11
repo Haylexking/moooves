@@ -1,7 +1,8 @@
 import React from "react"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { JoinTournamentFlow } from "@/components/tournament/join-tournament-flow"
-import { TournamentView } from "@/components/tournament/tournament-view"
+import { TournamentBracket } from "@/components/tournament/tournament-bracket"
+import { TournamentWaitingRoom } from "@/components/tournament/tournament-waiting-room"
 import type { Tournament } from "@/lib/types"
 import { apiClient } from "@/lib/api/client"
 
@@ -12,6 +13,7 @@ jest.mock("@/lib/api/client", () => ({
     joinTournamentWithCode: jest.fn(),
     getTournament: jest.fn(),
     getTournamentWinners: jest.fn(),
+    getTournamentWaitingRoom: jest.fn(),
   },
 }))
 
@@ -23,6 +25,16 @@ jest.mock("@/lib/stores/auth-store", () => ({
     }
     return selector ? selector(state) : state
   },
+}))
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+  }),
+  useSearchParams: () => ({
+    get: jest.fn(),
+  }),
 }))
 
 describe("Tournament user flow", () => {
@@ -37,62 +49,108 @@ describe("Tournament user flow", () => {
 
     render(<JoinTournamentFlow tournament={sampleTournament} inviteCode="ABC123" />)
 
-    fireEvent.click(screen.getByRole("button", { name: /join tournament/i }))
+    // Ensure button exists before clicking
+    const joinBtn = screen.getByRole("button", { name: /join tournament/i })
+    fireEvent.click(joinBtn)
 
     await waitFor(() => expect(screen.getByText(/You're in/i)).toBeInTheDocument())
     expect(screen.getByText(/Reference/)).toBeInTheDocument()
   })
 
-  test("TournamentView renders bracket, countdown, and winners", () => {
-    const tournament = buildTournament({
-      status: "waiting",
-      participants: [
+  test("TournamentWaitingRoom renders players and invite code", async () => {
+    // Mock the waiting room polling response with CORRECT shape
+    const mockParticipants = [
+      {
+        _id: "p1",
+        userId: { _id: "u1", username: "Player One", fullName: "Player One" },
+        joinedAt: new Date().toISOString()
+      },
+      {
+        _id: "p2",
+        userId: { _id: "u2", username: "Player Two", fullName: "Player Two" },
+        joinedAt: new Date().toISOString()
+      }
+    ]
+
+      ; (apiClient.getTournamentWaitingRoom as jest.Mock).mockResolvedValue({
+        success: true,
+        data: {
+          players: mockParticipants,
+          tournament: { currentPlayers: 2, maxPlayers: 8 }
+        }
+      })
+
+    render(
+      <TournamentWaitingRoom
+        tournamentId="tournament-1"
+        maxPlayers={8}
+        inviteCode="ABC123"
+        isHost={true}
+        startTime={new Date().toISOString()}
+      />
+    )
+
+    // Check for static elements
+    // Note: "Waiting for players" is only shown when empty. 
+    // We check for "Players Joined" which is in the status bar.
+    expect(screen.getByText(/Players Joined/i)).toBeInTheDocument()
+    expect(screen.getByText(/ABC123/)).toBeInTheDocument()
+
+    // Check for polling results (wait for effect)
+    await waitFor(() => {
+      expect(apiClient.getTournamentWaitingRoom).toHaveBeenCalled()
+      expect(screen.getByText("Player One")).toBeInTheDocument()
+      expect(screen.getByText("Player Two")).toBeInTheDocument()
+      // Check count "2" and "/8" separately as they are split by span
+      expect(screen.getByText("2")).toBeInTheDocument()
+      expect(screen.getByText("/8")).toBeInTheDocument()
+    })
+  })
+
+  test("TournamentBracket renders rounds and matches correctly", () => {
+    const bracket = {
+      currentRound: 1,
+      rounds: [
         {
-          userId: "user-1",
-          email: "one@example.com",
-          joinedAt: Date.now(),
-          paymentStatus: "confirmed",
-          eliminated: false,
-        },
-        {
-          userId: "user-2",
-          email: "two@example.com",
-          joinedAt: Date.now(),
-          paymentStatus: "confirmed",
-          eliminated: false,
+          roundNumber: 1,
+          status: "waiting",
+          matches: [
+            {
+              id: "match-1",
+              tournamentId: "tournament-1",
+              roundNumber: 1,
+              player1Id: "user-1",
+              player2Id: "user-2",
+              winnerId: undefined,
+              player1Score: 0,
+              player2Score: 0,
+              status: "waiting",
+              moveHistory: [],
+            },
+            {
+              id: "match-2",
+              tournamentId: "tournament-1",
+              roundNumber: 1,
+              player1Id: "user-3",
+              player2Id: "user-4",
+              winnerId: undefined,
+              player1Score: 0,
+              player2Score: 0,
+              status: "active",
+              moveHistory: [],
+            },
+          ],
         },
       ],
-      bracket: {
-        currentRound: 1,
-        rounds: [
-          {
-            roundNumber: 1,
-            status: "waiting",
-            matches: [
-              {
-                id: "match-1",
-                tournamentId: "tournament-1",
-                roundNumber: 1,
-                player1Id: "user-1",
-                player2Id: "user-2",
-                winnerId: undefined,
-                player1Score: 0,
-                player2Score: 0,
-                status: "waiting",
-                moveHistory: [],
-              },
-            ],
-          },
-        ],
-      },
-      winners: [{ userId: "user-2", rank: 1, prize: 3000, paidOut: false }],
-    })
+    }
 
-    render(<TournamentView tournament={tournament} />)
+    render(<TournamentBracket bracket={bracket} currentUserId="user-1" />)
 
-    expect(screen.getAllByText(/Round 1/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/one@example.com/i)).toBeInTheDocument()
-    expect(screen.getByText(/₦3,000/)).toBeInTheDocument()
+    expect(screen.getByText(/Round 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/user-1/i)).toBeInTheDocument() // Using slice(0,8) logic in component? user-1 is short enough
+    expect(screen.getByText(/user-2/i)).toBeInTheDocument()
+    // "Live" badge for active match
+    expect(screen.getByText(/Live/i)).toBeInTheDocument()
   })
 })
 

@@ -78,14 +78,7 @@ export default function GamePageClient() {
         matchId={matchId}
         initialRoomCode={matchCode}
       />
-      <GameResultModal
-        open={gameStatus === "completed"}
-        onClose={handleBackToMenu}
-        onPlayAgain={handlePlayAgain}
-        result={scores.X > scores.O ? "win" : scores.X < scores.O ? "lose" : "draw"}
-        scoreX={scores.X}
-        scoreO={scores.O}
-      />
+
     </ProtectedRoute>
   )
 }

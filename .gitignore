@@ -44,3 +44,4 @@ Thumbs.db
 # Editor / IDE
 .vscode/
 *.code-workspace
+swagger.json

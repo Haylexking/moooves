@@ -14,6 +14,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { TournamentBracket } from "@/components/tournament/tournament-bracket"
 import { TournamentFAQModal } from "@/components/tournament/tournament-faq-modal"
 import { HostAdminModal } from "@/components/tournament/host-admin-modal"
+import { TournamentWaitingRoom } from "@/components/tournament/tournament-waiting-room"
 import { toast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api/client"
 import Image from "next/image"
@@ -131,55 +132,8 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
         }
     }
 
-    const searchParams = useSearchParams()
-    const [verifyingPayment, setVerifyingPayment] = useState(false)
-
-    // Handle Payment Verification on Return
-    useEffect(() => {
-        const verifyPayment = async () => {
-            const reference = searchParams.get('reference') || searchParams.get('trxref')
-            const joinCode = searchParams.get('join')
-
-            if (reference && !verifyingPayment) {
-                setVerifyingPayment(true)
-                try {
-                    toast({ title: "Verifying Payment...", description: "Please wait while we confirm your transaction." })
-
-                    const res = await apiClient.verifyWalletTransaction({ transactionId: reference })
-
-                    if (res.success) {
-                        toast({ title: "Payment Verified!", description: "Joining tournament..." })
-
-                        // If we have a join code, explicitly join now
-                        if (joinCode && user) {
-                            const joinRes = await apiClient.joinTournamentWithCode(joinCode, user.id)
-                            if (joinRes.success) {
-                                toast({ title: "Success!", description: "You have successfully joined the tournament." })
-                                router.replace(`/tournaments/${tournamentId}`) // Clear params
-                                loadTournament(tournamentId) // Refresh data
-                            } else {
-                                toast({ title: "Joined Failed", description: joinRes.error || "Payment was successful but could not join.", variant: "destructive" })
-                            }
-                        } else {
-                            // Just refresh, maybe verification auto-added them?
-                            router.replace(`/tournaments/${tournamentId}`)
-                            loadTournament(tournamentId)
-                        }
-                    } else {
-                        toast({ title: "Verification Failed", description: res.error || "Could not verify payment.", variant: "destructive" })
-                    }
-                } catch (err) {
-                    toast({ title: "Error", description: "Payment verification error.", variant: "destructive" })
-                } finally {
-                    setVerifyingPayment(false)
-                }
-            }
-        }
-
-        if (user && !isLoading) {
-            verifyPayment()
-        }
-    }, [searchParams, user, isLoading])
+    // Payment verification is now handled by /app/payment-return/page.tsx
+    // We keep manual verification below as a fallback.
 
     // Manual Verification Logic
     const [showManualVerify, setShowManualVerify] = useState(false)
@@ -214,12 +168,11 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
         }
     }
 
-    if (isLoading || verifyingPayment || !currentTournament) {
+    if (isLoading || !currentTournament) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-black text-white">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-                    {verifyingPayment && <p className="text-green-500 font-mono animate-pulse">Verifying Payment...</p>}
                 </div>
             </div>
         )
@@ -471,7 +424,15 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             {currentTournament.bracket?.rounds?.reduce((acc, r) => acc + r.matches.length, 0) || 0} Matches Total
                                         </span>
                                     </div>
-                                    {currentTournament.bracket ? (
+                                    {currentTournament.status === 'created' || currentTournament.status === 'waiting' ? (
+                                        <TournamentWaitingRoom
+                                            tournamentId={currentTournament.id}
+                                            maxPlayers={currentTournament.maxPlayers || 16}
+                                            inviteCode={currentTournament.inviteCode}
+                                            isHost={isHost}
+                                            startTime={currentTournament.startTime ? String(currentTournament.startTime) : undefined}
+                                        />
+                                    ) : currentTournament.bracket ? (
                                         <TournamentBracket bracket={currentTournament.bracket} currentUserId={user?.id} />
                                     ) : (
                                         <div className="text-center py-20 bg-black/20 rounded-xl border border-dashed border-gray-800">
