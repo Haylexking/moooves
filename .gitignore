@@ -13,7 +13,10 @@
 # Debug / Logs
 npm-debug.log*
 *.log
-.txt
+*.txt
+debug-*.js
+test-api-probe.js
+*.py
 
 # Env files (local environment variables)
 .env
