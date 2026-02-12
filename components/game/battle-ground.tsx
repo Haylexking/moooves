@@ -238,11 +238,18 @@ export function BattleGround({
 
   // Sync with Server State (Tournament Mode)
   useEffect(() => {
-    if (localMode === "tournament" && matchRoom.matchState) {
+    if (isOnlineMode && matchRoom.matchState) {
       const serverMatch = matchRoom.matchState
 
       // Update local UI state based on server match state
       if (serverMatch.status === 'completed') {
+
+        // Ensure Game Store is synced to completed state
+        const currentStatus = useGameStore.getState().gameStatus
+        if (currentStatus !== 'completed') {
+          useGameStore.setState({ gameStatus: 'completed' })
+          stopTimer()
+        }
         const winnerVal = serverMatch.winner
         // Handle if winner is populated object or ID string
         const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : winnerVal
@@ -260,12 +267,14 @@ export function BattleGround({
 
           if (!uId) {
             console.warn("[Result Check] User ID missing, skipping result set")
+            // Don't open modal if we don't know who we are yet
+            return
           } else {
             const isWinner = wId === uId
             setResultType(isWinner ? 'win' : 'lose')
+            setResultModalOpen(true)
           }
         }
-        setResultModalOpen(true)
       }
     }
   }, [localMode, matchRoom.matchState, user?.id])
@@ -273,8 +282,7 @@ export function BattleGround({
   // Polling for opponent moves in tournament AND p2p mode
   useEffect(() => {
     // We want to poll in "tournament" OR "p2p" (live match) modes
-    // CRITICAL FIX: Poll even if gameStatus is 'waiting' so we detect when it starts.
-    const shouldPoll = (localMode === "tournament" || localMode === "p2p") && !!matchId
+    const shouldPoll = isOnlineMode && !!matchId
 
     if (shouldPoll) {
       const interval = setInterval(async () => {
@@ -286,7 +294,8 @@ export function BattleGround({
             const serverMatch = (details && details.match) ? details.match : details
 
             if (serverMatch) {
-              if (serverMatch.status === 'completed' && gameStatus !== 'completed') {
+              // Game Over logic handled by main useEffect
+              if (false) {
                 console.log("[BattleGround] Synced Game Over from Server", serverMatch)
                 useGameStore.setState({
                   gameStatus: 'completed',
@@ -308,6 +317,10 @@ export function BattleGround({
                   const uId = String(user?.id || "")
                   if (uId) {
                     setResultType(wId === uId ? 'win' : 'lose')
+                  } else {
+                    console.warn("[Polling Result Check] User ID missing, result might be inaccurate")
+                    // We still set it, but user might see 'lose' momentarily if ID loads late.
+                    // The useEffect above handles the "definitive" sync better.
                   }
                 }
               }
