@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import swaggerRaw from '../swagger.json'
 import { TEST_MODE, BASE_URL } from './config'
 import schemaValidator from './schemaValidator'
 
@@ -10,7 +9,18 @@ interface ApiCallOptions {
   method?: HttpMethod
   path: string
   body?: any
-  headers?: Record<string,string>
+  headers?: Record<string, string>
+}
+
+// Use dynamic require for swagger.json to avoid build errors when file is missing
+let swaggerRaw: any = {}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  swaggerRaw = require('../swagger.json')
+} catch (e) {
+  // swagger.json optional in production/build
+  console.warn("swagger.json not found")
+  swaggerRaw = { paths: {} }
 }
 
 const swagger = (swaggerRaw as any).swaggerDoc || swaggerRaw
@@ -22,8 +32,8 @@ export async function callApi({ method = 'get', path: p, body, headers = {} }: A
   if (TEST_MODE === 'mock') {
     const normalized = p.replace(/^\/+/, '')
     const safeName = normalized.replace(/[^a-z0-9_]/gi, '_')
-  // mock files are located in test-utils/mocks at the repo root
-  const mockPath = pathJoin('test-utils/mocks', `${safeName}.json`)
+    // mock files are located in test-utils/mocks at the repo root
+    const mockPath = pathJoin('test-utils/mocks', `${safeName}.json`)
     try {
       const raw = fs.readFileSync(mockPath, 'utf-8')
       const parsed = JSON.parse(raw)

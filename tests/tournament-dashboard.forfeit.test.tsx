@@ -27,7 +27,7 @@ describe('TournamentDashboard forfeit logic', () => {
         ; (useAuthStore as any).mockReturnValue({ user, refreshUser: jest.fn() })
             ; (apiClient.getAllTournaments as jest.Mock).mockResolvedValue({ success: true, data: [tournament] })
             ; (apiClient.getTournamentWinners as jest.Mock).mockResolvedValue({ success: true, data: [] })
-            ; (apiClient.verifyTournamentPayouts as jest.Mock).mockResolvedValue({ success: true, data: { payouts: [] } })
+
     })
 
     afterEach(() => {

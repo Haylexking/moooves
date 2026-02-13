@@ -43,13 +43,13 @@
     "hooks/**/*.ts",
     "hooks/**/*.tsx",
     "types/**/*.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "test-utils/**/*.ts",
+    "test-utils/**/*.tsx"
   ],
   "exclude": [
-    "node_modules",
-    "tests",
-    "test-utils",
-    "__tests__",
-    "__mocks__"
+    "node_modules"
   ]
 }

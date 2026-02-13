@@ -1,6 +1,7 @@
 import React from "react"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { JoinTournamentFlow } from "@/components/tournament/join-tournament-flow"
+import { TournamentBracket as BracketType } from "@/lib/types"
 import { TournamentBracket } from "@/components/tournament/tournament-bracket"
 import { TournamentWaitingRoom } from "@/components/tournament/tournament-waiting-room"
 import type { Tournament } from "@/lib/types"
@@ -122,7 +123,7 @@ describe("Tournament user flow", () => {
   })
 
   test("TournamentBracket renders rounds and matches correctly", () => {
-    const bracket: TournamentBracket = {
+    const bracket: BracketType = {
       currentRound: 1,
       rounds: [
         {
