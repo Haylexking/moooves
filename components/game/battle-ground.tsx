@@ -277,7 +277,7 @@ export function BattleGround({
         }
       }
     }
-  }, [localMode, matchRoom.matchState, user?.id])
+  }, [isOnlineMode, matchRoom.matchState, user?.id, stopTimer])
 
   // Polling for opponent moves in tournament AND p2p mode
   useEffect(() => {
@@ -294,36 +294,7 @@ export function BattleGround({
             const serverMatch = (details && details.match) ? details.match : details
 
             if (serverMatch) {
-              // Game Over logic handled by main useEffect
-              if (false) {
-                console.log("[BattleGround] Synced Game Over from Server", serverMatch)
-                useGameStore.setState({
-                  gameStatus: 'completed',
-                  winner: serverMatch.winner === 'draw' ? 'draw' :
-                    (serverMatch.winner === matchRoom.participants[0] ? 'X' : 'O')
-                })
-                setResultModalOpen(true)
-                stopTimer()
 
-                // CRITICAL FIX: Ensure Result Type is set here from Polling as well
-                const winnerVal = serverMatch.winner
-                const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : winnerVal
-                const isDraw = winnerId === 'draw' || serverMatch.isDraw || serverMatch.result === 'draw'
-
-                if (isDraw) {
-                  setResultType('draw')
-                } else {
-                  const wId = String(winnerId || "")
-                  const uId = String(user?.id || "")
-                  if (uId) {
-                    setResultType(wId === uId ? 'win' : 'lose')
-                  } else {
-                    console.warn("[Polling Result Check] User ID missing, result might be inaccurate")
-                    // We still set it, but user might see 'lose' momentarily if ID loads late.
-                    // The useEffect above handles the "definitive" sync better.
-                  }
-                }
-              }
 
               // Sync Timer if possible
               if (serverMatch.createdAt && gameStatus === 'playing') {

@@ -127,7 +127,7 @@ describe("Tournament user flow", () => {
       rounds: [
         {
           roundNumber: 1,
-          status: "waiting",
+          status: "waiting" as "waiting",
           matches: [
             {
               id: "match-1",
@@ -138,7 +138,7 @@ describe("Tournament user flow", () => {
               winnerId: undefined,
               player1Score: 0,
               player2Score: 0,
-              status: "waiting",
+              status: "waiting" as "waiting",
               moveHistory: [],
             },
             {
@@ -150,7 +150,7 @@ describe("Tournament user flow", () => {
               winnerId: undefined,
               player1Score: 0,
               player2Score: 0,
-              status: "active",
+              status: "active" as "active",
               moveHistory: [],
             },
           ],
