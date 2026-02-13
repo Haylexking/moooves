@@ -122,7 +122,7 @@ describe("Tournament user flow", () => {
   })
 
   test("TournamentBracket renders rounds and matches correctly", () => {
-    const bracket = {
+    const bracket: TournamentBracket = {
       currentRound: 1,
       rounds: [
         {
