@@ -6,23 +6,24 @@ import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import { Loader2, CheckCircle, XCircle } from "lucide-react"
 
 function PaymentReturnContent() {
     const { status, error, data, retry } = usePaymentReturn()
-    const { user, isLoading: authLoading } = useAuthStore()
+    const { user, isLoading: authLoading, rehydrated } = useAuthStore()
     const router = useRouter()
     const [manualId, setManualId] = useState("")
 
     // Handle Auth Redirects
     useEffect(() => {
-        if (!authLoading && !user) {
+        // Only redirect if we are done loading AND rehydrated, and still no user
+        if (!authLoading && rehydrated && !user) {
             const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
             router.replace(`/login?redirect=${returnUrl}`)
         }
-    }, [authLoading, user, router])
+    }, [authLoading, rehydrated, user, router])
 
-    if (authLoading) {
+    if (authLoading || !rehydrated) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
@@ -33,15 +34,10 @@ function PaymentReturnContent() {
     if (!user) {
         return (
             <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-                <div className="max-w-md w-full bg-gray-900/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 text-center border border-yellow-500/30">
-                    <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-white mb-2">Login Required</h1>
-                    <p className="text-gray-400 mb-6">
-                        We verified your payment session, but we need you to log in to finish the registration.
-                    </p>
-                    <Button onClick={() => window.location.reload()} className="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-bold">
-                        Refresh Page
-                    </Button>
+                <div className="text-center space-y-4 animate-pulse">
+                    <Loader2 className="w-10 h-10 text-green-500 mx-auto animate-spin" />
+                    <h1 className="text-xl font-bold text-white">Session Expired</h1>
+                    <p className="text-gray-400 text-sm">Redirecting you to login to complete verification...</p>
                 </div>
             </div>
         )

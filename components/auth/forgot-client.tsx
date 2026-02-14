@@ -17,6 +17,7 @@ export default function ForgotClient({
   onComplete?: () => void
 }) {
   const [email, setEmail] = useState("")
+  // ... (keeping state the same)
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [otp, setOtp] = useState("")
@@ -205,19 +206,16 @@ export default function ForgotClient({
               maxLength={6}
               value={otp}
               onChange={(value) => setOtp(value)}
-              render={({ slots }) => (
-                <InputOTPGroup className="gap-2">
-                  {slots.map((slot, index) => (
-                    <InputOTPSlot
-                      key={index}
-                      {...slot}
-                      index={index}
-                      className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]"
-                    />
-                  ))}
-                </InputOTPGroup>
-              )}
-            />
+            >
+              <InputOTPGroup className="gap-2">
+                <InputOTPSlot index={0} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={1} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={2} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={3} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={4} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={5} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+              </InputOTPGroup>
+            </InputOTP>
 
             {error && (
               <div role="alert" className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3 w-full text-center">
@@ -233,6 +231,7 @@ export default function ForgotClient({
       </div>
     )
   }
+
 
   // Reset password form
   if (stage === "reset") {

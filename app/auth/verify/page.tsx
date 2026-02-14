@@ -60,14 +60,18 @@ export default function VerifyEmailPage() {
 
           <label className="text-[#002B03] font-bold">Verification code</label>
           <div className="flex items-center justify-center">
-            <InputOTP maxLength={6} value={otp} onChange={(value) => setOtp(value)}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} className="border-gray-400" />
-                <InputOTPSlot index={1} className="border-gray-400" />
-                <InputOTPSlot index={2} className="border-gray-400" />
-                <InputOTPSlot index={3} className="border-gray-400" />
-                <InputOTPSlot index={4} className="border-gray-400" />
-                <InputOTPSlot index={5} className="border-gray-400" />
+            <InputOTP
+              maxLength={6}
+              value={otp}
+              onChange={(value) => setOtp(value)}
+            >
+              <InputOTPGroup className="gap-2 justify-center">
+                <InputOTPSlot index={0} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={1} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={2} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={3} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={4} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
+                <InputOTPSlot index={5} className="w-10 h-12 border-2 border-[#6AC56E] rounded-md text-lg font-bold text-[#002B03] bg-white focus:ring-2 focus:ring-[#002B03] focus:border-[#002B03]" />
               </InputOTPGroup>
             </InputOTP>
           </div>
