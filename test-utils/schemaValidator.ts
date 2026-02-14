@@ -1,11 +1,20 @@
 import Ajv, { ValidateFunction } from 'ajv'
 import addFormats from 'ajv-formats'
-import swaggerRaw from '../swagger.json'
+// Use dynamic require for swagger.json to avoid build errors when file is missing
+let swaggerRaw: any = {}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  swaggerRaw = require('../swagger.json')
+} catch (e) {
+  // swagger.json optional in production/build
+  console.warn("swagger.json not found")
+  swaggerRaw = { paths: {} }
+}
+
+const swagger = (swaggerRaw as any).swaggerDoc || swaggerRaw
 
 const ajv = new Ajv({ strict: false, allErrors: true })
 addFormats(ajv)
-
-const swagger = (swaggerRaw as any).swaggerDoc || (swaggerRaw as any)
 
 // Cache compiled validators: key is operationId or path|method
 const validators = new Map<string, ValidateFunction>()

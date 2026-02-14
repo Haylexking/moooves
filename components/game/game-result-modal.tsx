@@ -34,6 +34,7 @@ export function GameResultModal({
   onAcceptRematch,
   onDeclineRematch,
 }: GameResultModalProps) {
+  console.log("GameResultModal render:", { open, result, isOnlineMode, rematchInviteId });
   const router = useRouter()
 
   if (!open) return null

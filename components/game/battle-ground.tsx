@@ -251,13 +251,15 @@ export function BattleGround({
           stopTimer()
         }
         const winnerVal = serverMatch.winner
+        console.log("[BattleGround] Completed Match Object:", JSON.stringify(serverMatch, null, 2))
         // Handle if winner is populated object or ID string
         const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : winnerVal
 
-        // Robust draw check
+        // Robust draw check: Only if explicit "draw" is returned.
         const isDraw = winnerId === 'draw' || serverMatch.isDraw || serverMatch.result === 'draw'
 
         if (isDraw) {
+          console.log("[Result Check] No winner declared or explicit draw -> Draw")
           setResultType('draw')
         } else {
           // CRITICAL FIX: Robust String Comparison & Logging
@@ -270,11 +272,59 @@ export function BattleGround({
             // Don't open modal if we don't know who we are yet
             return
           } else {
-            const isWinner = wId === uId
+            let isWinner = false
+            // 1. Try explicit winner symbol/ID
+            if (wId) {
+              if (wId === "X" || wId === "O") {
+                // Winner is symbol, compare with my role
+                if (matchRoom.participants && user?.id) {
+                  // Ensure strict string comparison for IDs in participants list
+                  const p1 = typeof matchRoom.participants[0] === 'string' ? matchRoom.participants[0] : (matchRoom.participants[0] as any)._id
+                  const p2 = typeof matchRoom.participants[1] === 'string' ? matchRoom.participants[1] : (matchRoom.participants[1] as any)._id
+
+                  let myRole = null
+                  if (uId === p1) myRole = "X"
+                  else if (uId === p2) myRole = "O"
+
+                  isWinner = wId === myRole
+                }
+              } else {
+                // Winner is likely ID
+                isWinner = wId === uId
+              }
+            } else {
+              // 2. Fallback: No winner ID, but game is completed. Use Scores.
+              console.log("[Result Check] No Winner ID. Falling back to Score Comparison.")
+              const scoreX = scores["X"] || 0
+              const scoreO = scores["O"] || 0
+
+              if (scoreX === scoreO) {
+                setResultType('draw')
+                setResultModalOpen(true)
+                return
+              }
+
+              // Determine my role again
+              let myRole = null
+              if (matchRoom.participants && matchRoom.participants.length >= 2) {
+                const p1 = typeof matchRoom.participants[0] === 'string' ? matchRoom.participants[0] : (matchRoom.participants[0] as any)._id
+                const p2 = typeof matchRoom.participants[1] === 'string' ? matchRoom.participants[1] : (matchRoom.participants[1] as any)._id
+                if (uId === p1) myRole = "X"
+                else if (uId === p2) myRole = "O"
+              }
+
+              if (myRole === "X") isWinner = scoreX > scoreO
+              else if (myRole === "O") isWinner = scoreO > scoreX
+              else {
+                // Unknown role? Default to lose to be safe, or just return.
+                console.warn("[Result Check] Could not determine role for score fallback.")
+              }
+            }
+
             setResultType(isWinner ? 'win' : 'lose')
-            setResultModalOpen(true)
           }
         }
+        setResultModalOpen(true)
       }
     }
   }, [isOnlineMode, matchRoom.matchState, user?.id, stopTimer])
