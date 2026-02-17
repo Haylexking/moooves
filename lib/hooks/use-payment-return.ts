@@ -29,7 +29,7 @@ interface UsePaymentReturnResult extends PaymentReturnState {
 export function usePaymentReturn(): UsePaymentReturnResult {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const { user, refreshUser } = useAuthStore()
+    const { user, refreshUser, isLoading: isAuthLoading } = useAuthStore()
 
     const [state, setState] = useState<PaymentReturnState>({
         status: "idle",
@@ -39,6 +39,18 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
     const executeVerification = useCallback(async () => {
         // 1. Validate Environment
+        // If we are here, we know auth is done loading.
+
+        // Case: Not Logged In
+        if (!user) {
+            setState(prev => ({
+                ...prev,
+                status: "error",
+                error: "You must be logged in to complete verification. Please log in and try again."
+            }))
+            return
+        }
+
         const pendingJoin = localStorage.getItem("pending_tournament_join")
         // Retrieve txId from various potential query params
         const txId = searchParams.get("transaction_id") ||
@@ -47,7 +59,6 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
         // Case: Missing URL params (User navigated here manually without context)
         if (!txId) {
-            // If we have pending data but no ID, they might be cancelling or lost
             setState(prev => ({
                 ...prev,
                 status: "error",
@@ -56,8 +67,9 @@ export function usePaymentReturn(): UsePaymentReturnResult {
             return
         }
 
-        // Case: Missing Local Storage Context (Session expired or new device)
+        // Case: Missing Local Storage Context
         if (!pendingJoin) {
+            // Try to recover context if possible, or fail
             setState(prev => ({
                 ...prev,
                 status: "error",
@@ -78,19 +90,6 @@ export function usePaymentReturn(): UsePaymentReturnResult {
                 status: "error",
                 error: "Invalid session data."
             }))
-            return
-        }
-
-        // Case: Not Logged In
-        if (!user) {
-            // We can't join if we don't know who they are. 
-            // The UI should handle redirecting to login, but the hook reports the state.
-            setState(prev => ({
-                ...prev,
-                status: "error",
-                error: "You must be logged in to complete registration."
-            }))
-            // Optional: Auto-redirect to login could happen here, but better left to UI/useEffect
             return
         }
 
@@ -135,7 +134,6 @@ export function usePaymentReturn(): UsePaymentReturnResult {
             })
 
             // 5. Automatic Redirect
-            // Small delay to let user see "Success" message
             setTimeout(() => {
                 router.replace(`/tournaments/${tournamentId}?joined=true`)
             }, 2000)
@@ -152,10 +150,10 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
     // Initial Trigger
     useEffect(() => {
-        if (state.status === "idle" && user) {
+        if (state.status === "idle" && !isAuthLoading) {
             executeVerification()
         }
-    }, [state.status, user, executeVerification])
+    }, [state.status, isAuthLoading, executeVerification])
 
     return {
         ...state,

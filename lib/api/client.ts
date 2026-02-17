@@ -327,6 +327,23 @@ class ApiClient {
     })
   }
 
+  async bansUser(id: string, reason?: string): Promise<ApiResponse<any>> {
+    return this.request(`/users/${id}/ban`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    })
+  }
+
+  async unbanUser(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/users/${id}/unban`, {
+      method: "POST",
+    })
+  }
+
+  async getAdminStats(): Promise<ApiResponse<any>> {
+    return this.request("/admin/stats")
+  }
+
   async logout(userId: string): Promise<ApiResponse<any>> {
     const response = await this.request("/logout-user", {
       method: "POST",

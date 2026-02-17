@@ -18,8 +18,13 @@ function PaymentReturnContent() {
 
       <div className="max-w-md w-full bg-gray-900/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-800 relative z-10 overflow-hidden">
 
-        {/* VERIFYING / JOINING */}
-        {(status === "verifying" || status === "joining") && (
+        {/* DEBUG INFO - REMOVE LATER */}
+        <div className="absolute top-0 left-0 bg-red-500 text-white text-xs p-2 z-50">
+          Status: {status}
+        </div>
+
+        {/* VERIFYING / JOINING / IDLE */}
+        {(status === "idle" || status === "verifying" || status === "joining") && (
           <div className="p-12 text-center space-y-8">
             <div className="relative w-24 h-24 mx-auto">
               <div className="absolute inset-0 border-4 border-gray-800 rounded-full" />
@@ -27,7 +32,9 @@ function PaymentReturnContent() {
             </div>
             <div>
               <h2 className="text-2xl font-black uppercase">
-                {status === "verifying" ? "Verifying Payment..." : "Joining Tournament..."}
+                {status === "idle" ? "Initializing..." :
+                  status === "verifying" ? "Verifying Payment..." :
+                    "Joining Tournament..."}
               </h2>
               <p className="text-gray-400 mt-2 text-sm">
                 Please don’t close this page.
