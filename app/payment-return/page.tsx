@@ -18,10 +18,7 @@ function PaymentReturnContent() {
 
       <div className="max-w-md w-full bg-gray-900/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-800 relative z-10 overflow-hidden">
 
-        {/* DEBUG INFO - REMOVE LATER */}
-        <div className="absolute top-0 left-0 bg-red-500 text-white text-xs p-2 z-50">
-          Status: {status}
-        </div>
+
 
         {/* VERIFYING / JOINING / IDLE */}
         {(status === "idle" || status === "verifying" || status === "joining") && (
