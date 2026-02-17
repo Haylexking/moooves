@@ -153,9 +153,9 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
           tournamentId: tournament.id,
           inviteCode: inviteCode
         }))
-        setTimeout(() => {
-          window.location.href = link;
-        }, 1500)
+        // setTimeout(() => {
+        //   window.location.href = link;
+        // }, 1500)
         return;
       }
 

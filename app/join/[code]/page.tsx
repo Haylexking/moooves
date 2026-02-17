@@ -77,6 +77,10 @@ export default function JoinTournamentPage() {
 
         if (res.success && res.data?.payment_link) {
           // If it returns a link (e.g. for external gateway), redirect
+          localStorage.setItem("pending_tournament_join", JSON.stringify({
+            tournamentId: tournament.id,
+            inviteCode: inviteCode
+          }))
           window.location.href = res.data.payment_link
         } else if (res.success) {
           // If immediate success (e.g. wallet balance), join directly
