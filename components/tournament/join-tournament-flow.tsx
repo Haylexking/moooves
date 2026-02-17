@@ -57,55 +57,57 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
     }
   }
 
-  useState(() => {
-    const checkPaymentReturn = async () => {
-      const pendingJoin = localStorage.getItem("pending_tournament_join")
-      if (!pendingJoin) return
+  // useState(() => {
+  //   const checkPaymentReturn = async () => {
+  //     const pendingJoin = localStorage.getItem("pending_tournament_join")
+  //     if (!pendingJoin) return
 
-      try {
-        const { tournamentId: pendingId, inviteCode: pendingCode } = JSON.parse(pendingJoin)
-        if (pendingId !== tournament.id) return // Wrong tournament page
+  //     try {
+  //       const { tournamentId: pendingId, inviteCode: pendingCode } = JSON.parse(pendingJoin)
+  //       if (pendingId !== tournament.id) return // Wrong tournament page
 
-        // Check for transaction_id or reference in URL
-        const txId = searchParams.get("transaction_id") || searchParams.get("tx_ref") || searchParams.get("reference")
+  //       // Check for transaction_id or reference in URL
+  //       const txId = searchParams.get("transaction_id") || searchParams.get("tx_ref") || searchParams.get("reference")
 
-        if (txId) {
-          setLoading(true)
-          // Verify with backend
-          const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
-          if (!ver.success) {
-            // Check if backend says "verified" but API wrapper returned standard error structure
-            // Sometimes verification endpoint returns success: true inside data 
-            throw new Error(ver.error || "Payment verification failed")
-          }
+  //       if (txId) {
+  //         setLoading(true)
+  //         // Verify with backend
+  //         const ver = await apiClient.verifyWalletTransaction({ transactionId: txId })
+  //         if (!ver.success) {
+  //           // Check if backend says "verified" but API wrapper returned standard error structure
+  //           // Sometimes verification endpoint returns success: true inside data 
+  //           throw new Error(ver.error || "Payment verification failed")
+  //         }
 
-          // Complete Join
-          if (!user?.id) throw new Error("User session required")
-          const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
-          if (!join.success) throw new Error(join.error || "Failed to finalize join")
+  //         // Complete Join
+  //         if (!user?.id) throw new Error("User session required")
+  //         const join = await apiClient.joinTournamentWithCode(pendingCode, user.id)
+  //         if (!join.success) throw new Error(join.error || "Failed to finalize join")
 
-          setTicket({
-            reference: txId,
-            joinedAt: new Date().toISOString()
-          })
+  //         setTicket({
+  //           reference: txId,
+  //           joinedAt: new Date().toISOString()
+  //         })
 
-          // Clear storage
-          localStorage.removeItem("pending_tournament_join")
-          // Clear URL params
-          router.replace(window.location.pathname)
-        }
-      } catch (e: any) {
-        console.error("Payment return error:", e)
-        setError(e.message || "Failed to verify payment")
-        localStorage.removeItem("pending_tournament_join")
-      } finally {
-        setLoading(false)
-      }
-    }
+  //         // Clear storage
+  //         localStorage.removeItem("pending_tournament_join")
+  //         // Clear URL params
+  //         router.replace(window.location.pathname)
+  //       }
+  //     } catch (e: any) {
+  //       console.error("Payment return error:", e)
+  //       setError(e.message || "Failed to verify payment")
+  //       localStorage.removeItem("pending_tournament_join")
+  //     } finally {
+  //       setLoading(false)
+  //     }
+  //   }
 
-    // Tiny delay to ensure hydration
-    setTimeout(checkPaymentReturn, 500)
-  }) // Run once or when params change, currently using useState initializer hack or useEffect would be better. Let's use useEffect properly below.
+  //   // Tiny delay to ensure hydration
+  //   setTimeout(checkPaymentReturn, 500)
+  // })
+  
+  // Run once or when params change, currently using useState initializer hack or useEffect would be better. Let's use useEffect properly below.
 
   // Actually, let's use standard useEffect
   /**
