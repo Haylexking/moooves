@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Trophy, DollarSign, Activity, TrendingUp, UserPlus, ArrowUpRight } from "lucide-react"
 
 export default function AdminDashboardPage() {
+    console.log("Rendering AdminDashboardPage")
     return (
         <div className="space-y-8 max-w-[1600px] mx-auto min-h-screen">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

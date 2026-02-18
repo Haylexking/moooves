@@ -243,6 +243,20 @@ export default function HostOnboardingClient() {
               <PasswordInput placeholder="Confirm your password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} className={`${errors.confirmPassword ? "border-red-500" : "border-[#BFC4BF]"} pl-10`} />
             </div>
             {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
+            {errors.confirmPassword && <p className="text-red-500 text-sm -mt-2">{errors.confirmPassword}</p>}
+
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="checkbox"
+                id="notifications"
+                className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                onChange={(e) => handleInputChange("notificationsEnabled", String(e.target.checked))}
+              />
+              <label htmlFor="notifications" className="text-sm text-[#002B03]">
+                Receive tournament notifications via WhatsApp/Email
+              </label>
+            </div>
+
             <GameButton data-testid="onboarding-register-submit" type="submit" className="mt-2" disabled={loading}>{loading ? "Loading..." : "Register as Host"}</GameButton>
           </form>
         )}

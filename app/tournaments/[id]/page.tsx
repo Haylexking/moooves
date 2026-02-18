@@ -284,8 +284,18 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             <Trophy className="w-5 h-5 text-yellow-500" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] text-gray-500 uppercase font-bold">Pool</p>
-                                            <p className="font-bold text-lg text-yellow-500">₦{(currentTournament.totalPool || 0).toLocaleString()}</p>
+                                            <div className="flex items-center gap-1">
+                                                <p className="text-[10px] text-gray-500 uppercase font-bold">Pool</p>
+                                                {(!isHost && currentTournament.status !== 'completed') && (
+                                                    <span className="text-[10px] text-green-500 bg-green-500/10 px-1 rounded">Est. Player Share</span>
+                                                )}
+                                            </div>
+                                            <p className="font-bold text-lg text-yellow-500">
+                                                ₦{(isHost || currentTournament.status === 'completed'
+                                                    ? (currentTournament.totalPool || 0)
+                                                    : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4)
+                                                ).toLocaleString()}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
@@ -445,68 +455,88 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
                                 <TabsContent value="leaderboard" className="p-6">
                                     <div className="space-y-6">
-                                        <div>
-                                            <h2 className="text-xl font-bold text-white mb-1">Projected Payouts</h2>
-                                            <p className="text-sm text-gray-500">Prize distribution based on current pool.</p>
-                                        </div>
+                                        {(() => {
+                                            const poolBase = (isHost || currentTournament.status === 'completed')
+                                                ? (currentTournament.totalPool || 0)
+                                                : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4);
 
-                                        <div className="space-y-3">
-                                            {/* 1st Place */}
-                                            <div className="flex items-center justify-between p-4 rounded-xl border border-yellow-500/30 bg-yellow-900/10 relative overflow-hidden">
-                                                <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none"></div>
-                                                <div className="flex items-center gap-4 relative z-10">
-                                                    <div className="w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold shadow-[0_0_15px_rgba(234,179,8,0.4)]">1</div>
+                                            // Percentages of the PLAYER SHARE (which is 40% of total)
+                                            // Wait, the requirement says "cashpool for players... 40% is the cashpool for the players".
+                                            // So the 1st/2nd/3rd splits should be based on THIS 40% amount?
+                                            // Usually splits are e.g. 50/30/20 of the PRIZE POOL.
+                                            // So if we display the Prize Pool as 40% of Total, then we apply splits to that.
+
+                                            return (
+                                                <>
                                                     <div>
-                                                        <p className="font-bold text-white text-lg">Champion</p>
-                                                        <p className="text-yellow-500 text-xs font-mono">
-                                                            {currentTournament.winners?.[0] ? `Winner: Player ${currentTournament.winners[0].userId.slice(0, 4)}` : "TBD"}
-                                                        </p>
+                                                        <h2 className="text-xl font-bold text-white mb-1">Projected Payouts</h2>
+                                                        <p className="text-sm text-gray-500">Prize distribution based on current pool.</p>
                                                     </div>
-                                                </div>
-                                                <p className="text-2xl font-bold text-yellow-400 font-mono">
-                                                    ₦{Math.floor((currentTournament.totalPool || 0) * 0.20).toLocaleString()}
-                                                </p>
-                                            </div>
 
-                                            {/* 2nd Place */}
-                                            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-600/30 bg-gray-800/20">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-gray-400 text-black flex items-center justify-center font-bold">2</div>
-                                                    <div>
-                                                        <p className="font-bold text-white">Runner Up</p>
-                                                        <p className="text-gray-500 text-xs font-mono">
-                                                            {currentTournament.winners?.[1] ? `Winner: Player ${currentTournament.winners[1].userId.slice(0, 4)}` : "TBD"}
-                                                        </p>
+                                                    <div className="space-y-3">
+                                                        {/* 1st Place */}
+                                                        <div className="flex items-center justify-between p-4 rounded-xl border border-yellow-500/30 bg-yellow-900/10 relative overflow-hidden">
+                                                            <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none"></div>
+                                                            <div className="flex items-center gap-4 relative z-10">
+                                                                <div className="w-10 h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold shadow-[0_0_15px_rgba(234,179,8,0.4)]">1</div>
+                                                                <div>
+                                                                    <p className="font-bold text-white text-lg">Champion</p>
+                                                                    <p className="text-yellow-500 text-xs font-mono">
+                                                                        {currentTournament.winners?.[0] ? `Winner: Player ${currentTournament.winners[0].userId.slice(0, 4)}` : "TBD"}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-2xl font-bold text-yellow-400 font-mono">
+                                                                ₦{Math.floor(poolBase * 0.50).toLocaleString()}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* 2nd Place */}
+                                                        <div className="flex items-center justify-between p-4 rounded-xl border border-gray-600/30 bg-gray-800/20">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 rounded-full bg-gray-400 text-black flex items-center justify-center font-bold">2</div>
+                                                                <div>
+                                                                    <p className="font-bold text-white">Runner Up</p>
+                                                                    <p className="text-gray-500 text-xs font-mono">
+                                                                        {currentTournament.winners?.[1] ? `Winner: Player ${currentTournament.winners[1].userId.slice(0, 4)}` : "TBD"}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-xl font-bold text-gray-300 font-mono">
+                                                                ₦{Math.floor(poolBase * 0.30).toLocaleString()}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* 3rd Place */}
+                                                        <div className="flex items-center justify-between p-4 rounded-xl border border-orange-700/30 bg-orange-900/10">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 rounded-full bg-orange-700 text-white flex items-center justify-center font-bold">3</div>
+                                                                <div>
+                                                                    <p className="font-bold text-white">Third Place</p>
+                                                                    <p className="text-orange-500 text-xs font-mono">
+                                                                        {currentTournament.winners?.[2] ? `Winner: Player ${currentTournament.winners[2].userId.slice(0, 4)}` : "TBD"}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-lg font-bold text-orange-400 font-mono">
+                                                                ₦{Math.floor(poolBase * 0.20).toLocaleString()}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <p className="text-xl font-bold text-gray-300 font-mono">
-                                                    ₦{Math.floor((currentTournament.totalPool || 0) * 0.12).toLocaleString()}
-                                                </p>
-                                            </div>
-
-                                            {/* 3rd Place */}
-                                            <div className="flex items-center justify-between p-4 rounded-xl border border-orange-700/30 bg-orange-900/10">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full bg-orange-700 text-white flex items-center justify-center font-bold">3</div>
-                                                    <div>
-                                                        <p className="font-bold text-white">Third Place</p>
-                                                        <p className="text-orange-500 text-xs font-mono">
-                                                            {currentTournament.winners?.[2] ? `Winner: Player ${currentTournament.winners[2].userId.slice(0, 4)}` : "TBD"}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <p className="text-lg font-bold text-orange-400 font-mono">
-                                                    ₦{Math.floor((currentTournament.totalPool || 0) * 0.08).toLocaleString()}
-                                                </p>
-                                            </div>
-                                        </div>
-
+                                                </>
+                                            )
+                                        })()}
                                         <div className="text-center pt-8 border-t border-gray-800 mt-8">
                                             <p className="text-xs text-gray-600 uppercase tracking-widest mb-2">Total Prize Pool</p>
-                                            <p className="text-4xl font-black text-green-500 font-mono">₦{(currentTournament.totalPool || 0).toLocaleString()}</p>
+                                            <p className="text-4xl font-black text-green-500 font-mono">
+                                                ₦{(isHost || currentTournament.status === 'completed'
+                                                    ? (currentTournament.totalPool || 0)
+                                                    : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4)
+                                                ).toLocaleString()}
+                                            </p>
                                             <p className="text-[10px] text-gray-500 mt-2">Payouts are processed automatically to your wallet after tournament completion.</p>
                                         </div>
-                                    </div>
+                                    </div >
                                 </TabsContent>
 
                                 <TabsContent value="rules" className="p-0">

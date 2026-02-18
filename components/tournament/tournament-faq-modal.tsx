@@ -27,38 +27,37 @@ export function TournamentFAQModal({ open, onOpenChange }: TournamentFAQModalPro
           <section>
             <h3 className="text-lg font-semibold text-green-400 mb-2">Scheduling & Start Control</h3>
             <ul className="list-disc pl-5 space-y-2 text-gray-300">
-              <li>Hosts set a scheduled start time at creation; players can join until that time.</li>
-              <li>If everyone joins early, hosts can hit <strong>Start Now</strong> to begin before the scheduled time.</li>
-              <li>When the start time arrives, hosts can start with whoever joined or reschedule to allow more signups.</li>
-              <li>Start times are stored in UTC; the UI shows your local time and countdown.</li>
+              <li>Hosts set a scheduled start time at creation. Players can join up until that time.</li>
+              <li>If all players join early, the host can manually <strong>Start Now</strong>.</li>
+              <li>If the player count isn't reached by start time, the host can extend the time or start with current players.</li>
+              <li>Timestamps are UTC-based but displayed in your local time.</li>
             </ul>
           </section>
 
           <section>
             <h3 className="text-lg font-semibold text-green-400 mb-2">Waiting Room & Attendance</h3>
             <ul className="list-disc pl-5 space-y-2 text-gray-300">
-              <li>Each pairing gets a 15-minute window to show up once the match goes live.</li>
-              <li>If one player is present and the other is not, the present player wins by default and advances.</li>
-              <li>If neither player shows, both forfeit and the draw adjusts automatically.</li>
-              <li>Waiting room copy makes the status clear (win by default or forfeit notice).</li>
+              <li>Once the tournament starts, each match has a **15-minute waiting window**.</li>
+              <li><strong>Win by Default:</strong> If your opponent doesn't show up within 15 minutes, you automatically advance.</li>
+              <li><strong>Forfeit:</strong> If you don't show up, you forfeit the match. If neither shows, both forfeit.</li>
+              <li>Look for status messages like "Opponent hasn't shown up — you win by default".</li>
             </ul>
           </section>
 
           <section>
             <h3 className="text-lg font-semibold text-green-400 mb-2">Communication & Alerts</h3>
             <ul className="list-disc pl-5 space-y-2 text-gray-300">
-              <li>Players can opt into WhatsApp or email alerts during signup.</li>
-              <li>Notifications fire when the tournament starts, when a match is live, and for auto wins/forfeits.</li>
-              <li>Backend logs deliveries for transparency and uses UTC timestamps to avoid timezone drift.</li>
+              <li>Opt-in to <strong>WhatsApp/Email notifications</strong> during signup to get alerts.</li>
+              <li>We'll notify you when the tournament starts, when your match is live, and if you advance automatically.</li>
             </ul>
           </section>
 
           <section>
             <h3 className="text-lg font-semibold text-green-400 mb-2">Gameplay & Results</h3>
             <ul className="list-disc pl-5 space-y-2 text-gray-300">
-              <li>The dashboard shows your next match with a countdown and opponent info.</li>
-              <li>After matches, results clearly state whether you advanced, won by default, or forfeited.</li>
-              <li>Hosts can reschedule the tournament start if the player count is not met before kickoff.</li>
+              <li>The dashboard shows your next match with a live countdown.</li>
+              <li>Matches are Single Elimination. Losing a match means you are out of the tournament.</li>
+              <li>Results will clearly state if you won, lost, or advanced due to a no-show.</li>
             </ul>
           </section>
         </div>

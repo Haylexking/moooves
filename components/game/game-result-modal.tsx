@@ -85,7 +85,10 @@ export function GameResultModal({
         <h2 className="text-2xl font-bold text-green-900 mb-2 text-center">{title}</h2>
         <p className="text-green-800 text-center mb-2">{message}</p>
         <div className="text-lg font-semibold text-green-900 mb-6">
-          Score: <span className="text-blue-700">{scoreX ?? 0}</span> -{" "}
+          {/* User requested: "My Score : Opponent Score" */}
+          {/* We assume the parent passes 'scoreX' as "My Score" and 'scoreO' as "Opponent Score" if configured that way, 
+              OR we use proper labels. The logic in BattleGround will ensure scoreX = MyScore, scoreO = OpponentScore. */}
+          <span className="text-blue-700">{scoreX ?? 0}</span> -{" "}
           <span className="text-red-700">{scoreO ?? 0}</span>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center mt-2">

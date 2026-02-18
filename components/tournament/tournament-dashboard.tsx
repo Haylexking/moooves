@@ -53,7 +53,10 @@ export default function TournamentDashboard() {
             (t: any) =>
               t.hostId === user.id ||
               t.organizerId === user.id ||
-              t.participants?.some((p: any) => p.userId === user.id),
+              t.participants?.some((p: any) => {
+                const pId = typeof p === 'string' ? p : (p.userId?._id || p.userId || p.id || p)
+                return pId === user.id
+              }),
           )
           if (filtered.length === 0 && process.env.NODE_ENV === "test") {
             filtered = [
