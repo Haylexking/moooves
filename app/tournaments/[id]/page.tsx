@@ -8,6 +8,9 @@ import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 import { GameButton } from "@/components/ui/game-button"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy, HelpCircle, Calendar, Users, Play, CalendarClock, Swords, ArrowLeft } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -31,6 +34,28 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     const [showAdmin, setShowAdmin] = useState(false)
     const [isHost, setIsHost] = useState(false)
     const [isParticipant, setIsParticipant] = useState(false)
+
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+    const [newStartTime, setNewStartTime] = useState<string>("")
+    const toLocalInputValue = (date: Date) => date.toISOString().slice(0, 16)
+
+    const handleRescheduleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!newStartTime) return
+        try {
+            const selected = new Date(newStartTime)
+            if (selected < new Date()) {
+                toast({ title: "Invalid Date", description: "Start time cannot be in the past.", variant: "destructive" })
+                return
+            }
+            await apiClient.rescheduleTournament(tournamentId, selected.toISOString())
+            toast({ title: "Rescheduled", description: "Tournament start time updated." })
+            loadTournament(tournamentId)
+            setShowRescheduleModal(false)
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to reschedule", variant: "destructive" })
+        }
+    }
 
     // Initial load
     useEffect(() => {
@@ -372,25 +397,20 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                         {isHost && (
                             <div className="mb-6 p-1">
                                 <div className="flex gap-2 overflow-x-auto pb-2">
-                                    {(currentTournament.status === "created" || currentTournament.status === "waiting") && (
-                                        <Button onClick={handleStartTournament} className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/20 whitespace-nowrap">
-                                            <Play className="w-4 h-4 mr-2" /> Start Tournament
-                                        </Button>
+                                    {(currentTournament.status !== "active" && currentTournament.status !== "completed" && currentTournament.status !== "cancelled") && (
+                                        <GameButton onClick={handleStartTournament} className="whitespace-nowrap px-4 py-2 text-sm shadow-lg shadow-green-900/20">
+                                            <span className="flex items-center"><Play className="w-4 h-4 mr-2" /> Start Tournament</span>
+                                        </GameButton>
                                     )}
-                                    <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800 whitespace-nowrap" onClick={() => setShowAdmin(true)}>
-                                        <Users className="w-4 h-4 mr-2" /> Manage Players
-                                    </Button>
-                                    <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800 whitespace-nowrap" onClick={() => {
-                                        const dateStr = prompt("Enter new start date (YYYY-MM-DD HH:mm):", new Date(currentTournament.startTime || Date.now()).toISOString().slice(0, 16).replace('T', ' '))
-                                        if (dateStr) {
-                                            apiClient.rescheduleTournament(tournamentId, new Date(dateStr).toISOString()).then(() => {
-                                                toast({ title: "Rescheduled", description: "Tournament start time updated." })
-                                                loadTournament(tournamentId)
-                                            }).catch(() => toast({ title: "Error", description: "Failed to reschedule", variant: "destructive" }))
-                                        }
-                                    }}>
-                                        <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                                    </Button>
+                                    <GameButton onClick={() => setShowAdmin(true)} className="whitespace-nowrap px-4 py-2 text-sm bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700">
+                                        <span className="flex items-center"><Users className="w-4 h-4 mr-2" /> Manage Players</span>
+                                    </GameButton>
+                                    <GameButton onClick={() => {
+                                        setNewStartTime(toLocalInputValue(new Date(currentTournament.startTime || Date.now())))
+                                        setShowRescheduleModal(true)
+                                    }} className="whitespace-nowrap px-4 py-2 text-sm bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700">
+                                        <span className="flex items-center"><CalendarClock className="w-4 h-4 mr-2" /> Reschedule</span>
+                                    </GameButton>
                                 </div>
                             </div>
                         )}
@@ -570,6 +590,40 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                     onUpdate={() => loadTournament(currentTournament.id)}
                 />
             )}
+
+            <Dialog open={showRescheduleModal} onOpenChange={setShowRescheduleModal}>
+                <DialogContent className="sm:max-w-md bg-black/95 border-green-500/30 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-green-400">Reschedule Tournament</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Select a new start time for the tournament.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleRescheduleSubmit} className="space-y-4 mt-4">
+                        <div>
+                            <Label htmlFor="startTime" className="text-gray-300">New Start Time (Local)</Label>
+                            <Input
+                                id="startTime"
+                                type="datetime-local"
+                                min={new Date().toISOString().slice(0, 16)}
+                                value={newStartTime}
+                                onChange={(e) => setNewStartTime(e.target.value)}
+                                required
+                                className="w-full bg-gray-900 border-gray-700 text-white focus:ring-green-500"
+                            />
+                        </div>
+                        <div className="flex gap-3 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setShowRescheduleModal(false)} className="flex-1 bg-transparent border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800">
+                                Cancel
+                            </Button>
+                            <GameButton type="submit" className="flex-1 py-1">
+                                Save
+                            </GameButton>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
         </ProtectedRoute>
     )
 }
