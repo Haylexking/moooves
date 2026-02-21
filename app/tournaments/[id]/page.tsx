@@ -71,11 +71,11 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
     useEffect(() => {
         if (currentTournament && user) {
-            const hId = typeof currentTournament.hostId === 'object' ? (currentTournament.hostId as any)._id : currentTournament.hostId
-            const oId = typeof (currentTournament as any).organizerId === 'object' ? (currentTournament as any).organizerId._id : (currentTournament as any).organizerId
+            const rawHost = currentTournament.hostId || (currentTournament as any).organizerId || (currentTournament as any).createdBy
+            const hId = rawHost && typeof rawHost === 'object' ? rawHost._id || rawHost.id : rawHost
             const uId = user.id || (user as any)._id
 
-            setIsHost(hId === uId || oId === uId)
+            setIsHost(Boolean(hId && uId && String(hId) === String(uId)))
             setIsParticipant(currentTournament.participants?.some((p: any) => p.userId === uId || p.userId?._id === uId) || false)
         }
     }, [currentTournament, user])
