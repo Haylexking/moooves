@@ -71,8 +71,12 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
     useEffect(() => {
         if (currentTournament && user) {
-            setIsHost(currentTournament.hostId === user.id || (currentTournament as any).organizerId === user.id)
-            setIsParticipant(currentTournament.participants?.some((p: any) => p.userId === user.id) || false)
+            const hId = typeof currentTournament.hostId === 'object' ? (currentTournament.hostId as any)._id : currentTournament.hostId
+            const oId = typeof (currentTournament as any).organizerId === 'object' ? (currentTournament as any).organizerId._id : (currentTournament as any).organizerId
+            const uId = user.id || (user as any)._id
+
+            setIsHost(hId === uId || oId === uId)
+            setIsParticipant(currentTournament.participants?.some((p: any) => p.userId === uId || p.userId?._id === uId) || false)
         }
     }, [currentTournament, user])
 
@@ -242,7 +246,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                     {currentTournament.name}
                                 </h1>
                                 <p className="text-gray-400 text-sm max-w-xl">
-                                    Compete for the ₦{(currentTournament.totalPool || 0).toLocaleString()} prize pool.
+                                    Compete for the ₦{((currentTournament.totalPool) || (currentTournament.entryFee * currentTournament.maxPlayers) || 0).toLocaleString()} prize pool.
                                     {currentTournament.status === 'waiting' && " Use the invite code below to bring more players."}
                                 </p>
 
@@ -429,7 +433,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
                                 <TabsContent value="draw" className="p-6">
                                     <div className="flex justify-between items-center mb-6">
-                                        <h2 className="text-xl font-bold text-white">Tournament Bracket</h2>
+                                        <h2 className="text-xl font-bold text-white">Tournament Draw</h2>
                                         <span className="text-xs font-mono text-gray-500 bg-gray-800 px-2 py-1 rounded">
                                             {currentTournament.bracket?.rounds?.reduce((acc, r) => acc + r.matches.length, 0) || 0} Matches Total
                                         </span>

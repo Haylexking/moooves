@@ -65,7 +65,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       setEntryFee(500)
       setMaxPlayers(50)
       setStartTimeLocal(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
-      router.push(`/tournament/${tournament.id}`)
+      router.push(`/tournaments/${tournament.id}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred."
       toast({ title: "Failed to create tournament", description: errorMessage, variant: "destructive" })
