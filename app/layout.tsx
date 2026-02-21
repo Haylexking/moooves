@@ -14,7 +14,7 @@ const armstrong = Inter({
 
 export const metadata: Metadata = {
   title: "MOOOVES Game",
-  description: "Strategic tile placement game",
+  description: "Easy to Learn, Hard to Master",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
