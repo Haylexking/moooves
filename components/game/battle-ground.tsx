@@ -277,26 +277,38 @@ export function BattleGround({
         const scoreX = scores["X"] || 0
         const scoreO = scores["O"] || 0
 
-        if (isExplicitDraw || (scoreX === scoreO && scoreX > 0)) {
-          console.log("[Result Check] Draw detected based on scores or server flag.")
-          setResultType('draw')
-        } else {
-          let isWinner = false
+        const explicitWinnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : String(winnerVal || "")
+        const hasExplicitWinner = explicitWinnerId && explicitWinnerId !== "draw" && explicitWinnerId !== "null" && explicitWinnerId !== "undefined"
 
-          // Strictly check who has the higher score. 
-          // The score state is maintained locally and synced via actions, making it more reliable than string matching on "winner" field for P2P matches.
-          if (scoreX > scoreO) {
-            isWinner = myRole === "X"
-          } else if (scoreO > scoreX) {
-            isWinner = myRole === "O"
-          } else {
-            // Fallback if scores are 0-0 but game is ended (e.g. forfeit).
-            // Use winner ID if it exists and matches ours.
-            const winnerId = winnerVal && typeof winnerVal === 'object' ? (winnerVal._id || winnerVal.id) : String(winnerVal || "")
-            isWinner = winnerId === uId
-          }
+        // New Logic: Local Scores are the absolute source of truth.
+        // Server explicit winner is ONLY used as a tie-breaker for forfeits (where score is equal, e.g. 0-0, but someone abandoned).
 
+        let isWinner = false
+
+        if (scoreX > scoreO) {
+          isWinner = myRole === "X"
           setResultType(isWinner ? 'win' : 'lose')
+          console.log(`[Result Check] Score Difference: X won. Me=${myRole} -> ${isWinner ? 'win' : 'lose'}`)
+        } else if (scoreO > scoreX) {
+          isWinner = myRole === "O"
+          setResultType(isWinner ? 'win' : 'lose')
+          console.log(`[Result Check] Score Difference: O won. Me=${myRole} -> ${isWinner ? 'win' : 'lose'}`)
+        } else {
+          // Scores are exactly equal (e.g. 0-0, 5-5)
+          if (isExplicitDraw) {
+            setResultType('draw')
+            console.log("[Result Check] Explicit Server Draw.")
+          } else if (hasExplicitWinner) {
+            // Scores are equal, but the server explicitly declared a winner. 
+            // This happens when a player leaves/forfeits an active game.
+            isWinner = explicitWinnerId === uId
+            setResultType(isWinner ? 'win' : 'lose')
+            console.log(`[Result Check] Tie Score FORFEIT: Explicit Winner ${explicitWinnerId} === ${uId} -> ${isWinner}`)
+          } else {
+            // Scores are equal, no explicit winner provided. Natural tie.
+            setResultType('draw')
+            console.log("[Result Check] Natural Score Tie (Draw).")
+          }
         }
         setResultModalOpen(true)
       }
@@ -365,12 +377,15 @@ export function BattleGround({
     // CRITICAL FIX: For Online Mode, we strictly rely on the Server Sync effect (lines ~250) to determine the result.
     // relying on local 'winner' state here causes race conditions because 'userRole' might be null or desynced.
     if (gameStatus === "completed" && !isOnlineMode) {
+      const scoreX = scores["X"] || 0;
+      const scoreO = scores["O"] || 0;
+
       let result: "win" | "lose" | "draw" = "draw"
-      if (winner === "draw") {
+      if (winner === "draw" || scoreX === scoreO) {
         result = "draw"
       } else {
         // Offline/AI: "X" is always the local player
-        result = winner === "X" ? "win" : "lose"
+        result = scoreX > scoreO ? "win" : "lose"
       }
 
       setResultType(result)
