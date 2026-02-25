@@ -10,6 +10,7 @@ import { useTournamentStore } from "@/lib/stores/tournament-store"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiClient } from "@/lib/api/client"
 
 interface CreateTournamentModalProps {
   open: boolean
@@ -20,6 +21,7 @@ const toLocalInputValue = (date: Date) => date.toISOString().slice(0, 16)
 
 export function CreateTournamentModal({ open, onClose }: CreateTournamentModalProps) {
   const [name, setName] = useState("")
+  const [tournamentType, setTournamentType] = useState<"paid" | "free">("paid")
   const [entryFee, setEntryFee] = useState(500)
   const [maxPlayers, setMaxPlayers] = useState(50)
   const [startTimeLocal, setStartTimeLocal] = useState<string>(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
@@ -27,6 +29,8 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
   const { user } = useAuthStore()
   const router = useRouter()
   const { toast } = useToast()
+
+  const dynamicMinFee = Math.ceil(20000 / maxPlayers / 500) * 500;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,12 +56,34 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       const startTimeISO = selected.toISOString()
       const payload = {
         name,
-        entryFee,
+        entryFee: tournamentType === "free" ? 0 : entryFee,
         maxPlayers,
         organizerId: user.id,
         startTime: startTimeISO,
+        type: tournamentType,
       }
       const tournament = await createTournament(payload)
+
+      if (tournamentType === "free") {
+        toast({ title: "Redirecting to Payment", description: "You will be redirected to pay the ₦10,000 Host fee." })
+
+        const paymentRes = await apiClient.initWalletTransaction({
+          amount: 10000,
+          method: "flutterwave",
+          email: user.email,
+          name: user.fullName || "Moooves Host",
+          userId: user.id,
+          tournamentId: tournament.id,
+          redirectUrl: `${window.location.origin}/tournaments/${tournament.id}?payment=success`,
+        })
+
+        if (paymentRes.success && paymentRes.data?.payment_link) {
+          window.location.href = paymentRes.data.payment_link
+          return // Stop further execution, let redirect happen
+        } else {
+          toast({ title: "Payment Initialization Failed", description: "Could not redirect to gateway. Tournament is pending.", variant: "destructive" })
+        }
+      }
 
       toast({ title: "Tournament created", description: `${tournament.name} scheduled successfully.` })
       onClose()
@@ -74,7 +100,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto bg-white text-gray-900 shadow-xl border-gray-100">
         <DialogHeader>
           <DialogTitle>Schedule Tournament</DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
@@ -95,17 +121,55 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
           </div>
 
           <div>
-            <Label htmlFor="entryFee">Entry Fee (NGN)</Label>
-            <Input
-              id="entryFee"
-              type="number"
-              min={500}
-              value={entryFee}
-              onChange={(e) => setEntryFee(Number(e.target.value))}
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">Minimum NGN 500</p>
+            <Label>Tournament Type</Label>
+            <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200 mt-2">
+              <button
+                type="button"
+                onClick={() => setTournamentType("paid")}
+                className={`flex-1 py-2.5 text-sm font-bold uppercase rounded-md transition-all duration-300 ${tournamentType === "paid"
+                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-white"
+                  }`}
+              >
+                Paid Entry
+              </button>
+              <button
+                type="button"
+                onClick={() => setTournamentType("free")}
+                className={`flex-1 py-2.5 text-sm font-bold uppercase rounded-md transition-all duration-300 ${tournamentType === "free"
+                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-white"
+                  }`}
+              >
+                Free to Play
+              </button>
+            </div>
+            {tournamentType === "free" && (
+              <div className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-3 border border-yellow-200 rounded-md">
+                <p><strong>Host Fee: ₦10,000.</strong> You will be redirected to pay. Players will join for <strong>free</strong>.</p>
+              </div>
+            )}
+            {tournamentType === "paid" && (
+              <p className="mt-2 text-xs text-gray-500">Players will pay the entry fee below to join.</p>
+            )}
           </div>
+
+          {tournamentType === "paid" && (
+            <div>
+              <Label htmlFor="entryFee">Entry Fee (NGN) per Player</Label>
+              <Input
+                id="entryFee"
+                type="number"
+                min={dynamicMinFee}
+                value={entryFee}
+                onChange={(e) => setEntryFee(Number(e.target.value))}
+                required={tournamentType === "paid"}
+              />
+              <p className="text-xs text-amber-600 mt-1 font-medium">
+                Minimum NGN {dynamicMinFee.toLocaleString()} to guarantee ₦20,000 prize pool.
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="maxPlayers">Maximum Players</Label>
@@ -115,7 +179,14 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
               min={6}
               max={50}
               value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
+              onChange={(e) => {
+                const newMax = Number(e.target.value)
+                setMaxPlayers(newMax)
+                const newMinFee = Math.ceil(20000 / newMax / 500) * 500
+                if (tournamentType === "paid" && entryFee < newMinFee) {
+                  setEntryFee(newMinFee)
+                }
+              }}
               required
             />
             <p className="text-xs text-gray-500 mt-1">Between 6-50 players</p>

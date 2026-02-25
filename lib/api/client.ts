@@ -500,12 +500,13 @@ class ApiClient {
     })
   }
 
-  async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number }): Promise<ApiResponse<any>> {
+  async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number; type?: "free" | "paid" }): Promise<ApiResponse<any>> {
     // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryFee
     const body: any = {
       organizerId: payload.organizerId,
       name: payload.name,
       startTime: payload.startTime,
+      ...(typeof payload.type !== 'undefined' ? { type: payload.type } : {}),
       ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
       ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
     }

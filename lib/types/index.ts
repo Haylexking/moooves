@@ -54,6 +54,10 @@ export interface Tournament {
   inviteLink: string
   startTime?: number | string
 
+  // Free-to-Play Fields
+  type?: "free" | "paid"
+  host_payment_status?: boolean
+
   // Entry & Prize Pool
   entryFee: number // Minimum ₦500
   minPlayers: number // 6

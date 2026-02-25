@@ -251,7 +251,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                 </Button>
                             </div>
 
-                            <div className="relative z-10 mt-6 sm:mt-0 max-w-3xl">
+                            <div className="relative z-10 mt-14 sm:mt-10 max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-3 mb-4">
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border flex items-center gap-2 ${currentTournament.status === 'active'
                                         ? 'bg-green-500 text-black border-green-400 animate-pulse'
@@ -265,13 +265,22 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                     <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
                                         {currentTournament.gameMode} Mode
                                     </span>
+                                    {currentTournament.type === "free" && (
+                                        <span className="px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-500 text-xs font-bold border border-yellow-500/50 uppercase tracking-widest shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                                            Host Sponsored
+                                        </span>
+                                    )}
                                 </div>
 
                                 <h1 className="text-3xl sm:text-5xl font-black text-white mb-2 tracking-tight uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 drop-shadow-sm">
                                     {currentTournament.name}
                                 </h1>
                                 <p className="text-gray-400 text-sm max-w-xl">
-                                    Compete for the ₦{((currentTournament.totalPool) || (currentTournament.entryFee * currentTournament.maxPlayers) || 0).toLocaleString()} prize pool.
+                                    {currentTournament.type === "free" ? (
+                                        "A free, host-sponsored tournament! Play for absolute bragging rights."
+                                    ) : (
+                                        `Compete for the ₦${((currentTournament.totalPool) || (currentTournament.entryFee * currentTournament.maxPlayers) || 0).toLocaleString()} prize pool.`
+                                    )}
                                     {currentTournament.status === 'waiting' && " Use the invite code below to bring more players."}
                                 </p>
 
@@ -289,7 +298,9 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                                         }`}>#{w.rank}</span>
                                                     <div>
                                                         <p className="font-bold text-sm text-yellow-100">Player {w.userId.slice(0, 4)}</p>
-                                                        <p className="text-[10px] text-yellow-500">₦{w.prize.toLocaleString()}</p>
+                                                        {currentTournament.type !== "free" && (
+                                                            <p className="text-[10px] text-yellow-500">₦{w.prize?.toLocaleString() || 0}</p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -308,25 +319,27 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             <p className="font-bold text-lg">{currentTournament.currentPlayers}/{currentTournament.maxPlayers}</p>
                                         </div>
                                     </div>
-                                    <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                                            <Trophy className="w-5 h-5 text-yellow-500" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-1">
-                                                <p className="text-[10px] text-gray-500 uppercase font-bold">Pool</p>
-                                                {(!isHost && currentTournament.status !== 'completed') && (
-                                                    <span className="text-[10px] text-green-500 bg-green-500/10 px-1 rounded">Est. Player Share</span>
-                                                )}
+                                    {currentTournament.type !== "free" && (
+                                        <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                                                <Trophy className="w-5 h-5 text-yellow-500" />
                                             </div>
-                                            <p className="font-bold text-lg text-yellow-500">
-                                                ₦{(isHost || currentTournament.status === 'completed'
-                                                    ? (currentTournament.totalPool || 0)
-                                                    : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4)
-                                                ).toLocaleString()}
-                                            </p>
+                                            <div>
+                                                <div className="flex items-center gap-1">
+                                                    <p className="text-[10px] text-gray-500 uppercase font-bold">Pool</p>
+                                                    {(!isHost && currentTournament.status !== 'completed') && (
+                                                        <span className="text-[10px] text-green-500 bg-green-500/10 px-1 rounded">Est. Player Share</span>
+                                                    )}
+                                                </div>
+                                                <p className="font-bold text-lg text-yellow-500">
+                                                    ₦{(isHost || currentTournament.status === 'completed'
+                                                        ? (currentTournament.totalPool || 0)
+                                                        : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4)
+                                                    ).toLocaleString()}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                     <div className="bg-black/40 backdrop-blur-sm p-3 rounded-xl border border-white/5 flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                                             <Calendar className="w-5 h-5 text-blue-500" />
@@ -510,9 +523,11 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-2xl font-bold text-yellow-400 font-mono">
-                                                                ₦{Math.floor(poolBase * 0.50).toLocaleString()}
-                                                            </p>
+                                                            {currentTournament.type !== "free" && (
+                                                                <p className="text-2xl font-bold text-yellow-400 font-mono">
+                                                                    ₦{Math.floor(poolBase * 0.50).toLocaleString()}
+                                                                </p>
+                                                            )}
                                                         </div>
 
                                                         {/* 2nd Place */}
@@ -526,9 +541,11 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-xl font-bold text-gray-300 font-mono">
-                                                                ₦{Math.floor(poolBase * 0.30).toLocaleString()}
-                                                            </p>
+                                                            {currentTournament.type !== "free" && (
+                                                                <p className="text-xl font-bold text-gray-300 font-mono">
+                                                                    ₦{Math.floor(poolBase * 0.30).toLocaleString()}
+                                                                </p>
+                                                            )}
                                                         </div>
 
                                                         {/* 3rd Place */}
@@ -542,24 +559,28 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-lg font-bold text-orange-400 font-mono">
-                                                                ₦{Math.floor(poolBase * 0.20).toLocaleString()}
-                                                            </p>
+                                                            {currentTournament.type !== "free" && (
+                                                                <p className="text-lg font-bold text-orange-400 font-mono">
+                                                                    ₦{Math.floor(poolBase * 0.20).toLocaleString()}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </>
                                             )
                                         })()}
-                                        <div className="text-center pt-8 border-t border-gray-800 mt-8">
-                                            <p className="text-xs text-gray-600 uppercase tracking-widest mb-2">Total Prize Pool</p>
-                                            <p className="text-4xl font-black text-green-500 font-mono">
-                                                ₦{(isHost || currentTournament.status === 'completed'
-                                                    ? (currentTournament.totalPool || 0)
-                                                    : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4)
-                                                ).toLocaleString()}
-                                            </p>
-                                            <p className="text-[10px] text-gray-500 mt-2">Payouts are processed automatically to your wallet after tournament completion.</p>
-                                        </div>
+                                        {currentTournament.type !== "free" && (
+                                            <div className="text-center pt-8 border-t border-gray-800 mt-8">
+                                                <p className="text-xs text-gray-600 uppercase tracking-widest mb-2">Total Prize Pool</p>
+                                                <p className="text-4xl font-black text-green-500 font-mono">
+                                                    ₦{(isHost || currentTournament.status === 'completed'
+                                                        ? (currentTournament.totalPool || 0)
+                                                        : (currentTournament.entryFee * currentTournament.maxPlayers * 0.4)
+                                                    ).toLocaleString()}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 mt-2">Payouts are processed automatically to your wallet after tournament completion.</p>
+                                            </div>
+                                        )}
                                     </div >
                                 </TabsContent>
 

@@ -330,12 +330,20 @@ export default function TournamentDashboard() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {tournaments.map((tournament) => (
-                <div key={tournament.id} className="bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg p-4 flex flex-col gap-3 hover:border-green-500/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-white truncate">{tournament.name}</h2>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusBadge(tournament.status)}`}>
-                      {tournament.status}
-                    </span>
+                <div key={tournament.id} className="bg-black/80 backdrop-blur-lg rounded-2xl border border-white/10 shadow-xl hover:shadow-2xl hover:shadow-green-500/20 hover:-translate-y-1 transition-all duration-300 p-5 flex flex-col gap-3 relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="flex items-start justify-between relative z-10">
+                    <h2 className="font-bold text-white text-lg truncate pr-2">{tournament.name}</h2>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      {tournament.type === "free" && (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-500 border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.15)]">
+                          Free to Play
+                        </span>
+                      )}
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-md shadow-sm border border-transparent ${statusBadge(tournament.status)}`}>
+                        {tournament.status}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-400">
                     <Users className="w-4 h-4 text-blue-400" />
@@ -454,18 +462,22 @@ export default function TournamentDashboard() {
                     <p className="text-xs uppercase text-gray-500">Players</p>
                     <p className="font-semibold text-green-900">{selectedTournament.currentPlayers} / {selectedTournament.maxPlayers}</p>
                   </div>
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs uppercase text-gray-500">Entry Fee</p>
-                    <p className="font-semibold text-green-900">₦{(selectedTournament.entryFee || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs uppercase text-gray-500">Total Pool</p>
-                    <p className="font-semibold text-green-900">₦{(selectedTournament.totalPool || 0).toLocaleString()}</p>
-                  </div>
+                  {selectedTournament.type !== "free" && (
+                    <>
+                      <div className="text-center sm:text-left">
+                        <p className="text-xs uppercase text-gray-500">Entry Fee</p>
+                        <p className="font-semibold text-green-900">₦{(selectedTournament.entryFee || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="text-center sm:text-left">
+                        <p className="text-xs uppercase text-gray-500">Total Pool</p>
+                        <p className="font-semibold text-green-900">₦{(selectedTournament.totalPool || 0).toLocaleString()}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {isHost && selectedTournament.status === "completed" && leaderboard.length > 0 && (
+              {isHost && selectedTournament.type !== "free" && selectedTournament.status === "completed" && leaderboard.length > 0 && (
                 <div className="bg-white rounded-xl border border-green-100 p-4 flex items-center justify-between">
                   <div>
                     <h4 className="font-semibold text-green-900">Prize Distribution</h4>
@@ -512,7 +524,9 @@ export default function TournamentDashboard() {
                             <li key={entry.userId} className="flex items-center gap-3 py-2">
                               <span className="font-bold text-green-700">#{entry.rank}</span>
                               <span className="font-semibold text-gray-900">{entry.name}</span>
-                              <span className="ml-auto text-sm text-gray-600">?{entry.prize.toLocaleString()}</span>
+                              {selectedTournament.type !== "free" && (
+                                <span className="ml-auto text-sm text-gray-600">₦{entry.prize.toLocaleString()}</span>
+                              )}
                             </li>
                           ))}
                         </ul>
@@ -587,7 +601,7 @@ export default function TournamentDashboard() {
                     </div>
                   )}
 
-                  {selectedTournament.status === "completed" && payouts.length > 0 && (
+                  {selectedTournament.type !== "free" && selectedTournament.status === "completed" && payouts.length > 0 && (
                     <div className="border-t border-green-200 pt-4">
                       <h3 className="font-semibold text-green-900 mb-2">Payout Summary</h3>
                       <div className="space-y-2 max-h-48 overflow-auto">

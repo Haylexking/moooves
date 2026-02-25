@@ -16,6 +16,7 @@ export interface TournamentSlice {
     maxPlayers: number
     organizerId?: string
     startTime?: string
+    type?: "free" | "paid"
   }) => Promise<Tournament>
   joinTournament: (inviteCode: string, userId: string) => Promise<void>
   loadAllTournaments: () => Promise<void>
@@ -32,7 +33,7 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   isLoading: false,
 
   // ✅ CREATE TOURNAMENT
-  createTournament: async ({ name, entryFee, maxPlayers, organizerId, startTime }: any) => {
+  createTournament: async ({ name, entryFee, maxPlayers, organizerId, startTime, type }: any) => {
     set({ isLoading: true })
     try {
       const res = await apiClient.createTournament({
@@ -40,7 +41,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
         organizerId,
         maxPlayers,
         entryFee,
-        startTime: startTime,
+        startTime,
+        type,
       })
 
       if (!res.success) throw new Error(res.error || res.message || 'Failed to create tournament')

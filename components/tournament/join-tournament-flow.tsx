@@ -106,7 +106,7 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
   //   // Tiny delay to ensure hydration
   //   setTimeout(checkPaymentReturn, 500)
   // })
-  
+
   // Run once or when params change, currently using useState initializer hack or useEffect would be better. Let's use useEffect properly below.
 
   // Actually, let's use standard useEffect
@@ -121,7 +121,23 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
     setLoading(true);
     setError(null);
     try {
-      // 1. Initiate payment for tournament entry fee
+      if (tournament.type === "free") {
+        // Free Tournaments bypass payment gateway completely
+        if (!user?.id) throw new Error("You must be signed in to join the tournament");
+
+        const join = await apiClient.joinTournamentWithCode(inviteCode, user.id);
+        if (!join.success) throw new Error(join.error || "Failed to join tournament");
+
+        try { await refreshUser() } catch { }
+
+        setTicket({
+          reference: join.data?.paymentId || "FREE-" + Date.now(),
+          joinedAt: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // 1. Initiate payment for PAID tournament entry fee
       const init = await apiClient.initWalletTransaction({
         amount: tournament.entryFee,
         method: "card",
@@ -287,8 +303,17 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
           <div className="mx-auto mb-4 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
             <Trophy className="w-8 h-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">Join Tournament</CardTitle>
-          <p className="text-gray-600">{tournament.name}</p>
+          <div className="flex flex-col items-center gap-2">
+            <CardTitle className="text-2xl flex items-center gap-2">
+              Join Tournament
+            </CardTitle>
+            {tournament.type === "free" && (
+              <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wider">
+                Host Sponsored (Free to Play)
+              </span>
+            )}
+          </div>
+          <p className="text-gray-600 font-medium">{tournament.name}</p>
         </CardHeader>
 
         <CardContent className="space-y-6">
@@ -299,7 +324,13 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
                 <DollarSign className="w-4 h-4 text-green-600" />
                 <span className="text-sm">Entry Fee</span>
               </div>
-              <span className="font-semibold">₦{tournament.entryFee.toLocaleString()}</span>
+              <span className="font-semibold">
+                {tournament.type === "free" ? (
+                  <span className="text-green-600">Free (Paid by Host)</span>
+                ) : (
+                  `₦${tournament.entryFee.toLocaleString()}`
+                )}
+              </span>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -351,16 +382,16 @@ export function JoinTournamentFlow({ tournament, inviteCode }: JoinTournamentFlo
 
           <Button
             onClick={handleJoin}
-            className="w-full text-base sm:text-lg whitespace-normal break-words text-center py-4 h-auto min-h-[3.5rem]"
+            className={`w-full text-base sm:text-lg whitespace-normal break-words text-center py-4 h-auto min-h-[3.5rem] ${tournament.type === "free" ? "bg-green-600 hover:bg-green-700" : ""}`}
             size="lg"
             disabled={loading}
           >
-            {loading ? "Processing..." : `Join Tournament - ₦${tournament.entryFee.toLocaleString()}`}
+            {loading ? "Processing..." : tournament.type === "free" ? "Join for Free Now" : `Join Tournament - ₦${tournament.entryFee.toLocaleString()}`}
           </Button>
           {error && <div className="text-red-500 text-sm text-center mt-2">{error}</div>}
 
           <p className="text-xs text-gray-500 text-center">
-            By joining, you agree to pay the entry fee and tournament rules.
+            {tournament.type === "free" ? "Your host has covered the entry fee." : "By joining, you agree to pay the entry fee and tournament rules."}
           </p>
           <div className="pt-2">
             {!showManualVerify ? (
