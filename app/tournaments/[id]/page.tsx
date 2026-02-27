@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, HelpCircle, Calendar, Users, Play, CalendarClock, Swords, ArrowLeft } from "lucide-react"
+import { Trophy, HelpCircle, Calendar, Users, Play, CalendarClock, Swords, ArrowLeft, Copy } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { TournamentBracket } from "@/components/tournament/tournament-bracket"
 import { TournamentFAQModal } from "@/components/tournament/tournament-faq-modal"
@@ -136,10 +136,10 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     const handleStartTournament = async () => {
         if (!currentTournament) return
         try {
-            const res = await apiClient.startTournament(currentTournament.id, true) // Force start
+            const res = await apiClient.startTournament(tournamentId, true) // Force start
             if (res.success) {
                 toast({ title: "Tournament Started!", description: "Good luck to all players." })
-                loadTournament(currentTournament.id)
+                loadTournament(tournamentId)
             } else {
                 toast({ title: "Failed to start", description: res.error, variant: "destructive" })
             }
@@ -283,6 +283,17 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                     )}
                                     {currentTournament.status === 'waiting' && " Use the invite code below to bring more players."}
                                 </p>
+
+                                {currentTournament.inviteCode && (
+                                    <div className="mt-4 flex items-center gap-2 bg-black/40 border border-white/10 w-max px-3 py-2 rounded-lg backdrop-blur-sm cursor-pointer hover:bg-white/5 transition-colors group" onClick={() => {
+                                        navigator.clipboard.writeText(currentTournament.inviteCode)
+                                        toast({ title: "Copied!", description: "Invite code copied to clipboard." })
+                                    }}>
+                                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Invite Code:</span>
+                                        <span className="text-lg font-mono font-bold text-green-400 tracking-widest">{currentTournament.inviteCode}</span>
+                                        <Copy className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors ml-2" />
+                                    </div>
+                                )}
 
                                 {/* Post-Tournament Winners Podium (Hero) */}
                                 {currentTournament.status === "completed" && currentTournament.winners?.length > 0 && (

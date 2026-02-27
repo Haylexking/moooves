@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Users, Clock, Share2, X } from "lucide-react"
+import { Users, Clock, Share2, X, Copy } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
 import type { Tournament, BracketMatch } from "@/lib/types"
@@ -132,6 +132,9 @@ export default function TournamentDashboard() {
 
       if (detailRes.success) {
         const data: any = detailRes.data?.tournament || detailRes.data
+        if (data && data._id && !data.id) {
+          data.id = data._id
+        }
         setSelectedTournament((prev) => (prev && prev.id === data?.id ? data : prev))
         const rounds = data?.bracket?.rounds || []
         const allMatches: BracketMatch[] = rounds.flatMap((round: any) =>
@@ -353,6 +356,25 @@ export default function TournamentDashboard() {
                     <Clock className="w-4 h-4 text-purple-400" />
                     {formatDateTime(parseStartDate(tournament))}
                   </div>
+                  {tournament.inviteCode && (
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1 relative z-10 w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold">Code:</span>
+                        <span className="text-sm font-mono font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">{tournament.inviteCode}</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigator.clipboard.writeText(tournament.inviteCode)
+                          toast({ title: "Copied!", description: "Invite code copied to clipboard." })
+                        }}
+                        className="p-1.5 hover:bg-white/10 rounded-md transition-colors text-gray-400 hover:text-white flex items-center gap-1 shrink-0"
+                        title="Copy Code"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                   <GameButton onClick={() => router.push(`/tournaments/${tournament.id}`)} className="mt-auto">
                     View Details
                   </GameButton>

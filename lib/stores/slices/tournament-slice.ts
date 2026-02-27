@@ -139,7 +139,11 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
       const res = await apiClient.getTournament(tournamentId)
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournament')
       const data = res.data || {}
-      set({ currentTournament: data.tournament || data, isLoading: false })
+      let td = data.tournament || data
+      if (td && td._id && !td.id) {
+        td.id = td._id
+      }
+      set({ currentTournament: td, isLoading: false })
     } catch (error) {
       set({ isLoading: false })
       throw error

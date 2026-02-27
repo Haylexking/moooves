@@ -550,8 +550,9 @@ class ApiClient {
       if (res.success) {
         return { ...res, data: this._normalizeTournament(res.data) }
       }
+      // If the backend refuses Host tokens on this direct route (e.g. 400 'Invalid role'), quietly fallback
     } catch (e) {
-      console.warn(`[getTournament] Direct fetch threw for ${id}`, e)
+      // Quietly fall back
     }
 
     console.log(`[getTournament] Fallback: Fetching all tournaments...`)
@@ -616,6 +617,7 @@ class ApiClient {
     const qs = force ? "?force=true" : ""
     return this.request(`/tournaments/${id}/start${qs}`, {
       method: "POST",
+      body: JSON.stringify({ id, tournamentId: id })
     })
   }
 
