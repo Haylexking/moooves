@@ -544,23 +544,21 @@ class ApiClient {
   }
 
   async getTournament(id: string): Promise<ApiResponse<any>> {
-    console.log(`[getTournament] Fetching tournament ${id}...`)
     try {
       const res = await this.request(`/tournaments/${id}`)
       if (res.success) {
         return { ...res, data: this._normalizeTournament(res.data) }
       }
-      // If the backend refuses Host tokens on this direct route (e.g. 400 'Invalid role'), quietly fallback
+      // If the backend refuses Host tokens on this direct route (e.g. 400 'Invalid role'), quietly fallback to getAllTournaments
     } catch (e) {
       // Quietly fall back
     }
 
-    console.log(`[getTournament] Fallback: Fetching all tournaments...`)
-    const res = await this.getAllTournaments()
+    const resAll = await this.getAllTournaments()
     // getAllTournaments now returns normalized data
-    if (!res.success) return res
+    if (!resAll.success) return resAll
 
-    const payload: any = res.data || []
+    const payload: any = resAll.data || []
     const list = Array.isArray(payload)
       ? payload
       : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
@@ -616,8 +614,7 @@ class ApiClient {
   async startTournament(id: string, force?: boolean): Promise<ApiResponse<any>> {
     const qs = force ? "?force=true" : ""
     return this.request(`/tournaments/${id}/start${qs}`, {
-      method: "POST",
-      body: JSON.stringify({ id, tournamentId: id })
+      method: "POST"
     })
   }
 
