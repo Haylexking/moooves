@@ -11,26 +11,7 @@ import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 import { getReturnPath, clearReturnPath } from "@/lib/utils/navigation"
 import { toast } from "sonner"
-
-const logUserActivity = async (email: string, actionType: 'login' | 'signup') => {
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykkTBCjD2xiMur7ELG1PxVCdNKV7ilW7Vq0xuxMx5Mdm1zqpyzwak169Gq2l3rllvn6A/exec";
-
-  try {
-    await fetch(SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors", // Important for Google Apps Script
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: email,
-        action: actionType, // Pass 'login' or 'signup'
-      }),
-    });
-  } catch (error) {
-    console.error("Failed to log activity:", error);
-  }
-};
+import { logUserActivity } from "@/lib/utils/activity-logger"
 
 export default function PlayerOnboardingClient() {
   const [tab, setTab] = useState<"register" | "login">("register")

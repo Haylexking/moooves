@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { logUserActivity } from "@/lib/utils/activity-logger"
 
 export function LoginForm() {
   const auth = useAuthStore() as any
@@ -10,6 +11,10 @@ export function LoginForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Log login activity
+    logUserActivity(email, "login");
+    
     if (typeof auth?.login === "function") {
       auth.login(email, password)
     }
