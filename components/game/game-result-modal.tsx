@@ -11,6 +11,8 @@ interface GameResultModalProps {
   result: "win" | "lose" | "draw"
   scoreX?: number
   scoreO?: number
+  myName?: string
+  opponentName?: string
   isOnlineMode?: boolean
   onRematch?: () => void
   rematchLoading?: boolean
@@ -27,6 +29,8 @@ export function GameResultModal({
   result,
   scoreX,
   scoreO,
+  myName,
+  opponentName,
   isOnlineMode,
   onRematch,
   rematchLoading,
@@ -84,12 +88,18 @@ export function GameResultModal({
         <span className="text-6xl mb-4">{emoji}</span>
         <h2 className="text-2xl font-bold text-green-900 mb-2 text-center">{title}</h2>
         <p className="text-green-800 text-center mb-2">{message}</p>
-        <div className="text-lg font-semibold text-green-900 mb-6">
-          {/* User requested: "My Score : Opponent Score" */}
-          {/* We assume the parent passes 'scoreX' as "My Score" and 'scoreO' as "Opponent Score" if configured that way, 
-              OR we use proper labels. The logic in BattleGround will ensure scoreX = MyScore, scoreO = OpponentScore. */}
-          <span className="text-blue-700">{scoreX ?? 0}</span> -{" "}
-          <span className="text-red-700">{scoreO ?? 0}</span>
+        <div className="flex items-center justify-center gap-2 sm:gap-6 mb-8 mt-4 w-full px-2">
+          <div className="flex flex-col items-center flex-1 min-w-0">
+            <span className="text-xs sm:text-sm font-bold text-green-800 uppercase tracking-widest text-center truncate w-full px-2" title={myName || "Player 1"}>{myName || "Player 1"}</span>
+            <span className="text-5xl font-black text-blue-600 mt-2">{scoreX ?? 0}</span>
+          </div>
+          <div className="flex flex-col items-center justify-end h-full mt-6">
+            <span className="text-3xl font-black text-green-800/30">-</span>
+          </div>
+          <div className="flex flex-col items-center flex-1 min-w-0">
+            <span className="text-xs sm:text-sm font-bold text-green-800 uppercase tracking-widest text-center truncate w-full px-2" title={opponentName || "Player 2"}>{opponentName || "Player 2"}</span>
+            <span className="text-5xl font-black text-red-600 mt-2">{scoreO ?? 0}</span>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center mt-2">
           {/* Rematch Actions */}

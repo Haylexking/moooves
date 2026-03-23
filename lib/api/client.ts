@@ -5,6 +5,7 @@ interface ApiResponse<T = any> {
   data?: T
   error?: string
   message?: string
+  status?: number
 }
 
 interface LoginResponse {
@@ -140,12 +141,14 @@ class ApiClient {
           return {
             success: false,
             error: safeMsg || `HTTP ${response.status}`,
+            status: response.status,
           }
         }
 
         return {
           success: true,
           data: parsed,
+          status: response.status,
         }
       } catch (error) {
         if (attempt < attempts - 1) {
@@ -214,6 +217,10 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify({ code }),
     })
+  }
+
+  async getUserById(userId: string): Promise<ApiResponse<any>> {
+    return this.request(`/users/${userId}`)
   }
 
   // Forgot Password (email-only) flow
@@ -413,20 +420,11 @@ class ApiClient {
     })
   }
 
-  async joinMatchRoom(roomId: string, userId: string, handshakeToken: string): Promise<ApiResponse<any>> {
-    // This method previously used MATCHROOM_ENDPOINTS.JOIN/:id which does not exist in Swagger.
-    // Swagger defines POST /api/v1/match-rooms/join expecting { matchCode, userId }.
-    // If we only have ID, we can't join via this endpoint unless we can get the code first.
-    // However, for direct linking, we might be passed a code disguised as an ID.
-    // For now, we will log a warning and try to use the code-based join if the 'roomId' looks like a code (6 chars)
-    // Otherwise, we'll try to join the MATCH directly if checking for a Game.
-
-    if (roomId.length === 6) {
-      return this.joinMatchByCode(roomId, userId);
-    }
-
-    // Fallback: If we have a long ID, assumes it's a matchId for a GAME component join:
-    return this.joinMatch(roomId)
+  async joinMatchRoom(roomId: string, userId: string): Promise<ApiResponse<any>> {
+    // The join API expects matchCode in the body, not roomId in URL
+    // But we need to get the matchCode first, so this approach won't work
+    // Instead, we should use joinMatchByCode directly
+    throw new Error("joinMatchRoom should not be called directly - use joinMatchByCode instead")
   }
 
   // Live 1-on-1 Match Methods
@@ -438,40 +436,40 @@ class ApiClient {
   }
 
   async create1v1Match(roomId: string): Promise<ApiResponse<any>> {
-    return this.request(MATCHROOM_ENDPOINTS.LIST, { // This maps to /matches
+    // Canonical Swagger endpoint for promoting room to match
+    return this.request("/matches", {
       method: "POST",
       body: JSON.stringify({ roomId }),
     })
   }
 
-  async joinMatchByCode(code: string, userId: string): Promise<ApiResponse<any>> {
-    return this.request("/match-rooms/join", {
+  async getMatch(roomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/matches/${roomId}`)
+  }
+
+  async createLive1v1Match(userId: string): Promise<ApiResponse<any>> {
+    return this.request("/matches/live", {
       method: "POST",
-      body: JSON.stringify({ matchCode: code, userId }),
+      body: JSON.stringify({ userId, gameType: "TicTacToe", mode: "1on1_live" }),
     })
   }
 
-  // List MATCH ROOMS (Lobbies) - /matchs
+  async joinLive1v1MatchByCode(code: string, userId: string): Promise<ApiResponse<any>> {
+    // Corrected to use /match-rooms/join per MATCHROOM_ENDPOINTS.JOIN
+    return this.request("/match-rooms/join", {
+      method: "POST",
+      body: JSON.stringify({ code, userId }),
+    })
+  }
+
   async getAllMatchRooms(): Promise<ApiResponse<any[]>> {
-    const res = await this.request<any>("/matchs")
+    const res = await this.request<any>(MATCHROOM_ENDPOINTS.LIST)
     if (res.success && res.data && res.data.rooms) {
       return { ...res, data: res.data.rooms }
     }
     return res
   }
 
-  async getMatchRoom(roomId: string): Promise<ApiResponse<any>> {
-    // Swagger: GET /api/v1/matchs/{roomId} (note typo in swagger path 'matchs')
-    // OR GET /api/v1/matches/{matchId}
-    // We'll try the 'matches' one first as it's cleaner.
-    // If 'MATCHROOM_ENDPOINTS.GET_BY_ID' is /matches/:id, we stick with it.
-    return this.request(`/matches/${roomId}`)
-  }
-
-  // Explicitly get the "Room" (Lobby) state, distinct from the Match (Game) state
-  async getRoom(roomId: string): Promise<ApiResponse<any>> {
-    return this.request(`/matchroom/${roomId}`)
-  }
 
   // List MATCHES (Games) - /matches
   async getMatchRoomsList(): Promise<ApiResponse<any[]>> {
@@ -544,32 +542,11 @@ class ApiClient {
   }
 
   async getTournament(id: string): Promise<ApiResponse<any>> {
-    try {
-      const res = await this.request(`/tournaments/${id}`)
-      if (res.success) {
-        return { ...res, data: this._normalizeTournament(res.data) }
-      }
-      // If the backend refuses Host tokens on this direct route (e.g. 400 'Invalid role'), quietly fallback to getAllTournaments
-    } catch (e) {
-      // Quietly fall back
+    const res = await this.request(`/tournaments/${id}`)
+    if (res.success) {
+      return { ...res, data: this._normalizeTournament(res.data) }
     }
-
-    const resAll = await this.getAllTournaments()
-    // getAllTournaments now returns normalized data
-    if (!resAll.success) return resAll
-
-    const payload: any = resAll.data || []
-    const list = Array.isArray(payload)
-      ? payload
-      : (Array.isArray(payload.data) ? payload.data : payload.tournaments || [])
-
-    const match = list.find((t: any) => t.id === id || t._id === id)
-
-    if (match) {
-      return { success: true, data: match } // Already normalized by getAllTournaments
-    }
-
-    return { success: false, error: "Tournament not found" }
+    return res
   }
 
   async findTournamentByInviteCode(inviteCode: string): Promise<ApiResponse<any>> {
@@ -669,7 +646,13 @@ class ApiClient {
   }
 
   async getMatch(matchId: string): Promise<ApiResponse<any>> {
+    // Canonical Swagger: GET /api/v1/matches/{matchId}
     return this.request(`/matches/${matchId}`)
+  }
+
+  async getMatchRoom(roomId: string): Promise<ApiResponse<any>> {
+    // Fixed: Point to the pluralized match-rooms endpoint to avoid 400 Bad Request
+    return this.request(`/match-rooms/${roomId}`)
   }
 
   async deleteMatch(matchId: string): Promise<ApiResponse<any>> {

@@ -409,19 +409,24 @@ export default function TournamentDashboard() {
 
       {selectedTournament && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-5xl bg-green-50 border-4 border-green-700 rounded-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-5xl bg-gray-900/95 backdrop-blur-md border border-green-800/50 rounded-2xl shadow-[0_0_40px_rgba(34,197,94,0.1)] relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setSelectedTournament(null)}
-              className="absolute top-4 right-4 w-8 h-8 bg-green-800 text-white rounded-full flex items-center justify-center hover:bg-green-700"
+              className="absolute top-4 right-4 w-8 h-8 bg-gray-800 text-gray-400 rounded-full flex items-center justify-center hover:bg-gray-700 hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="p-6 space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-800/80 pb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-green-900">{selectedTournament.name}</h2>
-                  <p className="text-sm text-gray-600">Status: {selectedTournament.status}</p>
+                  <h2 className="text-3xl font-black italic uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 drop-shadow-sm">{selectedTournament.name}</h2>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-sm font-semibold text-gray-400">Status:</span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-md shadow-sm border border-transparent ${statusBadge(selectedTournament.status)}`}>
+                      {selectedTournament.status}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
@@ -429,9 +434,9 @@ export default function TournamentDashboard() {
                       navigator.clipboard.writeText(selectedTournament.inviteCode)
                       toast({ title: "Copied!", description: "Invite code copied" })
                     }}
-                    className="inline-flex items-center gap-2 text-sm text-green-800 hover:text-green-900 bg-green-50 px-3 py-1.5 rounded-md border border-green-200 transition-colors"
+                    className="inline-flex items-center gap-2 text-sm text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 px-3 py-1.5 rounded-md border border-green-500/20 transition-colors"
                   >
-                    <Share2 className="w-3 h-3" />
+                    <Share2 className="w-3.5 h-3.5" />
                     Copy Code
                   </button>
                   <button
@@ -440,20 +445,20 @@ export default function TournamentDashboard() {
                       navigator.clipboard.writeText(link)
                       toast({ title: "Copied!", description: "Invite link copied to clipboard" })
                     }}
-                    className="inline-flex items-center gap-2 text-sm text-white hover:text-green-50 bg-green-700 hover:bg-green-800 px-3 py-1.5 rounded-md transition-colors shadow-sm"
+                    className="inline-flex items-center gap-2 text-sm text-white hover:text-white bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded-md transition-colors shadow-sm"
                   >
-                    <Share2 className="w-3 h-3" />
+                    <Share2 className="w-3.5 h-3.5" />
                     Copy Link
                   </button>
                 </div>
               </div>
 
-              <div className="p-4 bg-white rounded-xl border border-green-100 space-y-3">
+              <div className="p-5 bg-black/40 rounded-xl border border-white/5 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase text-gray-500">Scheduled start</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatDateTime(startDate)}</p>
-                    <p className="text-sm text-gray-500">Countdown: {startCountdown}</p>
+                    <p className="text-[10px] uppercase font-bold tracking-widest text-gray-500 mb-1">Scheduled start</p>
+                    <p className="text-lg font-semibold text-white">{formatDateTime(startDate)}</p>
+                    <p className="text-sm font-mono text-gray-400 mt-1">Countdown: <span className="text-green-400 font-bold">{startCountdown}</span></p>
                   </div>
                   {isHost && (
                     <div className="flex flex-wrap gap-2">
@@ -479,20 +484,29 @@ export default function TournamentDashboard() {
                 )}
 
                 {/* Metrics Section for Hosts */}
-                <div className="grid grid-cols-3 gap-2 border-t border-green-100 pt-3 mt-2">
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs uppercase text-gray-500">Players</p>
-                    <p className="font-semibold text-green-900">{selectedTournament.currentPlayers} / {selectedTournament.maxPlayers}</p>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 border-t border-gray-800/80 pt-4 mt-4">
+                  <div className="bg-white/5 p-3 rounded-xl flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                      <Users className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Players</p>
+                      <p className="font-semibold text-white text-lg leading-tight">{selectedTournament.currentPlayers} / {selectedTournament.maxPlayers}</p>
+                    </div>
                   </div>
                   {selectedTournament.type !== "free" && (
                     <>
-                      <div className="text-center sm:text-left">
-                        <p className="text-xs uppercase text-gray-500">Entry Fee</p>
-                        <p className="font-semibold text-green-900">₦{(selectedTournament.entryFee || 0).toLocaleString()}</p>
+                      <div className="bg-white/5 p-3 rounded-xl flex items-center gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Entry Fee</p>
+                          <p className="font-bold text-white font-mono text-lg leading-tight">₦{(selectedTournament.entryFee || 0).toLocaleString()}</p>
+                        </div>
                       </div>
-                      <div className="text-center sm:text-left">
-                        <p className="text-xs uppercase text-gray-500">Total Pool</p>
-                        <p className="font-semibold text-green-900">₦{(selectedTournament.totalPool || 0).toLocaleString()}</p>
+                      <div className="bg-white/5 p-3 rounded-xl flex items-center gap-3 col-span-2 lg:col-span-1 border border-yellow-500/10">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-yellow-500/80">Total Pool</p>
+                          <p className="font-bold text-yellow-500 font-mono text-xl leading-tight">₦{(selectedTournament.totalPool || 0).toLocaleString()}</p>
+                        </div>
                       </div>
                     </>
                   )}
@@ -536,18 +550,22 @@ export default function TournamentDashboard() {
               ) : (
                 <>
                   {activeTab === "leaderboard" && (
-                    <div>
-                      <h3 className="font-semibold text-green-900 mb-3">Leaderboard</h3>
+                    <div className="bg-black/30 rounded-2xl border border-white/5 p-5 min-h-[300px]">
+                      <h3 className="font-bold text-white mb-4 uppercase tracking-widest text-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Leaderboard</h3>
                       {leaderboard.length === 0 ? (
-                        <p className="text-sm text-gray-600">No winner data yet.</p>
+                        <div className="text-center py-10 opacity-50">
+                          <p className="text-sm text-gray-400 font-medium">No winner data yet.</p>
+                        </div>
                       ) : (
-                        <ul className="divide-y divide-green-100">
+                        <ul className="space-y-3">
                           {leaderboard.map((entry) => (
-                            <li key={entry.userId} className="flex items-center gap-3 py-2">
-                              <span className="font-bold text-green-700">#{entry.rank}</span>
-                              <span className="font-semibold text-gray-900">{entry.name}</span>
+                            <li key={entry.userId} className="flex items-center gap-4 py-3 px-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+                              <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${entry.rank === 1 ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]' : entry.rank === 2 ? 'bg-gray-400 text-black' : entry.rank === 3 ? 'bg-orange-700 text-white' : 'bg-gray-800 text-gray-400'}`}>
+                                #{entry.rank}
+                              </span>
+                              <span className="font-bold text-white text-base truncate">{entry.name}</span>
                               {selectedTournament.type !== "free" && (
-                                <span className="ml-auto text-sm text-gray-600">₦{entry.prize.toLocaleString()}</span>
+                                <span className="ml-auto font-mono font-bold text-green-400">₦{entry.prize.toLocaleString()}</span>
                               )}
                             </li>
                           ))}
@@ -557,10 +575,12 @@ export default function TournamentDashboard() {
                   )}
 
                   {activeTab === "matches" && (
-                    <div>
-                      <h3 className="font-semibold text-green-900 mb-3">Draw</h3>
+                    <div className="bg-black/30 rounded-2xl border border-white/5 p-5 min-h-[300px]">
+                      <h3 className="font-bold text-white mb-4 uppercase tracking-widest text-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Draw</h3>
                       {matches.length === 0 ? (
-                        <p className="text-sm text-gray-600">Matches will appear once the host starts the draw.</p>
+                        <div className="text-center py-10 opacity-50">
+                          <p className="text-sm text-gray-400 font-medium">Matches will appear once the host starts the draw.</p>
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           {matches.map((match) => {
@@ -570,35 +590,35 @@ export default function TournamentDashboard() {
                             const lostByForfeit = isForfeited && isParticipant && match.winnerId && match.winnerId !== user?.id
 
                             return (
-                              <div key={match.id} className="flex flex-col gap-2 rounded-lg border border-gray-100 bg-white p-3">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                              <div key={match.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/40 p-4 hover:border-white/20 transition-colors">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                   <div>
-                                    <p className="text-xs text-gray-500">Round {match.roundNumber}</p>
-                                    <p className="font-semibold text-gray-900">
-                                      {match.player1Id || "TBD"} vs {match.player2Id || "TBD"}
+                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Round {match.roundNumber}</p>
+                                    <p className="font-bold text-white font-mono text-base">
+                                      {match.player1Id || "TBD"} <span className="text-gray-600 px-2 font-sans italic text-sm">vs</span> {match.player2Id || "TBD"}
                                     </p>
                                   </div>
-                                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusBadge(match.status)}`}>
+                                  <span className={`text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-md shadow-[0_0_10px_rgba(0,0,0,0.5)] border border-transparent ${statusBadge(match.status)}`}>
                                     {match.status}
                                   </span>
                                 </div>
                                 {wonByDefault && (
-                                  <p className="text-xs text-green-600 font-medium bg-green-50 p-2 rounded">
-                                    Opponent hasn&apos;t shown up — you win by default
+                                  <p className="text-xs text-green-400 font-bold bg-green-500/10 border border-green-500/20 p-2.5 rounded-lg flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span> Opponent hasn&apos;t shown up — you win by default
                                   </p>
                                 )}
                                 {lostByForfeit && (
-                                  <p className="text-xs text-red-600 font-medium bg-red-50 p-2 rounded">
-                                    You missed your match — you forfeit this round.
+                                  <p className="text-xs text-red-400 font-bold bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span> You missed your match — you forfeit this round.
                                   </p>
                                 )}
                                 {isParticipant && (match.status === 'waiting' || match.status === 'active') && (
                                   <div className="pt-2">
                                     <GameButton
-                                      className="w-full text-xs h-8"
+                                      className="w-full text-xs h-10 bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)]"
                                       onClick={() => router.push(`/tournaments/${selectedTournament.id}/play?matchId=${match.id}`)}
                                     >
-                                      Play Match
+                                      Enter Match Room
                                     </GameButton>
                                   </div>
                                 )}
@@ -611,59 +631,61 @@ export default function TournamentDashboard() {
                   )}
 
                   {activeTab === "rules" && (
-                    <div className="space-y-3 text-sm text-gray-700">
-                      <p>- Hosts set a start time and may start early or reschedule if needed.</p>
-                      <p>- Players have 15 minutes to join; solo arrivals advance by default.</p>
-                      <p>- If neither joins, the match is forfeited and draw adjusts.</p>
-                      <p>- Notifications alert players for starts and no-show advances.</p>
-
-                      <button onClick={() => setShowFaq(true)} className="text-green-700 underline font-semibold mt-2">
+                    <div className="bg-black/30 rounded-2xl border border-white/5 p-5 min-h-[300px]">
+                      <h3 className="font-bold text-white mb-4 uppercase tracking-widest text-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500"></span> Tournament Rules</h3>
+                      <div className="space-y-4 text-sm text-gray-400">
+                        <p className="flex items-start gap-2"><span className="text-green-500 font-bold mt-0.5">•</span> Hosts set a start time and may start early or reschedule if needed.</p>
+                        <p className="flex items-start gap-2"><span className="text-green-500 font-bold mt-0.5">•</span> Players have 15 minutes to join; solo arrivals advance by default.</p>
+                        <p className="flex items-start gap-2"><span className="text-green-500 font-bold mt-0.5">•</span> If neither joins, the match is forfeited and draw adjusts.</p>
+                        <p className="flex items-start gap-2"><span className="text-green-500 font-bold mt-0.5">•</span> Notifications alert players for starts and no-show advances.</p>
+                      </div>
+                      <button onClick={() => setShowFaq(true)} className="text-green-400 hover:text-green-300 underline font-semibold mt-6 transition-colors">
                         View Full Tournament Guide
                       </button>
                     </div>
                   )}
 
                   {selectedTournament.type !== "free" && selectedTournament.status === "completed" && payouts.length > 0 && (
-                    <div className="border-t border-green-200 pt-4">
-                      <h3 className="font-semibold text-green-900 mb-2">Payout Summary</h3>
-                      <div className="space-y-2 max-h-48 overflow-auto">
+                    <div className="bg-black/30 rounded-2xl border border-white/5 p-5 mt-4">
+                      <h3 className="font-bold text-white mb-4 uppercase tracking-widest text-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-yellow-500"></span> Payout Summary</h3>
+                      <div className="space-y-2 max-h-48 overflow-auto pr-2 custom-scrollbar">
                         {payouts.map((payout, idx) => (
-                          <div key={idx} className="flex items-center justify-between rounded-lg border border-green-100 bg-white p-2 text-sm">
+                          <div key={idx} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3 text-sm hover:border-white/10 transition-colors">
                             <div>
-                              <p className="font-semibold text-gray-800">{payout.username || payout.userId || "Winner"}</p>
-                              <p className="text-xs text-gray-500">?{payout.amount?.toLocaleString?.() || payout.amount}</p>
+                              <p className="font-bold text-white">{payout.username || payout.userId || "Winner"}</p>
+                              <p className="text-xs text-gray-500 font-mono mt-0.5">₦{payout.amount?.toLocaleString?.() || payout.amount}</p>
                             </div>
-                            <span className={`text-xs font-semibold ${payout.status === "confirmed" ? "text-green-700" : payout.status === "failed" ? "text-red-600" : "text-yellow-700"}`}>
+                            <span className={`text-[10px] tracking-widest uppercase font-black px-2 py-0.5 rounded border ${payout.status === "confirmed" ? "text-green-400 border-green-500/30 bg-green-500/10" : payout.status === "failed" ? "text-red-400 border-red-500/30 bg-red-500/10" : "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"}`}>
                               {payout.status}
                             </span>
                           </div>
                         ))}
                       </div>
                       {isHost && (
-                        <div className="mt-4 space-y-2">
-                          <p className="text-xs uppercase text-gray-500">Manual payout</p>
-                          <div className="grid sm:grid-cols-3 gap-2">
+                        <div className="mt-6 pt-6 border-t border-gray-800/80 space-y-4">
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Manual payout overwrite</p>
+                          <div className="grid sm:grid-cols-3 gap-3">
                             <input
-                              className="border rounded-lg px-3 py-2 text-sm"
+                              className="bg-black/50 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500/50"
                               placeholder="Bank code"
                               value={manualBankCode}
                               onChange={(e) => setManualBankCode(e.target.value)}
                             />
                             <input
-                              className="border rounded-lg px-3 py-2 text-sm"
+                              className="bg-black/50 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500/50"
                               placeholder="Account number"
                               value={manualAccountNumber}
                               onChange={(e) => setManualAccountNumber(e.target.value)}
                             />
                             <input
-                              className="border rounded-lg px-3 py-2 text-sm"
+                              className="bg-black/50 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500/50"
                               placeholder="Amount"
                               type="number"
                               value={manualAmount}
                               onChange={(e) => setManualAmount(e.target.value ? Number(e.target.value) : "")}
                             />
                           </div>
-                          <GameButton onClick={handleSendManualPayout} disabled={sendingPayout || !manualBankCode || !manualAccountNumber || !manualAmount}>
+                          <GameButton onClick={handleSendManualPayout} disabled={sendingPayout || !manualBankCode || !manualAccountNumber || !manualAmount} className="w-full sm:w-auto mt-2">
                             {sendingPayout ? "Sending..." : "Send Manually"}
                           </GameButton>
                         </div>

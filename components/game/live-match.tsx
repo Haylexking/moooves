@@ -16,7 +16,7 @@ export function LiveMatch() {
     const { toast } = useToast()
 
     const [view, setView] = useState<"menu" | "create" | "join">("menu")
-    console.log("[LiveMatch] Mounted. User ID:", user?.id, "Role:", user?.role)
+    // Removed redundant mount log to clean up console
     const [loading, setLoading] = useState(false)
 
     // Create State
@@ -30,50 +30,37 @@ export function LiveMatch() {
     const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
     const [isHost, setIsHost] = useState(false)
 
-    // Polling for opponent when hosting OR waiting for host to start match
+    // Polling for room status and match readiness
     useEffect(() => {
         if (!activeMatchId) return
 
         const interval = setInterval(async () => {
             try {
-                if (isHost) {
-                    // HOST LOGIC: Poll to create the match. This will fail (waiting) until opponent joins.
-                    const res = await apiClient.create1v1Match(activeMatchId)
-                    if (res.success) {
-                        clearInterval(interval)
-                        const finalMatchId = res.data?.match?._id || res.data?.match?.id || res.data?.matchId || res.data?._id || activeMatchId
-                        console.log("[LiveMatch] Match started (Host)! Redirecting to:", finalMatchId)
-                        router.push(`/game?live=true&id=${finalMatchId}&code=${matchCode || ''}`)
-                    } else {
-                        // console.log("[LiveMatch] Host Polling status:", res.error) 
-                    }
-                } else {
-                    // JOINER LOGIC: Poll via "List All Rooms" (GET /match-rooms)
-                    // This avoids 400 errors from direct ID lookups and 400 errors from re-joining.
-                    const res = await apiClient.getMatchRoomsList()
-
-                    if (res.success && Array.isArray(res.data)) {
-                        // Find our room in the list
-                        // The /matches endpoint returns Match objects, which contain 'matchRoomId'.
-                        const myRoom = res.data.find((r: any) =>
-                            (r.matchRoomId === activeMatchId) ||
-                            (r._id === activeMatchId) || (r.id === activeMatchId) ||
-                            (r.roomId === activeMatchId) ||
-                            (r.room && (r.room._id === activeMatchId || r.room.id === activeMatchId)) ||
-                            (r.code === matchCode) || (r.inviteCode === matchCode)
-                        )
-
-                        if (myRoom) {
-                            // Check for Match ID in the found room object
-                            // If myRoom is the Match object itself (which it is for /matches), the ID is _id
-                            const matchObj = myRoom.match || myRoom
-                            const finalMatchId = (matchObj._id || matchObj.id || matchObj.matchId)
-
-                            // If the match ID is valid and different from the room ID
-                            if (finalMatchId && finalMatchId !== activeMatchId) {
+                // While in Lobby, poll for Room status (GET /matchroom/:id)
+                const res = await apiClient.getMatchRoom(activeMatchId)
+                
+                if (res.success && res.data) {
+                    const roomData = res.data?.room || res.data
+                    const status = roomData?.status
+                    
+                    // BOTH: Trigger promotion or fetch existing match when paired
+                    if (status === 'paired') {
+                        console.log("[LiveMatch] Paired! Fetching Match ID...")
+                        const promoteRes = await apiClient.create1v1Match(activeMatchId)
+                        if (promoteRes.success) {
+                            const matchData = promoteRes.data?.match || promoteRes.data
+                            const matchId = matchData?._id || matchData?.id || matchData?.roomId
+                            if (matchId) {
                                 clearInterval(interval)
-                                console.log("[LiveMatch] Match started (Joiner)! Redirecting to:", finalMatchId)
-                                router.push(`/game?live=true&id=${finalMatchId}&code=${matchCode || ''}`)
+                                router.push(`/game/${matchId}`)
+                            }
+                        } else {
+                            // If POST /matches failed for Joiner (because Host deleted it or it's missing)
+                            // fallback to checking the payload of the lobby itself just in case
+                            const fallbackMatchId = roomData?.matchId || roomData?.match?._id || roomData?.activeMatchId
+                            if (fallbackMatchId) {
+                                clearInterval(interval)
+                                router.push(`/game/${fallbackMatchId}`)
                             }
                         }
                     }
@@ -81,7 +68,7 @@ export function LiveMatch() {
             } catch (e) {
                 console.error("Polling exception:", e)
             }
-        }, 3000)
+        }, 2000) // Poll every 2s while waiting
 
         return () => clearInterval(interval)
     }, [activeMatchId, router, isHost, matchCode])
@@ -92,29 +79,29 @@ export function LiveMatch() {
         setError(null)
         try {
             // 1. Create the room
-            const res = await apiClient.createLiveMatch(user.id)
-            if (res.success && res.data) {
-                console.log("[LiveMatch] Create Response:", JSON.stringify(res.data, null, 2))
-
-                const code = res.data.matchCode || res.data.roomCode
-                const newMatchId = res.data.roomId || res.data.matchId || res.data.id
-
-                // 2. IMPORTANT: Host must explicitly JOIN the room to be "player1"
-                // The backend does not auto-join the creator as a player.
-                console.log("[LiveMatch] Auto-joining room as host...")
-                const joinRes = await apiClient.joinMatchByCode(code, user.id)
-                console.log("[LiveMatch] Auto-join result:", joinRes)
-
-                setMatchCode(code)
-                setActiveMatchId(newMatchId)
+            const response = await apiClient.createMatchRoom(user.id, "TicTacToe")
+            if (response.success) {
+                const roomData = response.data.room || response.data
+                const { roomId, roomCode, inviteCode, matchCode, _id } = roomData
+                const finalRoomId = roomId || _id
+                const finalCode = matchCode || inviteCode || roomCode
+                setMatchCode(finalCode)  // Backend returns inviteCode in nested room object
+                setActiveMatchId(finalRoomId)
                 setIsHost(true)
-
-                // Do NOT redirect yet. Wait for polling (create1v1Match) to succeed.
-                // This ensures the match exists in the /matches endpoint before we send the user there.
-                // Now that we (host) have joined, the NEXT player to join will trigger "ready" state.
+                
+                // Auto-join host to room using matchCode
+                const joinResult = await apiClient.joinLive1v1MatchByCode(finalCode, user.id)
+                console.log("[LiveMatch] Auto-join result:", joinResult)
+                
+                // Auto-promotion: Host promotes room to match ONLY when both players have joined
+                // Don't promote immediately - wait for joinee first
+                console.log("[LiveMatch] Host joined successfully. Waiting for joinee before promoting...")
+                
+                // Skip auto-promotion for now - let joinee join first
+                
                 setView("create")
             } else {
-                toast({ title: "Error", description: res.error, variant: "destructive" })
+                toast({ title: "Error", description: response.error, variant: "destructive" })
             }
         } catch (e) {
             toast({ title: "Error", description: "Failed to connect", variant: "destructive" })
@@ -124,42 +111,52 @@ export function LiveMatch() {
     }
 
     const handleJoin = async () => {
-        if (!user || !joinCode) return
+        if (!user || !joinCode || joinCode.length < 3) {
+            setError("Please enter a valid code")
+            toast({ title: "Invalid Code", description: "Code must be at least 3 characters", variant: "destructive" })
+            return
+        }
+        
         setLoading(true)
+        setError(null)
+        
+        console.log("[LiveMatch] Attempting to join with code:", joinCode, "User ID:", user.id)
+        
         try {
-            const res = await apiClient.joinMatchByCode(joinCode.toUpperCase(), user.id)
+            // 1. First try to join by code
+            const res = await apiClient.joinLive1v1MatchByCode(joinCode, user.id)
+            console.log("[LiveMatch] Join response:", res)
+            console.log("[LiveMatch] Full join response data:", JSON.stringify(res.data, null, 2))
+            
             if (res.success && res.data) {
-                // Redirect to game
-                // Swagger: { room: { _id, ... } } or similar
-                // Critical: Must prioritize ROOM ID over Match ID to match Host
-                console.log("[LiveMatch] Join Success:", JSON.stringify(res.data, null, 2))
-
-                // UNIFIED FLOW:
-                // Both Host and Joiner must wait for the "Match" resource to be created.
-                // The Joiner receives the ROOM ID here.
-                // Instead of redirecting immediately (which fails if Match doesn't exist yet),
-                // we set the Joiner to the same "Polling" state as the Host.
-                // They will poll create1v1Match(roomId) until the backend says "OK".
-
-                const roomId = res.data.roomId ||
-                    res.data.room?._id ||
-                    res.data.room?.id ||
-                    res.data.id
-
-                if (roomId) {
-                    console.log("[LiveMatch] Joined Room, switching to polling mode for Match ID...")
-                    setMatchCode(joinCode) // Show the code they joined with
-                    setActiveMatchId(roomId)
-                    setIsHost(false)
-                    setView("create") // Show the "Waiting..." screen which triggers polling
+                const joinedRoomId = res.data.roomId || res.data.room?._id || res.data.room?.id || res.data.id
+                const status = res.data.room?.status || res.data.status || ""
+                console.log(`[LiveMatch] Join success! Room: ${joinedRoomId}, Status: ${status}`)
+                console.log("[LiveMatch] Full join response data:", JSON.stringify(res.data, null, 2))
+                
+                if (status.toLowerCase() === 'playing') {
+                    // Match has already been promoted by the Host!
+                    const actualMatchId = res.data.matchId || res.data.room?.matchId || joinedRoomId
+                    console.log("[LiveMatch] Match ready! Redirecting to game...")
+                    router.push(`/game/${actualMatchId}`)
                 } else {
-                    setError("Invalid server response - No Room ID")
+                    // Lobby is just paired. Wait for Host to promote.
+                    setMatchCode(joinCode)
+                    setActiveMatchId(joinedRoomId)
+                    setIsHost(false)
+                    setView("create")
                 }
             } else {
-                setError(res.error || "Invalid code or match full")
+                const errorMsg = res.error || "Invalid code or match full"
+                console.error("[LiveMatch] Join failed:", errorMsg)
+                setError(errorMsg)
+                toast({ title: "Join Failed", description: errorMsg, variant: "destructive" })
             }
-        } catch (e) {
-            setError("Failed to join")
+        } catch (error) {
+            console.error("[LiveMatch] Join exception:", error)
+            const errorMsg = error instanceof Error ? error.message : "Network error occurred"
+            setError(errorMsg)
+            toast({ title: "Join Error", description: errorMsg, variant: "destructive" })
         } finally {
             setLoading(false)
         }

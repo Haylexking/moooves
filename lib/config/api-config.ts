@@ -105,8 +105,9 @@ export const API_CONFIG = {
 // places where the client needs the concrete runtime path.
 export const MATCHROOM_ENDPOINTS = {
   CREATE: "/match-rooms",
-  JOIN: "/match-rooms/:id/join",
-  LIST: "/matches",
-  GET_BY_ID: "/matches/:id",
-  DELETE: "/matches/:id",
+  JOIN: "/match-rooms/join",
+  LIST: "/matchs", // Observed typo in Swagger/Backend
+  GET_BY_ID: "/matches/:id", // Main match/game endpoint
+  ROOM_BY_ID: "/matchroom/:id", // Lobby endpoint
+  DELETE: "/matches/:id", 
 } as const

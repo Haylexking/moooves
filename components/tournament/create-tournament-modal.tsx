@@ -65,10 +65,10 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
       const tournament = await createTournament(payload)
 
       if (tournamentType === "free") {
-        toast({ title: "Redirecting to Payment", description: "You will be redirected to pay the ₦10,000 Host fee." })
+        toast({ title: "Redirecting to Payment", description: "You will be redirected to pay the ₦15,000 Host fee." })
 
         const paymentRes = await apiClient.initWalletTransaction({
-          amount: 10000,
+          amount: 15000,
           method: "flutterwave",
           email: user.email,
           name: user.fullName || "Moooves Host",
@@ -146,7 +146,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             </div>
             {tournamentType === "free" && (
               <div className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-3 border border-yellow-200 rounded-md">
-                <p><strong>Host Fee: ₦10,000.</strong> You will be redirected to pay. Players will join for <strong>free</strong>.</p>
+                <p><strong>Host Fee: ₦15,000.</strong> You will be redirected to pay. Players will join for <strong>free</strong>.</p>
               </div>
             )}
             {tournamentType === "paid" && (

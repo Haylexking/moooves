@@ -151,31 +151,39 @@ export const useGameStore = create<GameStore>()(
           const data = match.gameState || match
 
           // Prevent overwriting local optimistic updates with stale server data
-          // ONLY if we are strictly playing and NOT resyncing from an error
+          // Use moves array length as it's more reliable than movesMade (which server may return as 0)
           const currentMoves = get().moveHistory.length
-          const serverMoves = data.movesMade
+          const serverMoves = data.moves?.length ?? data.movesMade ?? null
 
-          // If server is behind local, ignore (stale poll)
-          if (typeof serverMoves === 'number' && typeof currentMoves === 'number') {
-            if (serverMoves < currentMoves) {
-              return
-            }
+          console.log("[GameStore] Syncing attempt - Local Moves:", currentMoves, "Server Moves:", serverMoves)
+
+          // Loosened sync guard: Only skip if the server explicitly says 0 moves AND the board is truly empty, 
+          // while we have multiple moves locally. This prevents flickering but allows recovery.
+          const boardHasMoves = data.board?.some((row: any[]) => row.some(c => c !== null && c !== ""));
+          
+          if (typeof serverMoves === 'number' && serverMoves === 0 && currentMoves > 0 && !boardHasMoves) {
+            console.log("[GameStore] Skipping sync: Server reports 0 moves and board is empty (initial state).")
+            return
           }
 
+          // If serverMoves < currentMoves but boardHasMoves is true, we should probably still sync 
+          // because the server's board state is authoritative.
+
           // Proceed to apply state...
+          console.log("[GameStore] Applying sync. Data contains board:", !!data.board)
           console.log("[GameStore] Syncing State. Moves:", serverMoves)
           console.log("[GameStore] Server Scores:", data.scores)
 
 
           // Board
-          if (data.board) {
+          if (data.board && data.board.length === 30) {
             // Count symbols for debug
             let xCount = 0, oCount = 0
             data.board.forEach((row: any[]) => row.forEach((c: any) => {
               if (c === 'X') xCount++
               if (c === 'O') oCount++
             }))
-            console.log(`[GameStore] Board Update: X=${xCount}, O=${oCount}`)
+            console.log(`[GameStore] Board Update Found: X=${xCount}, O=${oCount}`)
 
             // Normalize board: ensure empty strings are null
             const normalizedBoard = data.board.map((row: any[]) =>
@@ -191,6 +199,8 @@ export const useGameStore = create<GameStore>()(
               usedSequences: calculated.usedSequences,
               usedPositions: calculated.usedPositions
             })
+          } else if (data.board && data.board.length !== 30) {
+            console.warn(`[GameStore] Ignoring invalid server board size: \${data.board.length}`);
           }
 
           /* 
@@ -206,16 +216,24 @@ export const useGameStore = create<GameStore>()(
             set({ moveHistory: data.moves })
           }
 
-          // Current player (Map UserID to X/O)
+          // Current player (Map UserID to X/O) - FIXED for 1v1
+          // CRITICAL: Host must always be X, Joinee must always be O
           const turnId = data.currentTurn || match.currentTurn
           if (turnId) {
-            if (turnId === match.player1) {
+            // For 1v1 matches, enforce strict role assignment
+            const isHostTurn = turnId === match.player1
+            const isJoineeTurn = turnId === match.player2
+            
+            if (isHostTurn) {
               set({ currentPlayer: "X" })
-            } else if (turnId === match.player2) {
+              console.log("[GameStore] Turn assigned: X (host)")
+            } else if (isJoineeTurn) {
               set({ currentPlayer: "O" })
+              console.log("[GameStore] Turn assigned: O (joinee)")
             } else if (turnId === "X" || turnId === "O") {
               // Fallback if API actually sends "X"/"O"
               set({ currentPlayer: turnId })
+              console.log("[GameStore] Turn assigned: fallback", { turnId })
             }
           } else if (data.currentPlayer) {
             // Fallback for older API format
@@ -223,18 +241,34 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Winner Sync
-          if (match.winner === 'draw' || data.winner === 'draw') {
+          // NOTE: Backend returns winner as [] (empty array) when there's no winner yet.
+          // In JavaScript, [] is truthy, so we must explicitly check for this case.
+          const winnerIsEmpty = Array.isArray(match.winner) && match.winner.length === 0
+          const winnerData = match.winner || data.winner
+
+          if (winnerIsEmpty) {
+            // Backend is saying no winner yet — reset any stale winner from previous game
+            set({ winner: null })
+          } else if (winnerData === 'draw' || data.winner === 'draw') {
             set({ winner: 'draw' })
-          } else if (match.winner) {
-            if (match.winner === match.player1) set({ winner: 'X' })
-            else if (match.winner === match.player2) set({ winner: 'O' })
+          } else if (winnerData && !Array.isArray(winnerData)) {
+            // Explicit winner ID: map to X or O based on player positions
+            if (winnerData === match.player1) set({ winner: 'X' })
+            else if (winnerData === match.player2) set({ winner: 'O' })
           }
 
           // Game status (usually top-level)
           if (match.status) {
             let status = match.status
-            if (status === 'ongoing') status = 'playing'
-            set({ gameStatus: status })
+            if (status === 'ongoing' || status === 'in_progress') status = 'playing'
+            // Guard: don't mark as 'completed' if no moves have been made locally and server has no winner
+            // (prevents stale match state from triggering premature draw on new games)
+            const hasWinner = !winnerIsEmpty && match.winner && match.winner !== 'null' && match.winner !== 'undefined'
+            if (status === 'completed' && !hasWinner && get().moveHistory.length === 0) {
+              console.warn('[GameStore] Ignoring premature completed status with 0 local moves and no winner.')
+            } else {
+              set({ gameStatus: status })
+            }
           }
         } catch (error) {
           // Use structured debug logger

@@ -18,6 +18,11 @@ interface MatchRoomState {
 }
 
 export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) {
+  const { user } = useAuthStore()
+  const bluetoothTokenRef = useRef<string | null>(null)
+  const handshakeTokenRef = useRef<string | null>(null)
+  const inviteHandlersRef = useRef<((payload: { roomId?: string | null; roomCode?: string | null; token?: string | null; source?: 'bluetooth' | 'wifi' }) => void)[]>([])
+
   const [state, setState] = useState<MatchRoomState>({
     roomId: initialMatchId || null,
     roomCode: initialRoomCode || null,
@@ -26,11 +31,6 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
     error: null,
     participants: [],
   })
-
-  const { user } = useAuthStore()
-  const bluetoothTokenRef = useRef<string | null>(null)
-  const handshakeTokenRef = useRef<string | null>(null)
-  const inviteHandlersRef = useRef<((payload: { roomId?: string | null; roomCode?: string | null; token?: string | null; source?: 'bluetooth' | 'wifi' }) => void)[]>([])
 
   // Create a new match room. Returns the backend room id and tokens the server generated.
   const createRoom = useCallback(
@@ -96,7 +96,7 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
       }
 
       try {
-        const response = await apiClient.joinMatchRoom(roomId, user.id, handshakeToken)
+        const response = await apiClient.joinMatchRoom(roomId, user.id)
 
         if (!response.success) {
           throw new Error(response.error || "Failed to join room")
@@ -152,8 +152,8 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
   // Get room details
   const getRoomDetails = useCallback(async (roomId: string) => {
     try {
-      console.log("[useMatchRoom] Fetching details for ID:", roomId)
-      const response = await apiClient.getMatchRoom(roomId)
+      // First try to fetch as a Match (Game Board), then fallback to Lobby (if still in matching phase)
+      const response = await apiClient.getMatch(roomId).catch(() => apiClient.getMatchRoom(roomId))
 
       if (!response.success || !response.data) {
         throw new Error(response.error || "Failed to get room details")
@@ -249,23 +249,7 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
     [state.roomId, user?.id],
   )
 
-  // Auto-Join logic: If I am connected to a room (via ID) but not in participants list, force join.
-  useEffect(() => {
-    if (!state.roomId || !user?.id || !state.matchState) return
-
-    // Check if I am in participants
-    const myId = user.id
-    const amIParticipant = state.participants.some(p =>
-      (typeof p === 'string' && p === myId) ||
-      ((p as any)._id === myId)
-    )
-
-    // If I am NOT a participant, and there is space (less than 2 players), JOIN.
-    if (!amIParticipant && state.participants.length < 2) {
-      console.log("Auto-joining room...", state.roomId)
-      joinRoom(state.roomId, "").catch(e => console.error("Auto-join failed", e))
-    }
-  }, [state.roomId, state.participants, state.matchState, user?.id, joinRoom])
+  // Auto-Join logic: DISABLED
 
   // Leave the room
   const leaveRoom = useCallback(async () => {

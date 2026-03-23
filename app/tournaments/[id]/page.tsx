@@ -236,7 +236,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-white/50 hover:text-white hover:bg-white/10 gap-2"
+                                    className="text-white/50 hover:text-white hover:bg-white/10 gap-2 mb-6"
                                     onClick={() => router.push(isHost ? '/host-dashboard' : '/dashboard')}
                                 >
                                     <ArrowLeft className="w-4 h-4" /> Back
@@ -517,8 +517,12 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             return (
                                                 <>
                                                     <div>
-                                                        <h2 className="text-xl font-bold text-white mb-1">Projected Payouts</h2>
-                                                        <p className="text-sm text-gray-500">Prize distribution based on current pool.</p>
+                                                        <h2 className="text-xl font-bold text-white mb-1">
+                                                            {currentTournament.type === "free" ? "Leaderboard" : "Projected Payouts"}
+                                                        </h2>
+                                                        <p className="text-sm text-gray-500">
+                                                            {currentTournament.type === "free" ? "Top players battling for bragging rights." : "Prize distribution based on current pool."}
+                                                        </p>
                                                     </div>
 
                                                     <div className="space-y-3">

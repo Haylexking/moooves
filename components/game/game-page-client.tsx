@@ -39,7 +39,7 @@ export default function GamePageClient() {
     if (localMode === 'ai') {
       useGameStore.setState({ serverAuthoritative: false })
     } else if (localMode === 'p2p') {
-      useGameStore.setState({ serverAuthoritative: false })
+      useGameStore.setState({ serverAuthoritative: true })
     } else if (localMode === 'tournament') {
       useGameStore.setState({ serverAuthoritative: true })
     }

@@ -11,9 +11,10 @@ interface GameScoreProps {
   gameStatus: string
   gameMode: string
   userRole?: "X" | "O" | null
+  turnTimeLeft?: number
 }
 
-export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gameStatus, gameMode, userRole }: GameScoreProps) {
+export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gameStatus, gameMode, userRole, turnTimeLeft = 8 }: GameScoreProps) {
   const getInitials = (name: string) => name.charAt(0).toUpperCase()
 
   const getTurnText = (role: "X" | "O") => {
@@ -63,6 +64,10 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
               )}
             </div>
           </div>
+          {/* Turn Timer Progress Bar */}
+          {currentPlayer === "X" && gameStatus === "playing" && (
+            <div className="absolute bottom-0 left-0 h-1 bg-blue-500 rounded-b-2xl overflow-hidden shadow-[0_0_8px_rgba(59,130,246,0.6)]" style={{ width: `\${(turnTimeLeft / 8) * 100}%`, transition: 'width 1000ms linear' }} />
+          )}
         </div>
 
         {/* Player 2 (O) Card */}
@@ -96,6 +101,10 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
               )}
             </div>
           </div>
+          {/* Turn Timer Progress Bar */}
+          {currentPlayer === "O" && gameStatus === "playing" && (
+            <div className="absolute bottom-0 right-0 h-1 bg-red-500 rounded-b-2xl overflow-hidden shadow-[0_0_8px_rgba(239,68,68,0.6)]" style={{ width: `\${(turnTimeLeft / 8) * 100}%`, transition: 'width 1000ms linear' }} />
+          )}
         </div>
       </div>
     </div>
