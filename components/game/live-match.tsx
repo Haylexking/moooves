@@ -36,16 +36,18 @@ export function LiveMatch() {
 
         const interval = setInterval(async () => {
             try {
-                // While in Lobby, poll for Room status (GET /matchroom/:id)
+                // Poll room status for 1v1 matches (not tournaments)
                 const res = await apiClient.getMatchRoom(activeMatchId)
+                console.log("[LiveMatch] Polling result:", res)
                 
                 if (res.success && res.data) {
                     const roomData = res.data?.room || res.data
                     const status = roomData?.status
+                    console.log("[LiveMatch] Room status:", status, "Room data:", roomData)
                     
-                    // BOTH: Trigger promotion or fetch existing match when paired
+                    // BOTH: Trigger promotion or fetch existing match when status changes from "waiting" to "paired"
                     if (status === 'paired') {
-                        console.log("[LiveMatch] Paired! Fetching Match ID...")
+                        console.log("[LiveMatch] Room paired! Creating match...")
                         const promoteRes = await apiClient.create1v1Match(activeMatchId)
                         if (promoteRes.success) {
                             const matchData = promoteRes.data?.match || promoteRes.data
@@ -64,9 +66,20 @@ export function LiveMatch() {
                             }
                         }
                     }
+                } else if (res.status === 400 || res.status === 404) {
+                    // Stop polling if room doesn't exist or bad request
+                    console.error("[LiveMatch] Room not found or invalid request, stopping polling:", res.error)
+                    clearInterval(interval)
+                    // Also set activeMatchId to null to prevent re-polling
+                    setActiveMatchId(null)
+                } else {
+                    // Log unexpected responses for debugging
+                    console.warn("[LiveMatch] Unexpected response:", res)
                 }
             } catch (e) {
-                console.error("Polling exception:", e)
+                console.error("[LiveMatch] Polling exception:", e)
+                // Stop polling on persistent errors
+                clearInterval(interval)
             }
         }, 2000) // Poll every 2s while waiting
 
@@ -78,13 +91,25 @@ export function LiveMatch() {
         setLoading(true)
         setError(null)
         try {
-            // 1. Create the room
+            // 1. Create the room for 1v1 matches
             const response = await apiClient.createMatchRoom(user.id, "TicTacToe")
+            console.log("[LiveMatch] Create room response:", response)
+            
             if (response.success) {
                 const roomData = response.data.room || response.data
+                console.log("[LiveMatch] Room data extracted:", roomData)
                 const { roomId, roomCode, inviteCode, matchCode, _id } = roomData
                 const finalRoomId = roomId || _id
                 const finalCode = matchCode || inviteCode || roomCode
+                
+                console.log("[LiveMatch] Extracted IDs - RoomId:", finalRoomId, "Code:", finalCode)
+                
+                if (!finalRoomId || !finalCode) {
+                    console.error("[LiveMatch] Missing room ID or code from response")
+                    setError("Failed to create room - missing data")
+                    return
+                }
+                
                 setMatchCode(finalCode)  // Backend returns inviteCode in nested room object
                 setActiveMatchId(finalRoomId)
                 setIsHost(true)
@@ -93,18 +118,15 @@ export function LiveMatch() {
                 const joinResult = await apiClient.joinLive1v1MatchByCode(finalCode, user.id)
                 console.log("[LiveMatch] Auto-join result:", joinResult)
                 
-                // Auto-promotion: Host promotes room to match ONLY when both players have joined
-                // Don't promote immediately - wait for joinee first
                 console.log("[LiveMatch] Host joined successfully. Waiting for joinee before promoting...")
                 
-                // Skip auto-promotion for now - let joinee join first
-                
+                // Switch to create view to show the match code
                 setView("create")
             } else {
-                toast({ title: "Error", description: response.error, variant: "destructive" })
+                setError(response.error || "Failed to create room")
             }
-        } catch (e) {
-            toast({ title: "Error", description: "Failed to connect", variant: "destructive" })
+        } catch (err: any) {
+            setError(err.message || "Failed to create room")
         } finally {
             setLoading(false)
         }

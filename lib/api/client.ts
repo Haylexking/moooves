@@ -318,10 +318,6 @@ class ApiClient {
     return this.request<any[]>("/users")
   }
 
-  async getUserById(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/users/${id}`)
-  }
-
   // User stats (authenticated)
   async getUserStats(): Promise<ApiResponse<any>> {
     // Backend commonly exposes /api/v1/users/stats
@@ -436,15 +432,39 @@ class ApiClient {
   }
 
   async create1v1Match(roomId: string): Promise<ApiResponse<any>> {
-    // Canonical Swagger endpoint for promoting room to match
+    // POST /api/v1/matches - Creates 1v1 match after both players join room
+    // Body: { roomId: "64fa1234abcd5678ef901234" }
+    // Returns 201 if successful, 400 if both players haven't joined
     return this.request("/matches", {
       method: "POST",
       body: JSON.stringify({ roomId }),
     })
   }
 
-  async getMatch(roomId: string): Promise<ApiResponse<any>> {
-    return this.request(`/matches/${roomId}`)
+  async submitMove(matchId: string, playerId: string, row: number, col: number, symbol: string): Promise<ApiResponse<any>> {
+    // POST /api/v1/matches/{matchId}/move - Submit move in 1v1 match
+    // Validates turn, position, timer, and determines win/draw/ongoing
+    return this.request(`/matches/${matchId}/move`, {
+      method: "POST",
+      body: JSON.stringify({ playerId, row, col, symbol }),
+    })
+  }
+
+  async requestRematch(matchId: string, userId: string): Promise<ApiResponse<any>> {
+    // POST /api/v1/matches/{matchId}/rematch - Request rematch
+    // Creates new match with same players, returns existing if already exists
+    return this.request(`/matches/${matchId}/rematch`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    })
+  }
+
+  async declineRematch(matchId: string, userId: string): Promise<ApiResponse<any>> {
+    // POST /api/v1/matches/{matchId}/decline - Decline rematch
+    return this.request(`/matches/${matchId}/decline`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    })
   }
 
   async createLive1v1Match(userId: string): Promise<ApiResponse<any>> {
@@ -455,10 +475,20 @@ class ApiClient {
   }
 
   async joinLive1v1MatchByCode(code: string, userId: string): Promise<ApiResponse<any>> {
-    // Corrected to use /match-rooms/join per MATCHROOM_ENDPOINTS.JOIN
+    // DEPRECATED: Use joinMatch instead - backend expects /matches/{matchId}/join
+    // Keeping for backward compatibility during transition
     return this.request("/match-rooms/join", {
       method: "POST",
-      body: JSON.stringify({ code, userId }),
+      body: JSON.stringify({ matchCode: code, user: userId }),
+    })
+  }
+
+  async joinMatch(matchId: string, userId: string): Promise<ApiResponse<any>> {
+    // For tournament matches: POST /api/v1/matches/{matchId}/join per API docs
+    // Auto-transitions to "ongoing" when both players join
+    return this.request(`/matches/${matchId}/join`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
     })
   }
 
@@ -635,24 +665,18 @@ class ApiClient {
   }
 
   // Match/Game methods
-  async joinMatch(matchId: string): Promise<ApiResponse<any>> {
-    // POST /api/v1/matches/{matchId}/join per Swagger
-    return this.request(`/matches/${matchId}/join`, {
-      method: "POST",
-    })
-  }
   async getAllMatches(): Promise<ApiResponse<any[]>> {
     return this.request<any[]>("/matches")
   }
 
   async getMatch(matchId: string): Promise<ApiResponse<any>> {
-    // Canonical Swagger: GET /api/v1/matches/{matchId}
     return this.request(`/matches/${matchId}`)
   }
 
   async getMatchRoom(roomId: string): Promise<ApiResponse<any>> {
-    // Fixed: Point to the pluralized match-rooms endpoint to avoid 400 Bad Request
-    return this.request(`/match-rooms/${roomId}`)
+    // ✅ Use correct endpoint: GET /api/v1/matchs/{id} per API docs
+    // Keep CREATE and JOIN as /match-rooms (working), but GET as /matchs (documented)
+    return this.request(`/matchs/${roomId}`)
   }
 
   async deleteMatch(matchId: string): Promise<ApiResponse<any>> {
@@ -672,20 +696,6 @@ class ApiClient {
     return this.request(`/${matchId}/submit-resultoffline`, {
       method: "POST",
       body: JSON.stringify({ winnerId, handshakeToken }),
-    })
-  }
-
-  async requestRematch(matchId: string, userId: string): Promise<ApiResponse<any>> {
-    return this.request(`/matches/${matchId}/rematch`, {
-      method: "POST",
-      body: JSON.stringify({ userId }),
-    })
-  }
-
-  async declineRematch(matchId: string, userId: string): Promise<ApiResponse<any>> {
-    return this.request(`/matches/${matchId}/decline`, {
-      method: "POST",
-      body: JSON.stringify({ userId }),
     })
   }
 

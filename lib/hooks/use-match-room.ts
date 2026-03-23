@@ -152,8 +152,8 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
   // Get room details
   const getRoomDetails = useCallback(async (roomId: string) => {
     try {
-      // First try to fetch as a Match (Game Board), then fallback to Lobby (if still in matching phase)
-      const response = await apiClient.getMatch(roomId).catch(() => apiClient.getMatchRoom(roomId))
+      // Use only the correct backend endpoint - no fallbacks
+      const response = await apiClient.getMatch(roomId)
 
       if (!response.success || !response.data) {
         throw new Error(response.error || "Failed to get room details")
