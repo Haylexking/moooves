@@ -43,45 +43,70 @@ export function LiveMatch() {
                 if (res.success && res.data) {
                     const roomData = res.data?.room || res.data
                     const status = roomData?.status
-                    console.log("[LiveMatch] Room status:", status, "Room data:", roomData)
+                    console.log("[LiveMatch] Room status:", status)
                     
-                    // BOTH: Trigger promotion or fetch existing match when status changes from "waiting" to "paired"
+                    // BOTH: When status changes from "waiting" to "paired", create 1v1 match
                     if (status === 'paired') {
-                        console.log("[LiveMatch] Room paired! Creating match...")
-                        const promoteRes = await apiClient.create1v1Match(activeMatchId)
-                        if (promoteRes.success) {
-                            const matchData = promoteRes.data?.match || promoteRes.data
-                            const matchId = matchData?._id || matchData?.id || matchData?.roomId
-                            if (matchId) {
-                                clearInterval(interval)
-                                router.push(`/game/${matchId}`)
-                            }
+                        console.log("[LiveMatch] Room paired! Creating 1v1 match...")
+                        console.log("[LiveMatch] Available fields:", Object.keys(roomData))
+                        
+                        // First check if match already exists
+                        const existingMatchId = roomData.matchId || roomData.match?._id || roomData.match?.id || roomData.activeMatchId
+                        console.log("[LiveMatch] Found existing match ID:", existingMatchId)
+                        
+                        if (existingMatchId) {
+                            console.log("[LiveMatch] Match already exists, navigating to:", existingMatchId)
+                            clearInterval(interval)
+                            router.push(`/game/${existingMatchId}`)
                         } else {
-                            // If POST /matches failed for Joiner (because Host deleted it or it's missing)
-                            // fallback to checking the payload of the lobby itself just in case
-                            const fallbackMatchId = roomData?.matchId || roomData?.match?._id || roomData?.activeMatchId
-                            if (fallbackMatchId) {
-                                clearInterval(interval)
-                                router.push(`/game/${fallbackMatchId}`)
+                            console.log("[LiveMatch] No existing match, creating new 1v1 match...")
+                            console.log("[LiveMatch] Using room _id for match creation:", roomData._id)
+                            
+                            // Create 1v1 match using the room ID
+                            const promoteRes = await apiClient.create1v1Match(roomData._id)
+                            console.log("[LiveMatch] Match creation response:", promoteRes)
+                            
+                            if (promoteRes.success) {
+                                const matchData = promoteRes.data?.match || promoteRes.data
+                                const matchId = matchData?._id || matchData?.id || matchData?.matchId
+                                console.log("[LiveMatch] Extracted matchId:", matchId)
+                                
+                                if (matchId) {
+                                    console.log("[LiveMatch] Navigating to new match:", matchId)
+                                    clearInterval(interval)
+                                    router.push(`/game/${matchId}`)
+                                } else {
+                                    console.error("[LiveMatch] No matchId found in creation response")
+                                }
+                            } else {
+                                console.error("[LiveMatch] Match creation failed:", promoteRes.error)
                             }
                         }
+                    } else if (status === 'waiting') {
+                        // Room is still waiting for players - continue polling
+                        console.log("[LiveMatch] Room still waiting for players...")
+                    } else {
+                        console.log("[LiveMatch] Room status:", status, "- continuing to poll")
                     }
                 } else if (res.status === 400 || res.status === 404) {
                     // Stop polling if room doesn't exist or bad request
                     console.error("[LiveMatch] Room not found or invalid request, stopping polling:", res.error)
                     clearInterval(interval)
-                    // Also set activeMatchId to null to prevent re-polling
                     setActiveMatchId(null)
                 } else {
                     // Log unexpected responses for debugging
-                    console.warn("[LiveMatch] Unexpected response:", res)
+                    console.log("[LiveMatch] Unexpected polling response:", res)
                 }
-            } catch (e) {
-                console.error("[LiveMatch] Polling exception:", e)
-                // Stop polling on persistent errors
-                clearInterval(interval)
+            } catch (err) {
+                console.error("[LiveMatch] Polling error:", err)
+                // Continue polling on error unless it's a 404
+                if (String(err).includes('404') || String(err).includes('not found')) {
+                    console.error("[LiveMatch] Room not found, stopping polling")
+                    clearInterval(interval)
+                    setActiveMatchId(null)
+                }
             }
-        }, 2000) // Poll every 2s while waiting
+        }, 3000) // Poll every 3 seconds to reduce API spam
 
         return () => clearInterval(interval)
     }, [activeMatchId, router, isHost, matchCode])
@@ -96,11 +121,12 @@ export function LiveMatch() {
             console.log("[LiveMatch] Create room response:", response)
             
             if (response.success) {
-                const roomData = response.data.room || response.data
+                // Backend now returns data directly, not nested in room object
+                const roomData = response.data
                 console.log("[LiveMatch] Room data extracted:", roomData)
                 const { roomId, roomCode, inviteCode, matchCode, _id } = roomData
                 const finalRoomId = roomId || _id
-                const finalCode = matchCode || inviteCode || roomCode
+                const finalCode = inviteCode || matchCode || roomCode  // ✅ inviteCode comes first
                 
                 console.log("[LiveMatch] Extracted IDs - RoomId:", finalRoomId, "Code:", finalCode)
                 
@@ -110,15 +136,13 @@ export function LiveMatch() {
                     return
                 }
                 
-                setMatchCode(finalCode)  // Backend returns inviteCode in nested room object
+                setMatchCode(finalCode)  // Use inviteCode from backend response
                 setActiveMatchId(finalRoomId)
                 setIsHost(true)
                 
-                // Auto-join host to room using matchCode
-                const joinResult = await apiClient.joinLive1v1MatchByCode(finalCode, user.id)
-                console.log("[LiveMatch] Auto-join result:", joinResult)
-                
-                console.log("[LiveMatch] Host joined successfully. Waiting for joinee before promoting...")
+                // Backend automatically assigns host as player1, no need to call join endpoint
+                console.log("[LiveMatch] Room created successfully, host automatically assigned as player1")
+                console.log("[LiveMatch] Setting matchCode to:", finalCode)
                 
                 // Switch to create view to show the match code
                 setView("create")
@@ -218,6 +242,7 @@ export function LiveMatch() {
     }
 
     if (view === "create") {
+        console.log("[LiveMatch] Render create view - matchCode:", matchCode)
         return (
             <Card className="w-full max-w-md bg-black/40 border-green-500/30 p-6 flex flex-col items-center gap-6 backdrop-blur-md">
                 <div className="text-center space-y-2">

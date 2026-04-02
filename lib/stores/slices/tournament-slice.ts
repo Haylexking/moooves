@@ -200,7 +200,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
         // Check for hostId, organizerId, or createdBy
         const hostId = t.hostId || (t as any).organizerId || (t as any).createdBy
         const hostMatch = hostId && String(hostId) === String(userId)
-        const participantMatch = Array.isArray(t.participants) && t.participants.some((p: any) => String(p.userId || p.id) === String(userId))
+        // Participants array contains just user ID strings, not objects
+        const participantMatch = Array.isArray(t.participants) && t.participants.some((p: any) => String(p) === String(userId))
 
         // console.log(`[loadUserTournaments] Checking T=${t.id}: Host=${hostId} (${hostMatch}), Part=${participantMatch}`)
         return hostMatch || participantMatch

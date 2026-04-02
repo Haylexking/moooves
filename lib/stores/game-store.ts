@@ -19,6 +19,7 @@ type GameStore = GameBoardSlice &
     // Combined actions
     aiAutoEnabled: boolean
     cursorPosition: [number, number] | null
+    lastServerMatchState: any
     setCursorPosition: (pos: [number, number] | null) => void
     moveCursor: (dr: number, dc: number) => void
     winner: "X" | "O" | "draw" | null
@@ -46,6 +47,7 @@ export const useGameStore = create<GameStore>()(
 
       aiAutoEnabled: false,
       cursorPosition: null,
+      lastServerMatchState: null,
       serverAuthoritative: false,
 
       setServerAuthoritative: (enabled) => set({ serverAuthoritative: enabled }),
@@ -146,10 +148,19 @@ export const useGameStore = create<GameStore>()(
         try {
           if (!match) return
 
-          // The API might return a top-level match object with nested 'gameState'
-          // OR a flat object depending on the endpoint. We prioritize nested 'gameState'.
+          console.log("[GameStore] Applying server match state:", match)
+
+          // Store the match data for role assignment
+          set({ lastServerMatchState: match })
+
+          // For move submission API, the response comes directly with board/game info
+          // For match polling API, it might be nested in gameState
+          // Handle both formats
           const data = match.gameState || match
 
+          // The board from move API comes as "board" array, but polling might use "boardState"
+          const board = data.board || data.boardState
+          
           // Prevent overwriting local optimistic updates with stale server data
           // Use moves array length as it's more reliable than movesMade (which server may return as 0)
           const currentMoves = get().moveHistory.length
@@ -159,7 +170,7 @@ export const useGameStore = create<GameStore>()(
 
           // Loosened sync guard: Only skip if the server explicitly says 0 moves AND the board is truly empty, 
           // while we have multiple moves locally. This prevents flickering but allows recovery.
-          const boardHasMoves = data.board?.some((row: any[]) => row.some(c => c !== null && c !== ""));
+          const boardHasMoves = board?.some((row: any[]) => row.some(c => c !== null && c !== ""));
           
           if (typeof serverMoves === 'number' && serverMoves === 0 && currentMoves > 0 && !boardHasMoves) {
             console.log("[GameStore] Skipping sync: Server reports 0 moves and board is empty (initial state).")
@@ -170,23 +181,23 @@ export const useGameStore = create<GameStore>()(
           // because the server's board state is authoritative.
 
           // Proceed to apply state...
-          console.log("[GameStore] Applying sync. Data contains board:", !!data.board)
+          console.log("[GameStore] Applying sync. Data contains board:", !!board)
           console.log("[GameStore] Syncing State. Moves:", serverMoves)
           console.log("[GameStore] Server Scores:", data.scores)
 
 
-          // Board
-          if (data.board && data.board.length === 30) {
+          // Board - handle both "board" (from move API) and "boardState" (from polling)
+          if (board && board.length === 30) {
             // Count symbols for debug
             let xCount = 0, oCount = 0
-            data.board.forEach((row: any[]) => row.forEach((c: any) => {
+            board.forEach((row: any[]) => row.forEach((c: any) => {
               if (c === 'X') xCount++
               if (c === 'O') oCount++
             }))
             console.log(`[GameStore] Board Update Found: X=${xCount}, O=${oCount}`)
 
             // Normalize board: ensure empty strings are null
-            const normalizedBoard = data.board.map((row: any[]) =>
+            const normalizedBoard = board.map((row: any[]) =>
               row.map((cell: any) => (cell === "" ? null : cell))
             )
             set({ board: normalizedBoard })
@@ -199,8 +210,8 @@ export const useGameStore = create<GameStore>()(
               usedSequences: calculated.usedSequences,
               usedPositions: calculated.usedPositions
             })
-          } else if (data.board && data.board.length !== 30) {
-            console.warn(`[GameStore] Ignoring invalid server board size: \${data.board.length}`);
+          } else if (board && board.length !== 30) {
+            console.warn(`[GameStore] Ignoring invalid server board size: ${board.length}`);
           }
 
           /* 

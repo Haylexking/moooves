@@ -67,6 +67,25 @@ class ApiClient {
         if (controller && API_CONFIG.TIMEOUT > 0) {
           timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT)
         }
+        
+        // Log the exact request being made
+        const requestUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}${url}`
+        const actualUrl = url.startsWith('http') ? url : requestUrl
+        console.log("[ApiClient] HTTP Request:", {
+          attempt: attempt + 1,
+          originalUrl: url,
+          fullUrl: actualUrl,
+          baseUrl: API_CONFIG.BASE_URL,
+          version: API_CONFIG.VERSION,
+          method: options.method || 'GET',
+          headers: {
+            ...headers,
+            'Authorization': headers['Authorization'] ? '[REDACTED]' : 'None'
+          },
+          body: options.body || 'None',
+          contentType: headers['Content-Type']
+        })
+        
         const response = await fetch(url, {
           ...options,
           cache: 'no-store',
@@ -111,8 +130,25 @@ class ApiClient {
           }
         }
 
+        // Log the raw response details
+        console.log("[ApiClient] HTTP Response:", {
+          attempt: attempt + 1,
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          headers: {
+            contentType: contentType,
+            ...(response.headers as any)?.['content-length'] && { contentLength: (response.headers as any)['content-length'] }
+          }
+        })
+
         if (!response.ok) {
           const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
+          console.log("[ApiClient] HTTP Error Response:", {
+            status: response.status,
+            message: msg,
+            parsed: parsed
+          })
           const safeMsg = typeof msg === "string" && msg.trim().startsWith("<") ? `${msg.substring(0, 200)}...` : msg
           const isSessionError =
             response.status === 401 ||
@@ -435,10 +471,27 @@ class ApiClient {
     // POST /api/v1/matches - Creates 1v1 match after both players join room
     // Body: { roomId: "64fa1234abcd5678ef901234" }
     // Returns 201 if successful, 400 if both players haven't joined
-    return this.request("/matches", {
+    
+    console.log("[ApiClient] create1v1Match - Creating match:", {
+      roomId,
+      url: "/matches",
+      fullUrl: `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}/matches`
+    })
+    
+    const response = await this.request("/matches", {
       method: "POST",
       body: JSON.stringify({ roomId }),
     })
+    
+    console.log("[ApiClient] create1v1Match - Response:", {
+      success: response.success,
+      status: response.status,
+      error: response.error,
+      data: response.data,
+      matchId: (response.data as any)?._id || (response.data as any)?.matchId || (response.data as any)?.id
+    })
+    
+    return response
   }
 
   async submitMove(matchId: string, playerId: string, row: number, col: number, symbol: string): Promise<ApiResponse<any>> {
@@ -479,7 +532,7 @@ class ApiClient {
     // Keeping for backward compatibility during transition
     return this.request("/match-rooms/join", {
       method: "POST",
-      body: JSON.stringify({ matchCode: code, user: userId }),
+      body: JSON.stringify({ matchCode: code, userId: userId }),  // ✅ Fixed: userId not user
     })
   }
 
@@ -515,10 +568,38 @@ class ApiClient {
 
   // Game move methods
   async makeGameMove(playerId: string, row: number, col: number, matchId: string, symbol?: "X" | "O"): Promise<ApiResponse<any>> {
-    return this.request(`/matches/${matchId}/move`, {
-      method: "POST",
-      body: JSON.stringify({ playerId, row, col, symbol }),
+    const payload = { playerId, row, col, symbol }
+    
+    // Validate token before making request
+    console.log("[ApiClient] makeGameMove - Authentication check:", {
+      hasToken: !!this.token,
+      tokenLength: this.token?.length || 0,
+      tokenPrefix: this.token?.substring(0, 20) + '...' || 'None',
+      playerId,
+      matchId
     })
+    
+    console.log("[ApiClient] makeGameMove - Full request details:", {
+      url: `/matches/${matchId}/move`,
+      method: "POST",
+      payload,
+      fullUrl: `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}/matches/${matchId}/move`
+    })
+    
+    const response = await this.request(`/matches/${matchId}/move`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+    
+    console.log("[ApiClient] makeGameMove - Full response:", {
+      success: response.success,
+      status: response.status,
+      error: response.error,
+      data: response.data,
+      message: response.message
+    })
+    
+    return response
   }
 
   async createOfflineMatch(data: any): Promise<ApiResponse<any>> {
@@ -670,12 +751,13 @@ class ApiClient {
   }
 
   async getMatch(matchId: string): Promise<ApiResponse<any>> {
+    // ✅ Use correct endpoint for match details: GET /api/v1/matches/{matchId}
+    // This is for getting match details, not room details
     return this.request(`/matches/${matchId}`)
   }
 
   async getMatchRoom(roomId: string): Promise<ApiResponse<any>> {
-    // ✅ Use correct endpoint: GET /api/v1/matchs/{id} per API docs
-    // Keep CREATE and JOIN as /match-rooms (working), but GET as /matchs (documented)
+    // ✅ Correct endpoint for room details: GET /api/v1/matchs/{roomId}
     return this.request(`/matchs/${roomId}`)
   }
 

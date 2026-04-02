@@ -81,6 +81,8 @@ export function BattleGround({
   const [pendingMove, setPendingMove] = useState(false)
   const [opponentName, setOpponentName] = useState<string | null>(null)
   const [gameStarted, setGameStarted] = useState(false)
+  const [fallbackPolling, setFallbackPolling] = useState(false)
+  const [fallbackInterval, setFallbackInterval] = useState<NodeJS.Timeout | null>(null)
   
   // Only show the Start modal if we don't have a specific backend match ID
   // "tictactoe" is just a generic namespace, not a real match ID
@@ -91,44 +93,88 @@ export function BattleGround({
   // WebSocket Reference
   const socketRef = useRef<WebSocket | null>(null)
 
-  // Match Room Hook (for tournament/online play)
+  // Match Room Hook (for tournament/online play) - MOVED UP to fix dependency issues
   const matchRoom = useMatchRoom(matchId, initialRoomCode)
+
+  // Fallback polling for when WebSocket fails
+  const startFallbackPolling = useCallback(() => {
+    if (!matchId || fallbackPolling) return
+    
+    console.log("[BattleGround] Starting fallback polling for match:", matchId)
+    setFallbackPolling(true)
+    
+    // Clear any existing interval
+    if (fallbackInterval) {
+      clearInterval(fallbackInterval)
+      setFallbackInterval(null)
+    }
+    
+    // Start polling every 2 seconds
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiClient.getMatch(matchId)
+        if (res.success && res.data) {
+          console.log("[BattleGround] Fallback polling - Got match data:", res.data)
+          // Update match state with polling data using game store
+          const gameStore = useGameStore.getState()
+          if (gameStore.applyServerMatchState) {
+            gameStore.applyServerMatchState(res.data)
+          }
+        }
+      } catch (err) {
+        console.error("[BattleGround] Fallback polling error:", err)
+      }
+    }, 2000)
+    
+    setFallbackInterval(interval)
+  }, [matchId, fallbackPolling, apiClient])
+
+  // Stop fallback polling
+  const stopFallbackPolling = useCallback(() => {
+    console.log("[BattleGround] Stopping fallback polling")
+    setFallbackPolling(false)
+    
+    if (fallbackInterval) {
+      clearInterval(fallbackInterval)
+      setFallbackInterval(null)
+    }
+  }, [fallbackInterval])
+
+  // Get lastServerMatchState from store for role assignment
+  const lastServerMatchState = useGameStore(state => state.lastServerMatchState)
 
   // Determine User Role (X or O) - FIXED for 1v1
   const userRole = React.useMemo(() => {
     if (!isOnlineMode) return null
-    if (!matchRoom.participants || !user?.id) return null
+    if (!user?.id) return null
     
-    // For online 1v1, use server-authoritative role assignment
-    // CRITICAL RULE: Host (creator) is always X, Joinee is always O
-    if (localMode === "p2p" && matchRoom.matchState) {
-      const match = matchRoom.matchState
-      const player1Id = typeof match.player1 === 'string' ? match.player1 : match.player1?._id
-      const player2Id = typeof match.player2 === 'string' ? match.player2 : match.player2?._id
-      
-      // RULE: Room creator is always X, joiner is always O
-      if (user.id === player1Id && matchRoom.isHost) {
-        return "X"
-      } else if (user.id === player2Id && !matchRoom.isHost) {
-        return "O"
-      }
-      
-      console.warn("[BattleGround] Role assignment failed - user not in match as expected", { userId: user.id, player1Id, player2Id, isHost: matchRoom.isHost })
-      return null // Should not happen, but fallback
+    // For online 1v1, use match data directly from game store
+    const matchData = lastServerMatchState || matchRoom.matchState
+    
+    if (!matchData) {
+      return null
     }
     
-    // Fallback for offline/local modes - use array index
-    const index = matchRoom.participants.indexOf(user.id)
-    return index === 0 ? "X" : index === 1 ? "O" : null
-  }, [isOnlineMode, matchRoom.participants, user?.id, matchRoom.matchState, matchRoom.isHost])
+    // Extract player IDs from match data
+    const player1Id = typeof matchData.player1 === 'string' ? matchData.player1 : matchData.player1?._id
+    const player2Id = typeof matchData.player2 === 'string' ? matchData.player2 : matchData.player2?._id
+    
+    // RULE: Room creator is always X, joiner is always O
+    if (user.id === player1Id) {
+      return "X"
+    } else if (user.id === player2Id) {
+      return "O"
+    }
+    
+    return null
+  }, [isOnlineMode, user?.id, matchRoom.matchState, lastServerMatchState])
 
-  // Poll for Rematch ID when game is over
   // Poll for Rematch ID when game is over
   useEffect(() => {
     if (localMode === "p2p" && matchId && gameStatus === "completed") {
       const interval = setInterval(async () => {
         try {
-          const res = await apiClient.getMatchRoom(matchId)
+          const res = await apiClient.getMatch(matchId)
           if (res.success && res.data) {
             const matchData = res.data.match || res.data
             // Check if rematchId exists in payload (assuming backend adds it)
@@ -305,30 +351,32 @@ export function BattleGround({
   // WebSocket Connection & Listener
   useEffect(() => {
     if (!isOnlineMode || !matchId) return
-
     // Updated WebSocket URL structure for Render environment
     const baseUrl = API_CONFIG.BASE_URL.replace(/^http/, 'ws')
     const wsUrl = `${baseUrl}/ws/matches/${matchId}`
     
     console.log("[BattleGround] Connecting to WebSocket:", wsUrl)
+    console.log("[BattleGround] Fallback polling active:", fallbackPolling)
 
     const socket = new WebSocket(wsUrl)
     socketRef.current = socket
 
     socket.onopen = () => {
-      console.log("[BattleGround] WebSocket connected")
+// ...
+      console.log("[BattleGround] WebSocket connected successfully")
+      // Stop fallback polling when WebSocket connects
+      stopFallbackPolling()
     }
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        // console.log("[BattleGround] WebSocket message received:", data) // Removed per instruction
+        console.log("[BattleGround] WebSocket message received:", data)
         
-        // Backend returns the full match state or a partial update
-        if (data.type === 'STATE_UPDATE' && data.payload) {
-          const gs = useGameStore.getState()
-          if (gs.applyServerMatchState) {
-            gs.applyServerMatchState(data.payload)
+        if (data.type === 'MATCH_STATE') {
+          const gameStore = useGameStore.getState()
+          if (gameStore.applyServerMatchState) {
+            gameStore.applyServerMatchState(data.payload)
           }
         }
       } catch (e) {
@@ -338,11 +386,15 @@ export function BattleGround({
 
     socket.onerror = (error) => {
       console.error("[BattleGround] WebSocket error:", error)
+      // Start fallback polling if WebSocket fails
+      startFallbackPolling()
     }
 
     socket.onclose = (event) => {
       console.log("[BattleGround] WebSocket closed", event.reason)
       socketRef.current = null
+      // Start fallback polling if WebSocket closes
+      startFallbackPolling()
     }
 
     return () => {
@@ -352,14 +404,38 @@ export function BattleGround({
     }
   }, [isOnlineMode, matchId])
 
+  // Cleanup fallback polling on unmount
+  useEffect(() => {
+    return () => {
+      stopFallbackPolling()
+    }
+  }, [stopFallbackPolling])
+
   // Initialize Game
   useEffect(() => {
+    console.log("[BattleGround] Initialize Game - localMode:", localMode, "matchId:", matchId)
+    
     if ((localMode === "tournament" || localMode === "p2p") && matchId) {
       setServerAuthoritative(true)
-      // Initial fetch
-      matchRoom.getRoomDetails(matchId)
+      console.log("[BattleGround] Setting server authoritative, fetching match details")
+      // Initial fetch - use getMatch for match details, not getRoomDetails
+      const fetchMatchDetails = async () => {
+        try {
+          const response = await apiClient.getMatch(matchId)
+          if (response.success && response.data) {
+            const gameStore = useGameStore.getState()
+            if (gameStore.applyServerMatchState) {
+              gameStore.applyServerMatchState(response.data)
+            }
+          }
+        } catch (err) {
+          console.error("[BattleGround] Failed to fetch match details:", err)
+        }
+      }
+      fetchMatchDetails()
     } else {
       setServerAuthoritative(false)
+      console.log("[BattleGround] Setting local mode, initializing game")
       // If initialGameMode is "player-vs-computer", we must initialize as "ai"
       // Otherwise, default to "p2p" unless localMode says otherwise
       const modeToInit = (localMode === "ai" || initialGameMode === "player-vs-computer") ? "ai" : "p2p"
@@ -480,38 +556,43 @@ export function BattleGround({
     const shouldPoll = isOnlineMode && !!matchId && !socketRef.current
 
     if (shouldPoll) {
-      // console.log("[BattleGround] Starting polling interval for match:", matchId) // Removed per instruction
       const interval = setInterval(async () => {
         // Poll regularly to keep state in sync, but skip if we are actively sending a move
         if (!pendingMove) {
           try {
-            const details = await matchRoom.getRoomDetails(matchId!)
-            // Fix: API returns match object directly in 'details' sometimes
-            const serverMatch = (details && details.match) ? details.match : details
+            // Use getMatch for match details, not getRoomDetails
+            const response = await apiClient.getMatch(matchId!)
+            const serverMatch = response.data
 
-            if (serverMatch) {
-              // Apply Match State
+            if (response.success && serverMatch) {
+              console.log("[BattleGround] Polling received server state:", { 
+                matchId, 
+                moves: serverMatch.moves?.length || 0, 
+                board: serverMatch.board || serverMatch.boardState,
+                currentPlayer: serverMatch.currentPlayer,
+                status: serverMatch.status 
+              })
               const store = useGameStore.getState()
               if (store.applyServerMatchState) {
                 store.applyServerMatchState(serverMatch)
               }
             }
           } catch (e) {
-            console.error("Polling error:", e)
             const errStr = String(e).toLowerCase()
-            if (errStr.includes("not found") || errStr.includes("404")) {
-              console.warn("Match appears deleted, treating as opponent forfeit")
-              setWinByDefault(true)
+            // Only log errors that aren't 404s (match might not exist yet)
+            if (!errStr.includes('404') && !errStr.includes('not found')) {
+              console.error("[BattleGround] Polling error:", e)
             }
           }
         }
-      }, 2000) // Poll every 2 seconds to reduce API spam
+      }, 2000)
+
       return () => {
         console.log("[BattleGround] Clearing polling interval")
         clearInterval(interval)
       }
     }
-  }, [localMode, matchId, matchRoom.getRoomDetails, isOnlineMode])
+  }, [localMode, matchId, isOnlineMode, pendingMove])
 
   useEffect(() => {
     if (gameStatus === "playing") {
@@ -567,8 +648,21 @@ export function BattleGround({
     if (localMode === "ai" || initialGameMode === "player-vs-computer") {
       initializeGame("ai")
     } else if (localMode === "tournament") {
-      // Tournament reset logic (likely just re-fetch)
-      matchRoom.getRoomDetails(matchId!)
+      // Tournament reset logic - re-fetch match details
+      const fetchMatchDetails = async () => {
+        try {
+          const response = await apiClient.getMatch(matchId!)
+          if (response.success && response.data) {
+            const gameStore = useGameStore.getState()
+            if (gameStore.applyServerMatchState) {
+              gameStore.applyServerMatchState(response.data)
+            }
+          }
+        } catch (err) {
+          console.error("[BattleGround] Failed to fetch match details for reset:", err)
+        }
+      }
+      fetchMatchDetails()
     } else {
       initializeGame("p2p")
     }
@@ -627,8 +721,6 @@ export function BattleGround({
   }, [gameStatus, isOnlineMode, matchId, user?.id])
 
   // State to hold fetched names
-
-  // State to hold fetched names
   const [p1Name, setP1Name] = useState("Player 1")
   const [p2Name, setP2Name] = useState("Player 2")
 
@@ -641,14 +733,19 @@ export function BattleGround({
       const currentUser = useAuthStore.getState().user
 
       // 1. Try to get from Match Object (if populated)
-      if (matchRoom.matchState) {
-        const m = matchRoom.matchState
+      const matchData = lastServerMatchState || matchRoom.matchState
+      if (matchData) {
+        const m = matchData
         
         // Player 1 Slot
         if (m.player1 && typeof m.player1 === 'object') {
           p1Display = m.player1.fullName || m.player1.username || getUserDisplayName(m.player1) || "Player 1"
         } else if (m.player1Heading) {
           p1Display = m.player1Heading
+        } else if (m.player1 && typeof m.player1 === 'string') {
+          // If player1 is just an ID string, we need to fetch user data
+          // For now, show "Player 1" but this could be enhanced to fetch user details
+          p1Display = currentUser?.id === m.player1 ? (currentUser?.fullName || (currentUser ? getUserDisplayName(currentUser) : "You")) : "Player 1"
         }
 
         // Player 2 Slot
@@ -656,6 +753,10 @@ export function BattleGround({
           p2Display = m.player2.fullName || m.player2.username || getUserDisplayName(m.player2) || "Player 2"
         } else if (m.player2Heading) {
           p2Display = m.player2Heading
+        } else if (m.player2 && typeof m.player2 === 'string') {
+          // If player2 is just an ID string, we need to fetch user data
+          // For now, show "Player 2" but this could be enhanced to fetch user details
+          p2Display = currentUser?.id === m.player2 ? (currentUser?.fullName || (currentUser ? getUserDisplayName(currentUser) : "You")) : "Player 2"
         }
       }
 
@@ -665,30 +766,30 @@ export function BattleGround({
         const p2Id = matchRoom.participants[1]
 
         // Resolve P1 (Always X)
-        if (p1Id) {
-          if (currentUser && p1Id === currentUser.id) {
-            p1Display = currentUser.fullName || getUserDisplayName(currentUser) || "Player 1"
-          } else if (p1Display === "Player 1") {
-            try {
-              const u = await apiClient.getUserById(p1Id)
-              if (u.success && u.data) {
-                p1Display = u.data.fullName || u.data.username || getUserDisplayName(u.data) || "Player 1"
-              }
-            } catch {}
+        if (p1Display === "Player 1" && p1Id) {
+          try {
+            const p1User = await apiClient.getUserById(p1Id)
+            if (p1User.success && p1User.data) {
+              p1Display = p1User.data.fullName || p1User.data.username || getUserDisplayName(p1User.data) || "Player 1"
+            }
+          } catch (err) {
+            // Keep default if fetch fails
           }
         }
 
         // Resolve P2 (Always O)
         if (p2Id) {
           if (currentUser && p2Id === currentUser.id) {
-            p2Display = currentUser.fullName || getUserDisplayName(currentUser) || "Player 2"
+            p2Display = currentUser?.fullName || (currentUser ? getUserDisplayName(currentUser) : "Player 2")
           } else if (p2Display === "Player 2" && gameMode !== "ai") {
             try {
               const u = await apiClient.getUserById(p2Id)
               if (u.success && u.data) {
                 p2Display = u.data.fullName || u.data.username || getUserDisplayName(u.data) || "Player 2"
               }
-            } catch {}
+            } catch (err) {
+              // Keep default if fetch fails
+            }
           }
         }
       }
@@ -698,7 +799,7 @@ export function BattleGround({
     }
 
     resolveNames()
-  }, [isOnlineMode, matchRoom.matchState, matchRoom.participants, gameMode])
+  }, [isOnlineMode, matchRoom.matchState, matchRoom.participants, gameMode, lastServerMatchState])
 
   // Logic to display correct names based on ROLE (X vs O) not just "Me vs Them"
   // Player 1 is ALWAYS X. Player 2 is ALWAYS O.
@@ -733,8 +834,19 @@ export function BattleGround({
       setWaitingForOpponent(true)
 
       // Poll for opponent join
-      const pollTimer = setInterval(() => {
-        matchRoom.getRoomDetails(matchId).catch(() => { })
+      const pollTimer = setInterval(async () => {
+        try {
+          // Use getMatch for match details, not getRoomDetails
+          const response = await apiClient.getMatch(matchId!)
+          if (response.success && response.data) {
+            const gameStore = useGameStore.getState()
+            if (gameStore.applyServerMatchState) {
+              gameStore.applyServerMatchState(response.data)
+            }
+          }
+        } catch (err) {
+          // Silently ignore polling errors
+        }
       }, 2000)
 
       // Countdown timer for auto-win
@@ -786,27 +898,24 @@ export function BattleGround({
   }, [gameMode, currentPlayer, gameStatus, board, usedSequences, scores, makeMove])
 
   const executeMove = async (row: number, col: number) => {
-    // Debug entry
-    console.log("[BattleGround] executeMove called:", { row, col, currentPlayer, gameMode, serverAuthoritative, pendingMove, userRole })
-
     if (board[row][col] !== null) {
-      console.log("[BattleGround] Move rejected: Cell occupied")
       return
     }
     if ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") {
-      console.log("[BattleGround] Move rejected: Not X turn in AI mode")
       return
     }
     if (serverAuthoritative && pendingMove) {
-      console.log("[BattleGround] Move rejected: Move pending")
       return
     }
 
-    // Optimistic update: Apply move locally immediately
-    // BUT only if it is my turn (in online modes)
-    if (serverAuthoritative && userRole && currentPlayer !== userRole) {
-      console.log("[BattleGround] Move rejected: Not my turn", { userRole, currentPlayer })
-      return
+    // CRITICAL: Strict turn validation for online modes
+    if (serverAuthoritative) {
+      if (!userRole) {
+        return
+      }
+      if (currentPlayer !== userRole) {
+        return
+      }
     }
 
     makeMove(row, col)
@@ -814,14 +923,6 @@ export function BattleGround({
 
     if (serverAuthoritative && matchId) {
       setPendingMove(true)
-
-      console.log("[BattleGround] Attempting move submission:", {
-        matchId,
-        row,
-        col,
-        symbol: currentPlayer,
-        socketStatus: socketRef.current?.readyState
-      })
 
       // Try WebSocket first for "simple websocket" low-lag submission
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -847,29 +948,44 @@ export function BattleGround({
 
       try {
         // Updated to match backend spec: pass symbol as 5th argument
+        console.log("[BattleGround] Submitting move:", { playerId: user?.id, row, col, matchId, symbol: currentPlayer })
+        console.log("[BattleGround] Board dimensions:", { rows: board.length, cols: board[0]?.length })
+        console.log("[BattleGround] Move validation:", { 
+          isValidRow: row >= 0 && row < board.length, 
+          isValidCol: col >= 0 && col < (board[0]?.length || 0),
+          boardSize: `${board.length}x${board[0]?.length}`,
+          cellValue: board[row]?.[col],
+          isCellEmpty: board[row]?.[col] === null
+        })
+        
         const res = await apiClient.makeGameMove(user?.id || "", row, col, matchId, currentPlayer)
         clearTimeout(safetyTimeout)
-
-        console.log("[BattleGround] Move response:", res)
+        
+        console.log("[BattleGround] Move submission response:", { success: res.success, status: res.status, error: res.error, data: res.data })
         
         // Instant UI Feedback: Clear pending move on success to unlock board
         if (res.success) {
           setPendingMove(false)
           
-          // Apply authoritative state returned from move response immediately
-          const serverMatch = res.data?.match || res.data
+          // The API returns board directly in response, not nested in match/gameState
+          const serverMatch = res.data // res.data contains the board and game info directly
           if (serverMatch) {
+            console.log("[BattleGround] Applying server match state:", serverMatch)
             useGameStore.getState().applyServerMatchState?.(serverMatch)
+          } else {
+            console.warn("[BattleGround] No server match state in response")
           }
           // Let backend handle synchronization naturally through regular polling
         } else {
           // Revert move on failure
           setPendingMove(false)
+          console.error("[BattleGround] Move submission failed:", res.error)
           toast({ title: "Move failed", description: res.error, variant: "destructive" })
           // Rely on regular polling to sync state
         }
       } catch (err) {
         setPendingMove(false)
+        console.error("[BattleGround] Move submission error:", err)
         toast({ title: "Connection Error", description: "Failed to send move to server.", variant: "destructive" })
         // Rely on regular polling to sync state
       } finally {
@@ -878,17 +994,15 @@ export function BattleGround({
 
         // Immediately fetch the latest state (in case opponent played instantly)
         // This answers the user's concern about "when will it resume"
-        /*
-        // Immediate fetch caused "stale state" overwrite (flicker/delay)
-        // We trust our optimistic update. The next poll (2s) will Re-confirm.
         if (matchId) {
-          matchRoom.getRoomDetails(matchId).then((details) => {
-            if (details && details.match) {
-              useGameStore.getState().applyServerMatchState?.(details.match)
+          apiClient.getMatch(matchId).then((response) => {
+            if (response.success && response.data) {
+              useGameStore.getState().applyServerMatchState?.(response.data)
             }
-          }).catch(() => { })
+          }).catch(() => {
+            // Silently ignore fetch errors
+          })
         }
-        */
       }
     }
   }
@@ -1075,7 +1189,7 @@ export function BattleGround({
             <div
               className="grid gap-[1px] bg-gray-200"
               style={{
-                gridTemplateColumns: `repeat(30, minmax(0, 1fr))`,
+                gridTemplateColumns: `repeat(${board[0]?.length || 30}, minmax(0, 1fr))`,
               }}
             >
               {board.map((row, rIndex) =>
@@ -1092,8 +1206,8 @@ export function BattleGround({
                           const isDisabled = ((gameMode === "ai" || (gameMode as string) === "player-vs-computer") && currentPlayer !== "X") ||
                             gameStatus !== "playing" ||
                             (serverAuthoritative && pendingMove) ||
-                            // CRITICAL: Only allow moves for current player's turn in online modes
-                            (serverAuthoritative && userRole !== null && currentPlayer !== userRole)
+                            // CRITICAL: Strict turn validation for online modes
+                            (serverAuthoritative && (!userRole || currentPlayer !== userRole))
 
                           return isDisabled
                         })()

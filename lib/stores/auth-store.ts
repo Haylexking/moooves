@@ -19,7 +19,6 @@ export const useAuthStore = create<AuthSlice>()(
         }
       },
     }),
-    { name: "auth-store" },
   ),
 )
 

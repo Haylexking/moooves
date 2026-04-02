@@ -18,7 +18,9 @@ export function ProtectedRoute({ children, redirectTo = "/onboarding", allowUnve
   const router = useRouter()
 
   useEffect(() => {
+    // Only redirect if store is hydrated and not loading
     if (!rehydrated || isLoading) return
+    
     if (isAuthenticated) {
       if (!allowUnverified && user && user.emailVerified === false) {
         try {
@@ -28,8 +30,10 @@ export function ProtectedRoute({ children, redirectTo = "/onboarding", allowUnve
         router.replace("/auth/verify")
         return
       }
-      return
+      return // ✅ Don't redirect if authenticated
     }
+    
+    // Only redirect to onboarding if not authenticated
     router.replace(redirectTo)
   }, [allowUnverified, isAuthenticated, isLoading, rehydrated, router, redirectTo, user?.emailVerified])
 

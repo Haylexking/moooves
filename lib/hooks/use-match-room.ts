@@ -152,8 +152,8 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
   // Get room details
   const getRoomDetails = useCallback(async (roomId: string) => {
     try {
-      // Use only the correct backend endpoint - no fallbacks
-      const response = await apiClient.getMatch(roomId)
+      // ✅ Use correct room endpoint for room data: getMatchRoom for room details
+      const response = await apiClient.getMatchRoom(roomId)
 
       if (!response.success || !response.data) {
         throw new Error(response.error || "Failed to get room details")

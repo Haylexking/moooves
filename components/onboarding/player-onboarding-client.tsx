@@ -25,6 +25,15 @@ export default function PlayerOnboardingClient() {
   const authStore = useAuthStore()
   const { login, register, isLoading, error, clearError } = authStore
 
+  // Check if user is already authenticated and redirect to dashboard
+  useEffect(() => {
+    const currentAuth = getAuthSnapshot()
+    if (currentAuth.isAuthenticated && currentAuth.user) {
+      router.push("/dashboard")
+      return
+    }
+  }, [router])
+
   // Persist onboarding mode for auth redirects
   useEffect(() => {
     try { localStorage.setItem('onboarding_mode', 'player') } catch { }

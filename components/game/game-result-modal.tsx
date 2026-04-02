@@ -1,4 +1,4 @@
-"use client"
+ "use client"
 import { useRouter } from "next/navigation"
 import { X } from "lucide-react"
 import { GameButton } from "../ui/game-button"
@@ -90,14 +90,14 @@ export function GameResultModal({
         <p className="text-green-800 text-center mb-2">{message}</p>
         <div className="flex items-center justify-center gap-2 sm:gap-6 mb-8 mt-4 w-full px-2">
           <div className="flex flex-col items-center flex-1 min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-green-800 uppercase tracking-widest text-center truncate w-full px-2" title={myName || "Player 1"}>{myName || "Player 1"}</span>
+            <span className="text-xs sm:text-sm font-bold text-green-800 text-center truncate w-full px-2" title={myName || "Player 1"}>{myName || "Player 1"}</span>
             <span className="text-5xl font-black text-blue-600 mt-2">{scoreX ?? 0}</span>
           </div>
           <div className="flex flex-col items-center justify-end h-full mt-6">
             <span className="text-3xl font-black text-green-800/30">-</span>
           </div>
           <div className="flex flex-col items-center flex-1 min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-green-800 uppercase tracking-widest text-center truncate w-full px-2" title={opponentName || "Player 2"}>{opponentName || "Player 2"}</span>
+            <span className="text-xs sm:text-sm font-bold text-green-800 text-center truncate w-full px-2" title={opponentName || "Player 2"}>{opponentName || "Player 2"}</span>
             <span className="text-5xl font-black text-red-600 mt-2">{scoreO ?? 0}</span>
           </div>
         </div>

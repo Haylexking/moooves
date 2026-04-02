@@ -104,10 +104,10 @@ export const API_CONFIG = {
 // (these are the routes observed in the wild: /match and /matchs). Use this in
 // places where the client needs the concrete runtime path.
 export const MATCHROOM_ENDPOINTS = {
-  CREATE: "/match-rooms",        // ✅ Keep working: POST /api/v1/match-rooms
-  JOIN: "/match-rooms/join",      // ✅ Keep working: POST /api/v1/match-rooms/join
-  LIST: "/matchs",               // ✅ Correct: GET /api/v1/matchs
-  GET_BY_ID: "/matchs/:id",       // ✅ Correct: GET /api/v1/matchs/{id}
-  ROOM_BY_ID: "/matchs/:id",       // ✅ Correct: GET /api/v1/matchs/{id}
-  DELETE: "/matchs/:id",           // ✅ Correct: DELETE /api/v1/matchs/{id}
+  CREATE: "/match-rooms",        // ✅ POST /api/v1/match-rooms
+  JOIN: "/match-rooms/join",      // ✅ POST /api/v1/match-rooms/join
+  LIST: "/matchs",               // ✅ GET /api/v1/matchs
+  GET_BY_ID: "/matchs/:id",       // ✅ GET /api/v1/matchs/{id}
+  ROOM_BY_ID: "/matchs/:id",       // ✅ GET /api/v1/matchs/{id}
+  DELETE: "/matchs/:id",           // ✅ DELETE /api/v1/matchs/{id}
 } as const
