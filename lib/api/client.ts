@@ -684,62 +684,20 @@ class ApiClient {
       }
     ]
 
-    console.log("[ApiClient] createTournament - Trying multiple field variations:")
-    console.log("[ApiClient] createTournament - User selected type:", payload.type)
-    console.log("[ApiClient] createTournament - Backend might not support paid tournaments yet")
-    bodyVariations.forEach((body, index) => {
-      console.log(`[ApiClient] Variation ${index + 1}:`, body)
-    })
 
     // Try each variation until one works
     for (let i = 0; i < bodyVariations.length; i++) {
       try {
-        console.log(`[ApiClient] createTournament - Attempting variation ${i + 1}:`, bodyVariations[i])
         const res = await this.request("/tournaments", {
           method: "POST",
           body: JSON.stringify(bodyVariations[i]),
         })
         
         if (res.success) {
-          console.log("[ApiClient] createTournament - Success with variation:", i + 1)
           return res
         } else {
-          console.log(`[ApiClient] createTournament - Variation ${i + 1} failed:`, res.error)
-          console.log(`[ApiClient] createTournament - Full error response:`, res)
-          
-          // Try to extract more detailed error info
-          if (res.data && typeof res.data === 'object') {
-            console.log(`[ApiClient] createTournament - Error details:`, res.data)
-          }
         }
       } catch (error) {
-        console.log(`[ApiClient] createTournament - Variation ${i + 1} error:`, error)
-      }
-    }
-
-    // Try each variation until one works
-    for (let i = 0; i < bodyVariations.length; i++) {
-      try {
-        console.log(`[ApiClient] createTournament - Attempting variation ${i + 1}:`, bodyVariations[i])
-        const res = await this.request("/tournaments", {
-          method: "POST",
-          body: JSON.stringify(bodyVariations[i]),
-        })
-        
-        if (res.success) {
-          console.log("[ApiClient] createTournament - Success with variation:", i + 1)
-          return res
-        } else {
-          console.log(`[ApiClient] createTournament - Variation ${i + 1} failed:`, res.error)
-          console.log(`[ApiClient] createTournament - Full error response:`, res)
-          
-          // Try to extract more detailed error info
-          if (res.data && typeof res.data === 'object') {
-            console.log(`[ApiClient] createTournament - Error details:`, res.data)
-          }
-        }
-      } catch (error) {
-        console.log(`[ApiClient] createTournament - Variation ${i + 1} error:`, error)
       }
     }
 

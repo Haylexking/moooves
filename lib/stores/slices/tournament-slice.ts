@@ -37,14 +37,11 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     set({ isLoading: true })
     try {
       const payload = { name, organizerId, maxPlayers, entryFee, startTime, type }
-      console.log("[TournamentSlice] Creating tournament with payload:", payload)
       const res = await apiClient.createTournament(payload)
-      console.log("[TournamentSlice] Create tournament response:", res)
 
       if (!res.success) throw new Error(res.error || res.message || 'Failed to create tournament')
 
       const data = res.data
-      console.log("Create Tournament Response:", res)
 
       let rawTournament =
         (data && data.tournament) ||
@@ -60,7 +57,6 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
 
       // Fallback: If ID is missing, fetch all tournaments and find the most recent one created by this user
       if (!tournament.id) {
-        console.warn("Tournament ID missing in response, fetching all tournaments...")
         const allRes = await apiClient.getAllTournaments()
         if (allRes.success) {
           const payload: any = allRes.data || []
@@ -132,9 +128,7 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   loadTournament: async (tournamentId: string, isBackground = false) => {
     if (!isBackground) set({ isLoading: true })
     try {
-      console.log("[TournamentSlice] Loading tournament:", { tournamentId, isBackground })
       const res = await apiClient.getTournament(tournamentId)
-      console.log("[TournamentSlice] Tournament response:", { success: res.success, status: res.status, error: res.error })
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournament')
       const data = res.data || {}
       let td = data.tournament || data

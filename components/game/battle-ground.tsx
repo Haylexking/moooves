@@ -355,15 +355,12 @@ export function BattleGround({
     const baseUrl = API_CONFIG.BASE_URL.replace(/^https?/, 'wss')
     const wsUrl = `${baseUrl}/ws/matches/${matchId}`
     
-    console.log("[BattleGround] Connecting to WebSocket:", wsUrl)
-    console.log("[BattleGround] Fallback polling active:", fallbackPolling)
 
     const socket = new WebSocket(wsUrl)
     socketRef.current = socket
 
     socket.onopen = () => {
 // ...
-      console.log("[BattleGround] WebSocket connected successfully")
       // Stop fallback polling when WebSocket connects
       stopFallbackPolling()
     }
@@ -371,7 +368,6 @@ export function BattleGround({
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        console.log("[BattleGround] WebSocket message received:", data)
         
         if (data.type === 'MATCH_STATE') {
           const gameStore = useGameStore.getState()
@@ -380,27 +376,23 @@ export function BattleGround({
           }
         }
       } catch (e) {
-        console.error("[BattleGround] WebSocket message parse error:", e)
       }
     }
 
     socket.onerror = (error) => {
-      console.error("[BattleGround] WebSocket error:", error)
       // Start fallback polling if WebSocket fails
       startFallbackPolling()
     }
 
     socket.onclose = (event) => {
-      console.log("[BattleGround] WebSocket closed", { reason: event.reason, code: event.code, wasClean: event.wasClean })
       socketRef.current = null
       // Start fallback polling if WebSocket closes
       startFallbackPolling()
     }
 
     return () => {
-      console.log("[BattleGround] WebSocket cleanup - current state:", socket.readyState)
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-        console.log("[BattleGround] Closing WebSocket...")
+      // Always attempt to close the socket if it exists and isn't already closed
+      if (socket && socket.readyState !== WebSocket.CLOSED) {
         socket.close()
       }
     }

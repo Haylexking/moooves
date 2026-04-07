@@ -110,7 +110,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
         </DialogHeader>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+        <div className="flex-1 overflow-y-auto space-y-4 px-2">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Tournament Name</Label>
@@ -221,7 +221,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1" onClick={handleSubmit}>
+            <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? "Scheduling..." : "Create Tournament"}
             </Button>
           </div>

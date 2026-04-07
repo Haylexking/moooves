@@ -60,8 +60,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     // Initial load
     useEffect(() => {
         if (tournamentId) {
-            console.log("[TournamentPage] Loading tournament:", { tournamentId, userRole: user?.role, userId: user?.id })
-            loadTournament(tournamentId)
+                    loadTournament(tournamentId)
         }
     }, [tournamentId])
 
@@ -94,70 +93,6 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
         return () => clearInterval(interval)
     }, [tournamentId, currentTournament?.status, currentTournament?.startTime])
-
-    useEffect(() => {
-        if (currentTournament && user) {
-            const rawHost = currentTournament.hostId || (currentTournament as any).organizerId || (currentTournament as any).createdBy
-            const hId = rawHost && typeof rawHost === 'object' ? rawHost._id || rawHost.id : rawHost
-            const uId = user.id || (user as any)._id
-
-            console.log("[TournamentPage] Role check:", { 
-                tournamentId: currentTournament.id,
-                rawHost,
-                hId,
-                uId,
-                userRole: user.role,
-                participants: currentTournament.participants,
-                isHost: Boolean(hId && uId && String(hId) === String(uId))
-            })
-
-            setIsHost(Boolean(hId && uId && String(hId) === String(uId)))
-            setIsParticipant(currentTournament.participants?.some((p: any) => p.userId === uId || p.userId?._id === uId) || false)
-        }
-    }, [currentTournament, user])
-
-    useEffect(() => {
-        if (!currentTournament?.startTime) return
-
-        const timer = setInterval(() => {
-            const start = new Date(currentTournament.startTime!).getTime()
-            const now = new Date().getTime()
-            const diff = start - now
-
-            if (diff <= 0) {
-                setTimeLeft("Started")
-                clearInterval(timer)
-            } else {
-                const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-                const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-                let timeString = ""
-                if (days > 0) timeString += `${days}d `
-                if (hours > 0) timeString += `${hours}h `
-                timeString += `${minutes}m ${seconds}s`
-                setTimeLeft(timeString)
-            }
-        }, 1000)
-
-        return () => clearInterval(timer)
-    }, [currentTournament?.startTime])
-
-    const handleStartTournament = async () => {
-        if (!currentTournament) return
-        try {
-            const res = await apiClient.startTournament(tournamentId, true) // Force start
-            if (res.success) {
-                toast({ title: "Tournament Started!", description: "Good luck to all players." })
-                loadTournament(tournamentId)
-            } else {
-                toast({ title: "Failed to start", description: res.error, variant: "destructive" })
-            }
-        } catch (err) {
-            toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
-        }
-    }
 
     useEffect(() => {
         if (currentTournament && user) {
@@ -205,6 +140,71 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
             toast({ title: "Verification Failed", description: e.message, variant: "destructive" })
         } finally {
             setVerifyingManual(false)
+        }
+    }
+
+    // Helper function to extract ID from various formats
+    const extractId = (item: any): string | null => {
+        if (!item) return null
+        if (typeof item === 'string') return item
+        return item._id || item.id || null
+    }
+
+    // Check if user is host or participant
+    useEffect(() => {
+        if (currentTournament && user) {
+            const hostId = extractId(currentTournament.hostId || (currentTournament as any).organizerId || (currentTournament as any).createdBy)
+            const userId = extractId(user)
+
+
+            setIsHost(Boolean(hostId && userId && hostId === userId))
+            setIsParticipant(currentTournament.participants?.some((p: any) => {
+                const participantId = extractId(p.userId || p)
+                return participantId === userId
+            }) || false)
+        }
+    }, [currentTournament, user])
+
+    useEffect(() => {
+        if (!currentTournament?.startTime) return
+
+        const timer = setInterval(() => {
+            const start = new Date(currentTournament.startTime!).getTime()
+            const now = new Date().getTime()
+            const diff = start - now
+
+            if (diff <= 0) {
+                setTimeLeft("Started")
+                clearInterval(timer)
+            } else {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+                let timeString = ""
+                if (days > 0) timeString += `${days}d `
+                if (hours > 0) timeString += `${hours}h `
+                timeString += `${minutes}m ${seconds}s`
+                setTimeLeft(timeString)
+            }
+        }, 1000)
+
+        return () => clearInterval(timer)
+    }, [currentTournament?.startTime])
+
+    const handleStartTournament = async () => {
+        if (!currentTournament) return
+        try {
+            const res = await apiClient.startTournament(tournamentId, true) // Force start
+            if (res.success) {
+                toast({ title: "Tournament Started!", description: "Good luck to all players." })
+                loadTournament(tournamentId)
+            } else {
+                toast({ title: "Failed to start", description: res.error, variant: "destructive" })
+            }
+        } catch (err) {
+            toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
         }
     }
 
