@@ -60,6 +60,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     // Initial load
     useEffect(() => {
         if (tournamentId) {
+            console.log("[TournamentPage] Loading tournament:", { tournamentId, userRole: user?.role, userId: user?.id })
             loadTournament(tournamentId)
         }
     }, [tournamentId])
@@ -99,6 +100,16 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
             const rawHost = currentTournament.hostId || (currentTournament as any).organizerId || (currentTournament as any).createdBy
             const hId = rawHost && typeof rawHost === 'object' ? rawHost._id || rawHost.id : rawHost
             const uId = user.id || (user as any)._id
+
+            console.log("[TournamentPage] Role check:", { 
+                tournamentId: currentTournament.id,
+                rawHost,
+                hId,
+                uId,
+                userRole: user.role,
+                participants: currentTournament.participants,
+                isHost: Boolean(hId && uId && String(hId) === String(uId))
+            })
 
             setIsHost(Boolean(hId && uId && String(hId) === String(uId)))
             setIsParticipant(currentTournament.participants?.some((p: any) => p.userId === uId || p.userId?._id === uId) || false)

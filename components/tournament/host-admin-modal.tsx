@@ -51,15 +51,17 @@ export function HostAdminModal({ open, onOpenChange, tournamentId, bracket, onUp
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-gray-900 border border-yellow-600 text-white">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[450px] max-h-[80vh] bg-gray-900 border border-yellow-600 text-white flex flex-col">
+                {/* Sticky Header */}
+                <DialogHeader className="flex-shrink-0 pb-4">
                     <DialogTitle className="text-yellow-500">Host Admin Tools</DialogTitle>
                     <DialogDescription className="text-gray-400">
                         Manually submit results for stuck matches or disputes.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4">
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Select Match</Label>
                         <Select onValueChange={setSelectedMatchId} value={selectedMatchId}>
@@ -104,7 +106,8 @@ export function HostAdminModal({ open, onOpenChange, tournamentId, bracket, onUp
                     )}
                 </div>
 
-                <DialogFooter>
+                {/* Sticky Footer */}
+                <DialogFooter className="flex-shrink-0 pt-4 border-t border-gray-700">
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button
                         onClick={handleSubmitResult}

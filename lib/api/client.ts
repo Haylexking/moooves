@@ -611,18 +611,142 @@ class ApiClient {
 
   async createTournament(payload: { name: string; organizerId: string; startTime: string; maxPlayers?: number; entryFee?: number; type?: "free" | "paid" }): Promise<ApiResponse<any>> {
     // Per Swagger, POST /api/v1/tournaments expects organizerId, name, startTime, optional maxPlayers (<= 50), entryFee
-    const body: any = {
-      organizerId: payload.organizerId,
-      name: payload.name,
-      startTime: payload.startTime,
-      ...(typeof payload.type !== 'undefined' ? { type: payload.type } : {}),
-      ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
-      ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
+    // Try different field combinations based on updated backend schema
+    const bodyVariations = [
+      // Variation 1: Updated backend schema with correct field names
+      {
+        organizerId: payload.organizerId,
+        name: payload.name,
+        startTime: payload.startTime,
+        tournamentType: payload.type,  // Updated field name
+        ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
+      },
+      // Variation 2: Without tournamentType (maybe optional)
+      {
+        organizerId: payload.organizerId,
+        name: payload.name,
+        startTime: payload.startTime,
+        ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
+      },
+      // Variation 3: Different field names
+      {
+        organizerId: payload.organizerId,
+        tournamentName: payload.name,
+        start_time: payload.startTime,
+        tournament_type: payload.type,
+        ...(typeof payload.maxPlayers !== 'undefined' ? { max_players: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entry_fee: payload.entryFee } : {}),
+      },
+      // Variation 4: Required fields only
+      {
+        organizerId: payload.organizerId,
+        name: payload.name,
+        startTime: payload.startTime,
+        tournamentType: payload.type,
+      },
+      // Variation 5: Snake case
+      {
+        organizer_id: payload.organizerId,
+        name: payload.name,
+        start_time: payload.startTime,
+        tournament_type: payload.type,
+        ...(typeof payload.maxPlayers !== 'undefined' ? { max_players: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entry_fee: payload.entryFee } : {}),
+      },
+      // Variation 6: Different organizer field name
+      {
+        hostId: payload.organizerId,
+        name: payload.name,
+        startTime: payload.startTime,
+        tournamentType: payload.type,
+        ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
+      },
+      // Variation 7: CreatedBy field
+      {
+        createdBy: payload.organizerId,
+        name: payload.name,
+        startTime: payload.startTime,
+        tournamentType: payload.type,
+        ...(typeof payload.maxPlayers !== 'undefined' ? { maxPlayers: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entryFee: payload.entryFee } : {}),
+      },
+      // Variation 8: All snake_case
+      {
+        organizer_id: payload.organizerId,
+        name: payload.name,
+        start_time: payload.startTime,
+        tournament_type: payload.type,
+        ...(typeof payload.maxPlayers !== 'undefined' ? { max_players: payload.maxPlayers } : {}),
+        ...(typeof payload.entryFee !== 'undefined' ? { entry_fee: payload.entryFee } : {}),
+      }
+    ]
+
+    console.log("[ApiClient] createTournament - Trying multiple field variations:")
+    console.log("[ApiClient] createTournament - User selected type:", payload.type)
+    console.log("[ApiClient] createTournament - Backend might not support paid tournaments yet")
+    bodyVariations.forEach((body, index) => {
+      console.log(`[ApiClient] Variation ${index + 1}:`, body)
+    })
+
+    // Try each variation until one works
+    for (let i = 0; i < bodyVariations.length; i++) {
+      try {
+        console.log(`[ApiClient] createTournament - Attempting variation ${i + 1}:`, bodyVariations[i])
+        const res = await this.request("/tournaments", {
+          method: "POST",
+          body: JSON.stringify(bodyVariations[i]),
+        })
+        
+        if (res.success) {
+          console.log("[ApiClient] createTournament - Success with variation:", i + 1)
+          return res
+        } else {
+          console.log(`[ApiClient] createTournament - Variation ${i + 1} failed:`, res.error)
+          console.log(`[ApiClient] createTournament - Full error response:`, res)
+          
+          // Try to extract more detailed error info
+          if (res.data && typeof res.data === 'object') {
+            console.log(`[ApiClient] createTournament - Error details:`, res.data)
+          }
+        }
+      } catch (error) {
+        console.log(`[ApiClient] createTournament - Variation ${i + 1} error:`, error)
+      }
     }
 
+    // Try each variation until one works
+    for (let i = 0; i < bodyVariations.length; i++) {
+      try {
+        console.log(`[ApiClient] createTournament - Attempting variation ${i + 1}:`, bodyVariations[i])
+        const res = await this.request("/tournaments", {
+          method: "POST",
+          body: JSON.stringify(bodyVariations[i]),
+        })
+        
+        if (res.success) {
+          console.log("[ApiClient] createTournament - Success with variation:", i + 1)
+          return res
+        } else {
+          console.log(`[ApiClient] createTournament - Variation ${i + 1} failed:`, res.error)
+          console.log(`[ApiClient] createTournament - Full error response:`, res)
+          
+          // Try to extract more detailed error info
+          if (res.data && typeof res.data === 'object') {
+            console.log(`[ApiClient] createTournament - Error details:`, res.data)
+          }
+        }
+      } catch (error) {
+        console.log(`[ApiClient] createTournament - Variation ${i + 1} error:`, error)
+      }
+    }
+
+    // If all variations fail, return the last error
     return this.request("/tournaments", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(bodyVariations[0]),
     })
   }
 

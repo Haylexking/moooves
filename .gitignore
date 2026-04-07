@@ -48,3 +48,4 @@ Thumbs.db
 .vscode/
 *.code-workspace
 swagger.json
+swagger.json.bak

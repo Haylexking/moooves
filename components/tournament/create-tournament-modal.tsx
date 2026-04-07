@@ -100,125 +100,132 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto bg-white text-gray-900 shadow-xl border-gray-100">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] bg-white text-gray-900 shadow-xl border-gray-100 flex flex-col">
+        {/* Sticky Header */}
+        <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle>Schedule Tournament</DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
             Set the name, entry fee, capacity, and start time. Players can join up until the scheduled start.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name">Tournament Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter tournament name"
-              required
-            />
-          </div>
-
-          <div>
-            <Label>Tournament Type</Label>
-            <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200 mt-2">
-              <button
-                type="button"
-                onClick={() => setTournamentType("paid")}
-                className={`flex-1 py-2.5 text-sm font-bold uppercase rounded-md transition-all duration-300 ${tournamentType === "paid"
-                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
-                    : "text-gray-500 hover:text-gray-800 hover:bg-white"
-                  }`}
-              >
-                Paid Entry
-              </button>
-              <button
-                type="button"
-                onClick={() => setTournamentType("free")}
-                className={`flex-1 py-2.5 text-sm font-bold uppercase rounded-md transition-all duration-300 ${tournamentType === "free"
-                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
-                    : "text-gray-500 hover:text-gray-800 hover:bg-white"
-                  }`}
-              >
-                Free to Play
-              </button>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Tournament Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter tournament name"
+                required
+              />
             </div>
-            {tournamentType === "free" && (
-              <div className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-3 border border-yellow-200 rounded-md">
-                <p><strong>Host Fee: ₦15,000.</strong> You will be redirected to pay. Players will join for <strong>free</strong>.</p>
+
+            <div>
+              <Label>Tournament Type</Label>
+              <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setTournamentType("paid")}
+                  className={`flex-1 py-2.5 text-sm font-bold uppercase rounded-md transition-all duration-300 ${tournamentType === "paid"
+                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-white"
+                  }`}
+                >
+                  Paid Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTournamentType("free")}
+                  className={`flex-1 py-2.5 text-sm font-bold uppercase rounded-md transition-all duration-300 ${tournamentType === "free"
+                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-white"
+                  }`}
+                >
+                  Free to Play
+                </button>
+              </div>
+              {tournamentType === "free" && (
+                <div className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-3 border border-yellow-200 rounded-md">
+                  <p><strong>Host Fee: ₦15,000.</strong> You will be redirected to pay. Players will join for <strong>free</strong>.</p>
+                </div>
+              )}
+              {tournamentType === "paid" && (
+                <p className="mt-2 text-xs text-gray-500">Players will pay the entry fee below to join.</p>
+              )}
+            </div>
+
+            {tournamentType === "paid" && (
+              <div>
+                <Label htmlFor="entryFee">Entry Fee (NGN) per Player</Label>
+                <Input
+                  id="entryFee"
+                  type="number"
+                  min={dynamicMinFee}
+                  value={entryFee}
+                  onChange={(e) => setEntryFee(Number(e.target.value))}
+                  required={tournamentType === "paid"}
+                />
+                <p className="text-xs text-amber-600 mt-1 font-medium">
+                  Minimum NGN {dynamicMinFee.toLocaleString()} to guarantee ₦20,000 prize pool.
+                </p>
               </div>
             )}
-            {tournamentType === "paid" && (
-              <p className="mt-2 text-xs text-gray-500">Players will pay the entry fee below to join.</p>
-            )}
-          </div>
 
-          {tournamentType === "paid" && (
             <div>
-              <Label htmlFor="entryFee">Entry Fee (NGN) per Player</Label>
+              <Label htmlFor="maxPlayers">Maximum Players</Label>
               <Input
-                id="entryFee"
+                id="maxPlayers"
                 type="number"
-                min={dynamicMinFee}
-                value={entryFee}
-                onChange={(e) => setEntryFee(Number(e.target.value))}
-                required={tournamentType === "paid"}
+                min={6}
+                max={50}
+                value={maxPlayers}
+                onChange={(e) => {
+                  const newMax = Number(e.target.value)
+                  setMaxPlayers(newMax)
+                  const newMinFee = Math.ceil(20000 / newMax / 500) * 500
+                  if (tournamentType === "paid" && entryFee < newMinFee) {
+                    setEntryFee(newMinFee)
+                  }
+                }}
+                required
               />
-              <p className="text-xs text-amber-600 mt-1 font-medium">
-                Minimum NGN {dynamicMinFee.toLocaleString()} to guarantee ₦20,000 prize pool.
-              </p>
+              <p className="text-xs text-gray-500 mt-1">Between 6-50 players</p>
             </div>
-          )}
 
-          <div>
-            <Label htmlFor="maxPlayers">Maximum Players</Label>
-            <Input
-              id="maxPlayers"
-              type="number"
-              min={6}
-              max={50}
-              value={maxPlayers}
-              onChange={(e) => {
-                const newMax = Number(e.target.value)
-                setMaxPlayers(newMax)
-                const newMinFee = Math.ceil(20000 / newMax / 500) * 500
-                if (tournamentType === "paid" && entryFee < newMinFee) {
-                  setEntryFee(newMinFee)
-                }
-              }}
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">Between 6-50 players</p>
-          </div>
+            <div>
+              <Label htmlFor="startTime">Scheduled Start (local time)</Label>
+              <Input
+                id="startTime"
+                type="datetime-local"
+                min={new Date().toISOString().slice(0, 16)}
+                value={startTimeLocal}
+                onChange={(e) => setStartTimeLocal(e.target.value)}
+                required
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">Sent to the backend as UTC. Hosts can reschedule later.</p>
+            </div>
 
-          <div>
-            <Label htmlFor="startTime">Scheduled Start (local time)</Label>
-            <Input
-              id="startTime"
-              type="datetime-local"
-              min={new Date().toISOString().slice(0, 16)}
-              value={startTimeLocal}
-              onChange={(e) => setStartTimeLocal(e.target.value)}
-              required
-              className="w-full"
-            />
-            <p className="text-xs text-gray-500 mt-1">Sent to the backend as UTC. Hosts can reschedule later.</p>
-          </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+              <p><strong>Note:</strong> Hosts can start early or extend the start time if player count is low.</p>
+            </div>
+          </form>
+        </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
-            <p><strong>Note:</strong> Hosts can start early or extend the start time if player count is low.</p>
-          </div>
-
-          <div className="flex gap-2 pt-2">
+        {/* Sticky Footer */}
+        <div className="flex-shrink-0 pt-4 border-t border-gray-200">
+          <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1">
+            <Button type="submit" disabled={isLoading} className="flex-1" onClick={handleSubmit}>
               {isLoading ? "Scheduling..." : "Create Tournament"}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

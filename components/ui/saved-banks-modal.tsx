@@ -183,11 +183,14 @@ export function SavedBanksModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(92vw,32rem)] max-w-none sm:max-w-[32rem] bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] bg-gradient-to-br from-green-50 to-green-100 border-4 border-green-600 flex flex-col">
+        {/* Sticky Header */}
+        <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle className="text-2xl font-black text-green-900">Saved bank details</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
           {loading && <div className="text-green-800 text-sm">Loading...</div>}
           {error && <div className="text-red-600 text-sm">{error}</div>}
           {status && <div className="text-green-700 text-sm">{status}</div>}

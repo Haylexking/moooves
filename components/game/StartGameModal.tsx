@@ -50,13 +50,15 @@ export default function StartGameModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[450px] max-h-[80vh] bg-white text-gray-900 shadow-xl border-gray-100 flex flex-col">
+        {/* Sticky Header */}
+        <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle>Start New Game</DialogTitle>
           <DialogDescription>Choose how you want to play</DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto py-4">
           <AnimatePresence initial={false} mode="wait">
             {view === 'main' && (
               <motion.div key="main" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
@@ -87,7 +89,8 @@ export default function StartGameModal({
           </AnimatePresence>
         </div>
 
-        <DialogFooter>
+        {/* Sticky Footer */}
+        <DialogFooter className="flex-shrink-0 pt-4 border-t border-gray-200">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
         </DialogFooter>
       </DialogContent>

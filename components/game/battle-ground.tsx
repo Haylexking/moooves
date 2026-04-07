@@ -352,7 +352,7 @@ export function BattleGround({
   useEffect(() => {
     if (!isOnlineMode || !matchId) return
     // Updated WebSocket URL structure for Render environment
-    const baseUrl = API_CONFIG.BASE_URL.replace(/^http/, 'ws')
+    const baseUrl = API_CONFIG.BASE_URL.replace(/^https?/, 'wss')
     const wsUrl = `${baseUrl}/ws/matches/${matchId}`
     
     console.log("[BattleGround] Connecting to WebSocket:", wsUrl)
@@ -391,14 +391,16 @@ export function BattleGround({
     }
 
     socket.onclose = (event) => {
-      console.log("[BattleGround] WebSocket closed", event.reason)
+      console.log("[BattleGround] WebSocket closed", { reason: event.reason, code: event.code, wasClean: event.wasClean })
       socketRef.current = null
       // Start fallback polling if WebSocket closes
       startFallbackPolling()
     }
 
     return () => {
+      console.log("[BattleGround] WebSocket cleanup - current state:", socket.readyState)
       if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        console.log("[BattleGround] Closing WebSocket...")
         socket.close()
       }
     }

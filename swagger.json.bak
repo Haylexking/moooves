@@ -459,84 +459,6 @@ window.onload = function() {
           }
         }
       },
-      "/api/v1/{matchId}/submit-resultoffline": {
-        "post": {
-          "summary": "Submit a result for an offline (Bluetooth) tournament match",
-          "description": "Used when players compete offline (e.g., via Bluetooth handshake).   The system validates the handshakeToken from the match object to ensure the result is genuine.   After verification, the result is saved and the winner progresses just like in online tournaments.\n",
-          "tags": [
-            "Games"
-          ],
-          "security": [],
-          "parameters": [
-            {
-              "in": "path",
-              "name": "matchId",
-              "required": true,
-              "schema": {
-                "type": "string"
-              },
-              "description": "Match ID"
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "winnerId": {
-                      "type": "string"
-                    },
-                    "handshakeToken": {
-                      "type": "string"
-                    }
-                  },
-                  "example": {
-                    "winnerId": "64f9c23d8f9b1234abcd5678",
-                    "handshakeToken": "bluetooth-secret-123"
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "200": {
-              "description": "Offline result accepted"
-            },
-            "400": {
-              "description": "Invalid match or already completed",
-              "content": {
-                "application/json": {
-                  "example": {
-                    "error": "Match already has a winner"
-                  }
-                }
-              }
-            },
-            "404": {
-              "description": "Match not found",
-              "content": {
-                "application/json": {
-                  "example": {
-                    "error": "Match not found"
-                  }
-                }
-              }
-            },
-            "500": {
-              "description": "Server error",
-              "content": {
-                "application/json": {
-                  "example": {
-                    "error": "Failed "
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
       "/api/v1/move": {
         "post": {
           "summary": "Make a move in an active match",
@@ -1518,7 +1440,7 @@ window.onload = function() {
               "application/json": {
                 "example": {
                   "userId": "64fa1111abcd2222ef333333",
-                  "gameType": "1v1"
+                  "gameType": "TicTacToe"
                 }
               }
             }
@@ -1871,8 +1793,8 @@ window.onload = function() {
       },
       "/api/v1/tournaments": {
         "post": {
-          "summary": "Create a new tournament and generate a unique invite link",
-          "description": "This endpoint allows a User or Host to create a new tournament.  \n\n### 🧩 Logic Flow:\n- The organizer can be either a User or a Host.  \n- A User must have joined at least 2 tournaments before being allowed to host their own (unless already granted host rights).  \n- The system automatically validates maxPlayers, entryFee, and startTime.  \n- The maximum number of players allowed is 50.  \n- The startTime must be a valid future UTC date (ISO format).  \n- On success, the response includes a generated invite link (using a 4-byte random hex code).  \n- An optional email notification is sent to the organizer, confirming the tournament schedule.  \n\nNote:  \n- Default maxParticipants is 16 if not provided.  \n- Default entryFee is 0 if not provided.  \n- Automatically sets status to \"scheduled\".  \n- Auto-start is enabled by default (`autoStartEnabled: true`).\n\nAuthorization: Requires Bearer Token (JWT)\n",
+          "summary": "Create a new tournament (Paid or Free) and generate invite link",
+          "description": "This endpoint allows a User or Host to create a tournament.\n\n### 🧩 Tournament Types:\n\n#### 💰 Paid Tournament\n- Participants pay an entry fee.\n- Prize pool accumulates from entries.\n- Tournament is immediately scheduled.\n\n#### 🎟️ Free (Sponsored) Tournament\n- No entry fee for participants.\n- No prize pool.\n- Host must pay ₦15,000 to activate the tournament.\n- Tournament remains **pending** until payment is completed.\n\n---\n\n### 🧠 Logic Flow:\n- Organizer can be a User or Host.\n- Users must have joined at least 2 tournaments before hosting (unless granted permission).\n- maxPlayers must be between 6 and 50.\n- startTime must be a valid future UTC date.\n- A unique inviteCode is generated automatically.\n- Invite link is returned for sharing.\n\n---\n\n### ⚠️ Notes:\n- Default maxParticipants = 16\n- Paid → status = \"scheduled\"\n- Free → status = \"pending\" until host payment is completed\n- Auto-start is enabled by default\n\nAuthorization: Requires Bearer Token (JWT)\n",
           "tags": [
             "Tournaments"
           ],
@@ -1890,7 +1812,8 @@ window.onload = function() {
                   "required": [
                     "organizerId",
                     "name",
-                    "startTime"
+                    "startTime",
+                    "tournamentType"
                   ],
                   "properties": {
                     "organizerId": {
@@ -1900,23 +1823,32 @@ window.onload = function() {
                     },
                     "name": {
                       "type": "string",
-                      "description": "The name of the tournament",
-                      "example": "MOOOVES Pro League"
+                      "description": "Name of the tournament",
+                      "example": "MOOOVES Championship"
                     },
                     "maxPlayers": {
                       "type": "integer",
-                      "description": "Maximum number of players allowed (must be ≤ 50)",
+                      "description": "Number of players (6–50)",
                       "example": 32
                     },
                     "entryFee": {
                       "type": "number",
-                      "description": "Entry fee per participant",
+                      "description": "Entry fee (only for paid tournaments)",
                       "example": 500
+                    },
+                    "tournamentType": {
+                      "type": "string",
+                      "enum": [
+                        "paid",
+                        "free"
+                      ],
+                      "description": "Type of tournament",
+                      "example": "paid"
                     },
                     "startTime": {
                       "type": "string",
                       "format": "date-time",
-                      "description": "UTC start time (ISO 8601 format)",
+                      "description": "Future UTC start time (ISO 8601)",
                       "example": "2025-11-01T15:00:00Z"
                     }
                   }
@@ -1925,15 +1857,29 @@ window.onload = function() {
             }
           },
           "responses": {
+            "200": {
+              "description": "Free tournament created but requires host payment",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "message": "Host payment required to activate tournament",
+                    "paymentRequired": true,
+                    "paymentType": "host",
+                    "amount": 15000,
+                    "tournamentId": "670f52e81df21e2c4b6a120c"
+                  }
+                }
+              }
+            },
             "201": {
-              "description": "Tournament created successfully",
+              "description": "Paid tournament created successfully",
               "content": {
                 "application/json": {
                   "example": {
                     "message": "Tournament created successfully",
                     "tournament": {
                       "_id": "670f52e81df21e2c4b6a120c",
-                      "name": "MOOOVES Pro League",
+                      "name": "MOOOVES Championship",
                       "createdBy": "670f52d91df21e2c4b6a11ff",
                       "createdByModel": "Host",
                       "participants": [],
@@ -1942,8 +1888,8 @@ window.onload = function() {
                       "prizePool": 0,
                       "inviteCode": "a1b2c3d4",
                       "status": "scheduled",
-                      "startTime": "2025-11-01T15:00:00.000Z",
-                      "autoStartEnabled": true
+                      "tournamentType": "paid",
+                      "startTime": "2025-11-01T15:00:00.000Z"
                     },
                     "inviteLink": "https://your-domain.com/api/v1/tournaments/join/a1b2c3d4"
                   }
@@ -1951,26 +1897,32 @@ window.onload = function() {
               }
             },
             "400": {
-              "description": "Missing or invalid input fields",
+              "description": "Missing or invalid input",
               "content": {
                 "application/json": {
                   "examples": {
                     "missingFields": {
-                      "summary": "Missing organizerId or name",
+                      "summary": "Missing required fields",
                       "value": {
-                        "error": "Host and name are required"
+                        "error": "Missing required fields"
+                      }
+                    },
+                    "invalidType": {
+                      "summary": "Invalid tournament type",
+                      "value": {
+                        "error": "Invalid tournament type"
                       }
                     },
                     "invalidStartTime": {
-                      "summary": "Invalid or past start time",
+                      "summary": "Invalid start time",
                       "value": {
-                        "error": "Invalid or past start time"
+                        "error": "Invalid start time"
                       }
                     },
-                    "maxPlayerExceeded": {
-                      "summary": "Too many players specified",
+                    "maxPlayers": {
+                      "summary": "Invalid player count",
                       "value": {
-                        "error": "maximum player is 50"
+                        "error": "Participant limit must be between 6 and 50"
                       }
                     }
                   }

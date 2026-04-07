@@ -36,14 +36,10 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   createTournament: async ({ name, entryFee, maxPlayers, organizerId, startTime, type }: any) => {
     set({ isLoading: true })
     try {
-      const res = await apiClient.createTournament({
-        name,
-        organizerId,
-        maxPlayers,
-        entryFee,
-        startTime,
-        type,
-      })
+      const payload = { name, organizerId, maxPlayers, entryFee, startTime, type }
+      console.log("[TournamentSlice] Creating tournament with payload:", payload)
+      const res = await apiClient.createTournament(payload)
+      console.log("[TournamentSlice] Create tournament response:", res)
 
       if (!res.success) throw new Error(res.error || res.message || 'Failed to create tournament')
 
@@ -136,7 +132,9 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
   loadTournament: async (tournamentId: string, isBackground = false) => {
     if (!isBackground) set({ isLoading: true })
     try {
+      console.log("[TournamentSlice] Loading tournament:", { tournamentId, isBackground })
       const res = await apiClient.getTournament(tournamentId)
+      console.log("[TournamentSlice] Tournament response:", { success: res.success, status: res.status, error: res.error })
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournament')
       const data = res.data || {}
       let td = data.tournament || data
