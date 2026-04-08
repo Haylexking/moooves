@@ -212,19 +212,17 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
               <p><strong>Note:</strong> Hosts can start early or extend the start time if player count is low.</p>
             </div>
-          </form>
-        </div>
 
-        {/* Sticky Footer */}
-        <div className="flex-shrink-0 pt-4 border-t border-gray-200">
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading} className="flex-1">
-              {isLoading ? "Scheduling..." : "Create Tournament"}
-            </Button>
-          </div>
+            {/* Form Actions */}
+            <div className="flex gap-2 pt-4 border-t border-gray-200">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading} className="flex-1">
+                {isLoading ? "Scheduling..." : "Create Tournament"}
+              </Button>
+            </div>
+          </form>
         </div>
       </DialogContent>
     </Dialog>
