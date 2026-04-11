@@ -23,6 +23,7 @@ import { MoreHorizontal, Shield, ShieldAlert, ShieldCheck } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
+import AlertDialogConfirm from "@/components/ui/alert-dialog-confirm"
 
 interface UsersTableProps {
     users: User[]
@@ -32,6 +33,8 @@ interface UsersTableProps {
 export function UsersTable({ users, onUpdate }: UsersTableProps) {
     const { toast } = useToast()
     const [loading, setLoading] = useState<string | null>(null)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [userToDelete, setUserToDelete] = useState<string | null>(null)
 
     const handleBan = async (userId: string) => {
         setLoading(userId)
@@ -49,10 +52,15 @@ export function UsersTable({ users, onUpdate }: UsersTableProps) {
     }
 
     const handleDelete = async (userId: string) => {
-        if (!confirm("Are you sure you want to delete this user?")) return
-        setLoading(userId)
+        setUserToDelete(userId)
+        setDeleteConfirmOpen(true)
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!userToDelete) return
+        setLoading(userToDelete)
         try {
-            const res = await apiClient.deleteUser(userId)
+            const res = await apiClient.deleteUser(userToDelete)
             if (res.success) {
                 toast({ title: "User deleted", variant: "default" })
                 onUpdate()
@@ -61,74 +69,106 @@ export function UsersTable({ users, onUpdate }: UsersTableProps) {
             }
         } finally {
             setLoading(null)
+            setUserToDelete(null)
+            setDeleteConfirmOpen(false)
         }
     }
 
     return (
-        <div className="rounded-md border border-gray-800 bg-gray-900/50">
-            <Table>
-                <TableHeader>
-                    <TableRow className="border-gray-800 hover:bg-transparent">
-                        <TableHead className="w-[200px]">User</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {users.map((user) => (
-                        <TableRow key={user.id} className="border-gray-800 hover:bg-gray-800/50">
-                            <TableCell className="font-medium text-white flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
-                                    {user.fullName?.[0] || "?"}
-                                </div>
-                                {user.fullName}
-                            </TableCell>
-                            <TableCell className="text-gray-400">{user.email}</TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-1">
-                                    {user.role === "admin" && <ShieldAlert className="w-4 h-4 text-red-500" />}
-                                    {user.role === "host" && <ShieldCheck className="w-4 h-4 text-green-500" />}
-                                    {user.role === "player" && <Shield className="w-4 h-4 text-gray-500" />}
-                                    <span className="capitalize text-sm">{user.role || "player"}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={user.emailVerified ? "outline" : "secondary"} className="text-xs">
-                                    {user.emailVerified ? "Verified" : "Unverified"}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Open menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-gray-900 border-gray-800 text-white">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem
-                                            className="cursor-pointer"
-                                            onClick={() => navigator.clipboard.writeText(user.id)}
-                                        >
-                                            Copy ID
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator className="bg-gray-800" />
-                                        <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => handleBan(user.id)}>
-                                            Ban User
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => handleDelete(user.id)}>
-                                            Delete User
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
+        <>
+            <div className="rounded-md border border-gray-800 bg-gray-900/50">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="border-gray-800 hover:bg-transparent">
+                            <TableHead className="w-[200px]">User</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
+                    </TableHeader>
+                    <TableBody>
+                        {users.map((user) => (
+                            <TableRow key={user.id} className="border-gray-800">
+                                <TableCell className="font-medium">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold">
+                                            {user.fullName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div className="text-white font-medium">{user.fullName || "Unknown"}</div>
+                                            <div className="text-gray-400 text-sm">ID: {user.id}</div>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-gray-300">{user.email}</TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant="outline"
+                                        className={
+                                            user.role === "admin" ? "border-purple-500 text-purple-500" :
+                                                user.role === "host" ? "border-blue-500 text-blue-500" :
+                                                    "border-gray-500 text-gray-500"
+                                        }
+                                    >
+                                        {user.role}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant="outline"
+                                        className={
+                                            user.status === "active" ? "border-green-500 text-green-500" :
+                                                "border-red-500 text-red-500"
+                                        }
+                                    >
+                                        {user.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-gray-400 text-sm">
+                                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <span className="sr-only">Open menu</span>
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="bg-gray-900 border-gray-800 text-white">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem
+                                                className="cursor-pointer"
+                                                onClick={() => navigator.clipboard.writeText(user.id)}
+                                            >
+                                                Copy ID
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator className="bg-gray-800" />
+                                            <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => handleBan(user.id)}>
+                                                Ban User
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => handleDelete(user.id)}>
+                                                Delete User
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+            <AlertDialogConfirm
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+                title="Delete User"
+                description="Are you sure you want to delete this user?"
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                onConfirm={handleConfirmDelete}
+            />
+        </>
     )
 }

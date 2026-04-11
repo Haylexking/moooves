@@ -46,6 +46,8 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
     }
     setShowExitModal(false)
     setOpen(false)
+    // Clear localStorage to remove all session data
+    localStorage.clear()
     // Also log user out to clear auth state and tokens
     try {
       const storeApi: any = (useAuthStore as any)

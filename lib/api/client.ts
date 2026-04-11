@@ -742,6 +742,15 @@ class ApiClient {
     return res
   }
 
+  // Host-specific tournament access for pending tournaments
+  async getHostTournament(id: string): Promise<ApiResponse<any>> {
+    const res = await this.request(`/tournaments/${id}/host`)
+    if (res.success) {
+      return { ...res, data: this._normalizeTournament(res.data) }
+    }
+    return res
+  }
+
   async findTournamentByInviteCode(inviteCode: string): Promise<ApiResponse<any>> {
     const res = await this.getAllTournaments()
     if (!res.success) return res
@@ -764,17 +773,23 @@ class ApiClient {
     }
   }
 
-  async deleteTournament(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/tournaments/${id}`, {
-      method: "DELETE",
-    })
-  }
-
   async joinTournamentWithCode(inviteCode: string, userId: string): Promise<ApiResponse<any>> {
     return this.request(`/tournaments/join/${inviteCode}`, {
       method: "POST",
       body: JSON.stringify({ userId }),
     })
+  }
+
+  // Delete tournament (only if no participants)
+  async deleteTournament(id: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.request(`/tournaments/${id}`, {
+        method: "DELETE",
+      })
+      return response
+    } catch (error) {
+      throw error
+    }
   }
 
   async getTournamentInviteLink(tournamentId: string): Promise<ApiResponse<any>> {
@@ -909,7 +924,6 @@ class ApiClient {
       callback_url: payload.redirectUrl,
       ...(payload.tournamentId ? { tournamentId: payload.tournamentId } : {}),
     }
-    console.log(`[initWalletTransaction] Sending payload to /initial:`, body)
     return this.request(`/initial`, {
       method: 'POST',
       body: JSON.stringify(body),

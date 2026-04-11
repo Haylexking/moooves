@@ -25,7 +25,7 @@ import Image from "next/image"
 export default function TournamentPage({ params }: { params: { id: string } }) {
     const router = useRouter()
     const { user } = useAuthStore()
-    const { loadTournament, currentTournament, isLoading, getActiveMatch } = useTournamentStore()
+    const { loadTournament, currentTournament, isLoading, getActiveMatch, loadUserTournaments } = useTournamentStore()
     const [activeMatch, setActiveMatch] = useState<any>(null)
     const tournamentId = params.id
 
@@ -34,6 +34,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     const [showAdmin, setShowAdmin] = useState(false)
     const [isHost, setIsHost] = useState(false)
     const [isParticipant, setIsParticipant] = useState(false)
+    const [isLoadingTournament, setIsLoadingTournament] = useState(false)
 
     const [showRescheduleModal, setShowRescheduleModal] = useState(false)
     const [newStartTime, setNewStartTime] = useState<string>("")
@@ -59,10 +60,71 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
     // Initial load
     useEffect(() => {
-        if (tournamentId) {
-                    loadTournament(tournamentId)
+        if (tournamentId && !isLoadingTournament && !currentTournament) {
+            setIsLoadingTournament(true)
+            const loadTournamentWithFallback = async () => {
+                try {
+                    // Strategy 1: Try regular tournament access first
+                    await loadTournament(tournamentId)
+                } catch (error: any) {
+                    // Strategy 2: Try host-specific endpoint for users who can host
+                    if ((error.message?.includes("Invalid role") || error.message?.includes("Access denied")) && user?.canHost) {
+                        try {
+                            const res = await apiClient.getHostTournament(tournamentId)
+                            if (res.success && res.data) {
+                                useTournamentStore.setState({ currentTournament: res.data, isLoading: false })
+                                setIsLoadingTournament(false)
+                                return
+                            }
+                        } catch (hostError) {
+                            // Continue to Strategy 3
+                        }
+                    }
+                    
+                    // Strategy 3: Try loading from user's tournament list
+                    if (user?.id && typeof loadUserTournaments === 'function') {
+                        try {
+                            await loadUserTournaments(user.id)
+                            // Get the tournaments from the store after loading
+                            const { userTournaments } = useTournamentStore.getState()
+                            const tournament = userTournaments?.find((t: any) => getTournamentId(t) === tournamentId)
+                            if (tournament) {
+                                useTournamentStore.setState({ currentTournament: tournament, isLoading: false })
+                                setIsLoadingTournament(false)
+                                return
+                            }
+                        } catch (listError) {
+                            // Continue to error handling
+                        }
+                    }
+                    
+                    // All strategies failed - show error and redirect
+                    toast({ 
+                        title: "Access Issue", 
+                        description: "Cannot access this tournament. The backend may have role validation issues.",
+                        variant: "destructive" 
+                    })
+                    
+                    // Redirect based on user type
+                    if (user?.canHost) {
+                        router.push("/host-dashboard")
+                    } else {
+                        router.push("/dashboard")
+                    }
+                } finally {
+                    setIsLoadingTournament(false)
+                }
+            }
+            
+            loadTournamentWithFallback()
         }
-    }, [tournamentId])
+    }, [tournamentId, user, currentTournament, isLoadingTournament])
+
+    // Helper function to extract tournament ID
+    const getTournamentId = (tournament: any): string => {
+        if (!tournament) return ''
+        return tournament.id || tournament._id || ''
+    }
 
     // Dynamic polling
     useEffect(() => {
@@ -154,10 +216,10 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     useEffect(() => {
         if (currentTournament && user) {
             const hostId = extractId(currentTournament.hostId || (currentTournament as any).organizerId || (currentTournament as any).createdBy)
+            // Check if current user is the tournament host OR can host tournaments
             const userId = extractId(user)
-
-
-            setIsHost(Boolean(hostId && userId && hostId === userId))
+            const isTournamentHost = Boolean(hostId && userId && hostId === userId)
+            setIsHost(isTournamentHost || (user?.canHost || false))
             setIsParticipant(currentTournament.participants?.some((p: any) => {
                 const participantId = extractId(p.userId || p)
                 return participantId === userId

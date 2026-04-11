@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import AlertDialogConfirm from "@/components/ui/alert-dialog-confirm"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -51,6 +52,7 @@ export default function AdminUserDetailsPage() {
     const [loading, setLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
     const [isDeactivated, setIsDeactivated] = useState(false)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
     useEffect(() => {
         // In real app: fetch user details
@@ -65,10 +67,13 @@ export default function AdminUserDetailsPage() {
     }
 
     const handleDelete = () => {
-        if (confirm("Are you sure you want to permanently delete this account?")) {
-            toast.success("Account deleted successfully")
-            router.push("/admin/users")
-        }
+        setDeleteConfirmOpen(true)
+    }
+
+    const handleConfirmDelete = () => {
+        toast.success("Account deleted successfully")
+        router.push("/admin/users")
+        setDeleteConfirmOpen(false)
     }
 
     if (loading) {
@@ -80,7 +85,8 @@ export default function AdminUserDetailsPage() {
     }
 
     return (
-        <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto min-h-screen">
+        <>
+            <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto min-h-screen">
 
             {/* BREADCRUMB */}
             <div className="flex items-center gap-2 text-gray-500 mb-6 font-medium text-sm md:text-base">
@@ -320,5 +326,16 @@ export default function AdminUserDetailsPage() {
                 </div>
             </div>
         </div>
+        
+        <AlertDialogConfirm
+            open={deleteConfirmOpen}
+            onOpenChange={setDeleteConfirmOpen}
+            title="Delete Account"
+            description="Are you sure you want to permanently delete this account?"
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            onConfirm={handleConfirmDelete}
+        />
+        </>
     )
 }

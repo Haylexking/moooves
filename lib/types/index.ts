@@ -20,6 +20,7 @@ export interface User {
   fullName: string
   emailVerified?: boolean
   role?: UserRole
+  status?: "active" | "inactive" | "banned"
   gamesPlayed?: number
   canHost?: boolean
   createdAt?: number
@@ -41,7 +42,7 @@ export interface LoginRequest {
 // ============================================================================
 // TOURNAMENT SYSTEM
 // ============================================================================
-export type TournamentStatus = "created" | "waiting" | "active" | "completed" | "cancelled"
+export type TournamentStatus = "created" | "waiting" | "active" | "completed" | "cancelled" | "pending"
 export type MatchStatus = "waiting" | "active" | "completed" | "forfeited"
 export type GameMode = "timed" | "full-grid" | "p2p" | "ai"
 
@@ -78,6 +79,24 @@ export interface Tournament {
   createdAt: number
   startedAt?: number
   completedAt?: number
+}
+
+export interface TournamentCreationResponseData {
+  message: string
+  paymentRequired?: boolean
+  paymentType?: string
+  amount?: number
+  tournamentId?: string
+  tournament?: Tournament
+  inviteLink?: string
+}
+
+export interface TournamentCreationResponse {
+  success: boolean
+  data?: TournamentCreationResponseData
+  error?: string
+  message?: string
+  timestamp: number
 }
 
 export interface TournamentParticipant {

@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import AlertDialogConfirm from "@/components/ui/alert-dialog-confirm"
 
 import { toast } from "sonner"
 
@@ -36,12 +37,20 @@ const TOURNAMENTS = Array.from({ length: 6 }).map((_, i) => ({
 export default function AdminTournamentsPage() {
     const [activeTab, setActiveTab] = useState<"ongoing" | "pending" | "completed">("ongoing")
     const [showFilters, setShowFilters] = useState(false)
+    const [declineConfirmOpen, setDeclineConfirmOpen] = useState(false)
+    const [tournamentToDecline, setTournamentToDecline] = useState<number | null>(null)
 
     const handleDecline = (id: number) => {
-        // In a real app, you might want a reason modal here
-        if (confirm("Are you sure you want to decline this tournament? This action cannot be undone.")) {
+        setTournamentToDecline(id)
+        setDeclineConfirmOpen(true)
+    }
+
+    const handleConfirmDecline = () => {
+        if (tournamentToDecline !== null) {
             toast.success("Tournament declined successfully")
             // refresh data
+            setTournamentToDecline(null)
+            setDeclineConfirmOpen(false)
         }
     }
 
@@ -256,6 +265,16 @@ export default function AdminTournamentsPage() {
                 </div>
 
             </div>
+        
+        <AlertDialogConfirm
+            open={declineConfirmOpen}
+            onOpenChange={setDeclineConfirmOpen}
+            title="Decline Tournament"
+            description="Are you sure you want to decline this tournament? This action cannot be undone."
+            confirmLabel="Decline"
+            cancelLabel="Cancel"
+            onConfirm={handleConfirmDecline}
+        />
 
         </div>
     )

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
+import type { TournamentCreationResponse } from "@/lib/types"
 
 interface CreateTournamentModalProps {
   open: boolean
@@ -25,7 +26,7 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
   const [entryFee, setEntryFee] = useState(500)
   const [maxPlayers, setMaxPlayers] = useState(50)
   const [startTimeLocal, setStartTimeLocal] = useState<string>(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
-  const { createTournament, isLoading } = useTournamentStore()
+  const [isCreating, setIsCreating] = useState(false)
   const { user } = useAuthStore()
   const router = useRouter()
   const { toast } = useToast()
@@ -34,11 +35,6 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // if (entryFee < 500) {
-    //   toast({ title: "Entry fee too low", description: "Minimum entry fee is NGN 500.", variant: "destructive" })
-    //   return
-    // }
 
     if (!user?.id) {
       toast({ title: "Error", description: "You must be logged in to create a tournament.", variant: "destructive" })
@@ -55,46 +51,73 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
 
       const startTimeISO = selected.toISOString()
       const payload = {
+        organizerId: user.id,
         name,
-        entryFee: tournamentType === "free" ? 0 : entryFee,
         maxPlayers,
+        ...(tournamentType === "paid" ? { entryFee } : {}),
+        tournamentType,
+        startTime: startTimeISO,
+      }
+      
+      setIsCreating(true)
+      
+      // Show progress toast
+      toast({ title: "Creating Tournament", description: "Setting up your tournament..." })
+      
+      const response = await apiClient.createTournament({
+        name,
         organizerId: user.id,
         startTime: startTimeISO,
-        type: tournamentType,
-      }
-      const tournament = await createTournament(payload)
+        maxPlayers,
+        entryFee: tournamentType === "paid" ? entryFee : undefined,
+        type: tournamentType
+      }) as TournamentCreationResponse
 
       if (tournamentType === "free") {
-        toast({ title: "Redirecting to Payment", description: "You will be redirected to pay the ₦15,000 Host fee." })
+        // Free tournament: Response 200 - Host payment required
+        if (response.data?.paymentRequired && response.data?.paymentType === "host") {
+          toast({ title: "Payment Required", description: "Redirecting to payment for host fee..." })
 
-        const paymentRes = await apiClient.initWalletTransaction({
-          amount: 15000,
-          method: "flutterwave",
-          email: user.email,
-          name: user.fullName || "Moooves Host",
-          userId: user.id,
-          tournamentId: tournament.id,
-          redirectUrl: `${window.location.origin}/tournaments/${tournament.id}?payment=success`,
-        })
+          const paymentRes = await apiClient.initWalletTransaction({
+            amount: response.data.amount || 15000,
+            method: "flutterwave",
+            email: user.email,
+            name: user.fullName || "Moooves Host",
+            userId: user.id,
+            tournamentId: response.data.tournamentId,
+            redirectUrl: `${window.location.origin}/host-payment-return`,
+          })
 
-        if (paymentRes.success && paymentRes.data?.payment_link) {
-          window.location.href = paymentRes.data.payment_link
-          return // Stop further execution, let redirect happen
+          if (paymentRes.success && paymentRes.data?.payment_link) {
+            window.location.href = paymentRes.data.payment_link
+            return // Stop further execution, let redirect happen
+          } else {
+            toast({ title: "Payment Failed", description: "Could not initialize payment. Please try again.", variant: "destructive" })
+          }
         } else {
-          toast({ title: "Payment Initialization Failed", description: "Could not redirect to gateway. Tournament is pending.", variant: "destructive" })
+          toast({ title: "Unexpected Response", description: "Tournament created but payment flow not initiated.", variant: "destructive" })
+        }
+      } else {
+        // Paid tournament: Response 201 - Created successfully
+        if (response.data?.tournament) {
+          toast({ title: "Tournament Created!", description: `${response.data.tournament.name} scheduled successfully. Players will pay NGN${entryFee} to join.` })
+          onClose()
+          setName("")
+          setEntryFee(500)
+          setMaxPlayers(50)
+          setStartTimeLocal(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
+          router.push(`/tournaments/${response.data.tournament.id}`)
+        } else {
+          toast({ title: "Tournament Created", description: "Tournament scheduled successfully!" })
+          onClose()
+          router.push("/host-dashboard")
         }
       }
-
-      toast({ title: "Tournament created", description: `${tournament.name} scheduled successfully.` })
-      onClose()
-      setName("")
-      setEntryFee(500)
-      setMaxPlayers(50)
-      setStartTimeLocal(toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)))
-      router.push(`/tournaments/${tournament.id}`)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred."
-      toast({ title: "Failed to create tournament", description: errorMessage, variant: "destructive" })
+    } catch (error: any) {
+      const errorMessage = error.message || "An unexpected error occurred."
+      toast({ title: "Failed to Create Tournament", description: errorMessage, variant: "destructive" })
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -218,9 +241,9 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading} className="flex-1">
-                {isLoading ? "Scheduling..." : "Create Tournament"}
-              </Button>
+              <Button type="submit" disabled={isCreating} className="flex-1">
+              {isCreating ? "Creating..." : "Create Tournament"}
+            </Button>
             </div>
           </form>
         </div>

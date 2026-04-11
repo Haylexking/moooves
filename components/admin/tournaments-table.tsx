@@ -24,6 +24,7 @@ import { apiClient } from "@/lib/api/client"
 import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
+import AlertDialogConfirm from "@/components/ui/alert-dialog-confirm"
 
 interface TournamentsTableProps {
     tournaments: Tournament[]
@@ -33,12 +34,19 @@ interface TournamentsTableProps {
 export function TournamentsTable({ tournaments, onUpdate }: TournamentsTableProps) {
     const { toast } = useToast()
     const [loading, setLoading] = useState<string | null>(null)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [tournamentToDelete, setTournamentToDelete] = useState<string | null>(null)
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this tournament? This action cannot be undone.")) return
-        setLoading(id)
+        setTournamentToDelete(id)
+        setDeleteConfirmOpen(true)
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!tournamentToDelete) return
+        setLoading(tournamentToDelete)
         try {
-            const res = await apiClient.deleteTournament(id)
+            const res = await apiClient.deleteTournament(tournamentToDelete)
             if (res.success) {
                 toast({ title: "Tournament deleted", variant: "default" })
                 onUpdate()
@@ -47,11 +55,14 @@ export function TournamentsTable({ tournaments, onUpdate }: TournamentsTableProp
             }
         } finally {
             setLoading(null)
+            setTournamentToDelete(null)
+            setDeleteConfirmOpen(false)
         }
     }
 
     return (
-        <div className="rounded-md border border-gray-800 bg-gray-900/50">
+        <>
+            <div className="rounded-md border border-gray-800 bg-gray-900/50">
             <Table>
                 <TableHeader>
                     <TableRow className="border-gray-800 hover:bg-transparent">
@@ -135,5 +146,15 @@ export function TournamentsTable({ tournaments, onUpdate }: TournamentsTableProp
                 </TableBody>
             </Table>
         </div>
+        <AlertDialogConfirm
+            open={deleteConfirmOpen}
+            onOpenChange={setDeleteConfirmOpen}
+            title="Delete Tournament"
+            description="Are you sure you want to delete this tournament? This action cannot be undone."
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            onConfirm={handleConfirmDelete}
+        />
+        </>
     )
 }

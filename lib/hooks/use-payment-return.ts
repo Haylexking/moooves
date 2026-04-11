@@ -97,7 +97,6 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
         try {
             // 2. Verify Payment
-            console.log(`[PaymentReturn] Verifying tx: ${txId}`)
             const verifyRes = await apiClient.verifyWalletTransaction({ transactionId: txId })
 
             if (!verifyRes.success) {
@@ -106,14 +105,12 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
             // 3. Join Tournament
             setState(prev => ({ ...prev, status: "joining" }))
-            console.log(`[PaymentReturn] Joining tournament: ${tournamentId}`)
 
             const joinRes = await apiClient.joinTournamentWithCode(inviteCode, user.id)
 
             if (!joinRes.success) {
                 // Special Case: Already joined?
                 if (joinRes.error?.toLowerCase().includes("already")) {
-                    console.log("[PaymentReturn] User already joined, proceeding as success.")
                 } else {
                     throw new Error(joinRes.error || "Payment received, but failed to join tournament.")
                 }
@@ -139,7 +136,6 @@ export function usePaymentReturn(): UsePaymentReturnResult {
             }, 2000)
 
         } catch (err: any) {
-            console.error("[PaymentReturn] Error:", err)
             setState(prev => ({
                 ...prev,
                 status: "error",

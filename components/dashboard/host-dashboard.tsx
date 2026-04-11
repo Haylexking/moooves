@@ -7,15 +7,200 @@ import { useTournamentStore } from "@/lib/stores/tournament-store"
 import type { Tournament } from '@/lib/types'
 import { GameButton } from "@/components/ui/game-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trophy, Users, DollarSign, Calendar } from "lucide-react"
+import { Plus, Trophy, Users, DollarSign, Calendar, Trash2 } from "lucide-react"
 import { CreateTournamentModal } from "@/components/tournament/create-tournament-modal"
 import { apiClient } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+import AlertDialogConfirm from "@/components/ui/alert-dialog-confirm"
 
 export function HostDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [loadingTournamentId, setLoadingTournamentId] = useState<string | null>(null)
-  const { user, rehydrated } = useAuthStore()
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [batchDeleteConfirmOpen, setBatchDeleteConfirmOpen] = useState(false)
+  const [tournamentToDelete, setTournamentToDelete] = useState<Tournament | null>(null)
+  const [selectedTournaments, setSelectedTournaments] = useState<Set<string>>(new Set())
+  const [showBatchDelete, setShowBatchDelete] = useState(false)
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
+  const { user, rehydrated, isAuthenticated } = useAuthStore()
   const { userTournaments = [], loadUserTournaments } = useTournamentStore() as any
+  const { toast } = useToast()
+
+  // Helper function to extract tournament ID from different formats
+  const getTournamentId = (tournament: any): string => {
+    if (!tournament) return ''
+    return tournament.id || tournament._id || ''
+  }
+
+  const handleBatchDelete = async () => {
+    if (!user?.id || selectedTournaments.size === 0) return
+    
+    const selectedTournamentList = hostedTournaments.filter(t => selectedTournaments.has(getTournamentId(t)))
+    const tournamentsWithParticipants = selectedTournamentList.filter(t => (t.currentPlayers || 0) > 0)
+    
+    if (tournamentsWithParticipants.length > 0) {
+      toast({ 
+        title: "Cannot Delete", 
+        description: `${tournamentsWithParticipants.length} tournament(s) have participants and cannot be deleted.`,
+        variant: "destructive" 
+      })
+      return
+    }
+    
+    setBatchDeleteConfirmOpen(true)
+  }
+
+  const handleToggleSelection = (tournamentId: string) => {
+    const newSelection = new Set(selectedTournaments)
+    if (newSelection.has(tournamentId)) {
+      newSelection.delete(tournamentId)
+    } else {
+      newSelection.add(tournamentId)
+    }
+    setSelectedTournaments(newSelection)
+  }
+
+  const handleDeleteTournament = async (tournament: Tournament) => {
+    if (!user?.id) return
+    
+    const tournamentId = getTournamentId(tournament)
+    
+    if (!tournamentId) {
+      toast({ title: "Error", description: "Invalid tournament ID", variant: "destructive" })
+      return
+    }
+    
+    // Check if tournament has participants
+    if ((tournament.currentPlayers || 0) > 0) {
+      toast({ 
+        title: "Cannot Delete", 
+        description: "Tournaments with participants cannot be deleted.",
+        variant: "destructive" 
+      })
+      return
+    }
+    
+    setTournamentToDelete(tournament)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleActivateTournament = async (tournament: Tournament) => {
+    if (!user?.id) return
+    
+    setLoadingTournamentId(tournament.id)
+    try {
+      toast({ title: "Initializing Payment", description: "Redirecting to payment gateway..." })
+      
+      const paymentRes = await apiClient.initWalletTransaction({
+        amount: 15000,
+        method: "flutterwave",
+        email: user.email,
+        name: user.fullName || "Moooves Host",
+        userId: user.id,
+        tournamentId: tournament.id,
+        redirectUrl: `${window.location.origin}/host-payment-return`,
+      })
+
+      if (paymentRes.success && paymentRes.data?.payment_link) {
+        window.location.href = paymentRes.data.payment_link
+      } else {
+        toast({ title: "Payment Failed", description: "Could not initialize payment. Please try again.", variant: "destructive" })
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to initialize payment", variant: "destructive" })
+    } finally {
+      setLoadingTournamentId(null)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!tournamentToDelete || !user?.id) return
+    
+    const tournamentId = getTournamentId(tournamentToDelete)
+    
+    if (!tournamentId) {
+      toast({ title: "Error", description: "Invalid tournament ID", variant: "destructive" })
+      return
+    }
+    
+    setLoadingTournamentId(tournamentId)
+    try {
+      const response = await apiClient.deleteTournament(tournamentId)
+      
+      if (response.success) {
+        toast({ title: "Tournament Deleted", description: `"${tournamentToDelete.name}" has been deleted successfully.` })
+        // Refresh tournaments list
+        if (user?.id && typeof loadUserTournaments === 'function') {
+          loadUserTournaments(user.id).catch(() => void 0)
+        }
+      } else {
+        toast({ title: "Delete Failed", description: response.error || "Failed to delete tournament", variant: "destructive" })
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete tournament", variant: "destructive" })
+    } finally {
+      setLoadingTournamentId(null)
+      setTournamentToDelete(null)
+      setDeleteConfirmOpen(false)
+    }
+  }
+
+  const handleConfirmBatchDelete = async () => {
+    if (!user?.id || selectedTournaments.size === 0) return
+    
+    setLoadingTournamentId("batch")
+    try {
+      // Filter tournaments that can be deleted (no participants)
+      const deletableTournaments = hostedTournaments.filter(tournament => {
+        const tournamentId = getTournamentId(tournament)
+        return selectedTournaments.has(tournamentId) && (tournament.currentPlayers || 0) === 0
+      })
+      
+      if (deletableTournaments.length === 0) {
+        toast({ title: "No Tournaments to Delete", description: "None of the selected tournaments can be deleted (they all have participants).", variant: "destructive" })
+        return
+      }
+      
+      // Delete each tournament
+      const deletePromises = deletableTournaments.map(async (tournament) => {
+        const tournamentId = getTournamentId(tournament)
+        if (tournamentId) {
+          return apiClient.deleteTournament(tournamentId)
+        }
+        return Promise.resolve({ success: false })
+      })
+      
+      const results = await Promise.all(deletePromises)
+      const successCount = results.filter(r => r.success).length
+      
+      if (successCount > 0) {
+        toast({ title: "Batch Delete Complete", description: `${successCount} tournament(s) deleted successfully.` })
+        // Refresh tournaments list
+        if (user?.id && typeof loadUserTournaments === 'function') {
+          loadUserTournaments(user.id).catch(() => void 0)
+        }
+        setSelectedTournaments(new Set())
+      } else {
+        toast({ title: "Delete Failed", description: "Failed to delete any tournaments.", variant: "destructive" })
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete tournaments", variant: "destructive" })
+    } finally {
+      setLoadingTournamentId(null)
+      setBatchDeleteConfirmOpen(false)
+    }
+  }
+
+  const handleExit = () => {
+    setExitConfirmOpen(true)
+  }
+
+  const handleConfirmExit = () => {
+    // Clear localStorage
+    localStorage.clear()
+    // Redirect to host onboarding
+    window.location.href = '/onboarding/host'
+  }
 
   // Load tournaments on mount to ensure the list is up to date
   useEffect(() => {
@@ -26,6 +211,18 @@ export function HostDashboard() {
 
   if (!rehydrated) {
     return <div className="min-h-screen flex items-center justify-center text-white">Loading session...</div>
+  }
+
+  if (!user || !isAuthenticated) {
+    return <div className="min-h-screen flex items-center justify-center text-white">
+      <div className="text-center">
+        <h2 className="text-xl mb-4">Authentication Required</h2>
+        <p className="text-gray-300 mb-6">Please log in to access host dashboard</p>
+        <GameButton onClick={() => window.location.href = '/onboarding/host'} className="bg-green-600 text-white">
+          Go to Host Login
+        </GameButton>
+      </div>
+    </div>
   }
 
   // Store already filters tournaments for us
@@ -49,7 +246,7 @@ export function HostDashboard() {
             </p>
           </div>
           <div className="flex-shrink-0 w-full sm:w-auto flex gap-2">
-            <GameButton onClick={() => { /* Exit to home */ window.location.href = '/' }} className="w-full sm:w-auto bg-gray-200 text-gray-800">
+            <GameButton onClick={handleExit} className="w-full sm:w-auto bg-gray-200 text-gray-800">
               Exit
             </GameButton>
           </div>
@@ -123,8 +320,10 @@ export function HostDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {hostedTournaments.map((tournament: Tournament) => (
-                      <Card key={tournament.id} className="hover:shadow-md transition-shadow bg-white border-green-300">
+                    {hostedTournaments.map((tournament: Tournament) => {
+                      const tournamentId = getTournamentId(tournament)
+                      return (
+                      <Card key={tournamentId} className="hover:shadow-md transition-shadow bg-white border-green-300">
                         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
                           <div className="flex-1 w-full sm:w-auto">
                             <h3 className="text-base sm:text-lg font-semibold text-green-900">{tournament.name}</h3>
@@ -140,24 +339,57 @@ export function HostDashboard() {
 
                           <div className="flex-shrink-0 text-right flex flex-col items-end gap-2 w-full sm:w-auto">
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium capitalize ${tournament.status === "active"
-                                ? "bg-green-200 text-green-900"
-                                : tournament.status === "waiting"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                                }`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                                tournament.status === "active"
+                                  ? "bg-green-200 text-green-900"
+                                  : tournament.status === "waiting"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : tournament.status === "pending"
+                                      ? "bg-orange-100 text-orange-800"
+                                      : "bg-gray-100 text-gray-800"
+                              }`}
                             >
-                              {tournament.status}
+                              {tournament.status === "pending" ? "Pending Payment" : tournament.status}
                             </span>
-                            <Link href={`/tournaments/${tournament.id}`} className="w-full sm:w-auto">
-                              <GameButton className="w-full sm:w-auto text-sm py-2">
-                                View
-                              </GameButton>
-                            </Link>
+                            
+                            {tournament.status === "pending" ? (
+                              <div className="flex gap-2 w-full sm:w-auto">
+                                <GameButton 
+                                  onClick={() => handleActivateTournament(tournament)}
+                                  disabled={loadingTournamentId === tournamentId}
+                                  className="w-full sm:w-auto text-sm py-2 bg-orange-600 hover:bg-orange-700"
+                                >
+                                  {loadingTournamentId === tournamentId ? "Processing..." : "Activate (NGN 15,000)"}
+                                </GameButton>
+                                <Link href={`/tournaments/${tournamentId}`} className="w-full sm:w-auto">
+                                  <GameButton className="w-full sm:w-auto text-sm py-2 bg-gray-200 text-gray-800 hover:bg-gray-300">
+                                    View
+                                  </GameButton>
+                                </Link>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 w-full sm:w-auto">
+                                {(tournament.currentPlayers || 0) === 0 && (
+                                  <GameButton 
+                                    onClick={() => handleDeleteTournament(tournament)}
+                                    disabled={loadingTournamentId === tournamentId}
+                                    className="w-full sm:w-auto text-sm py-2 bg-red-600 hover:bg-red-700 text-white"
+                                  >
+                                    {loadingTournamentId === tournamentId ? "Deleting..." : "Delete"}
+                                  </GameButton>
+                                )}
+                                <Link href={`/tournaments/${tournamentId}`} className="w-full sm:w-auto">
+                                  <GameButton className="w-full sm:w-auto text-sm py-2">
+                                    View
+                                  </GameButton>
+                                </Link>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -188,6 +420,39 @@ export function HostDashboard() {
         </div>
       </div>
       <CreateTournamentModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
+      
+      {/* Single Tournament Delete Confirmation */}
+      <AlertDialogConfirm
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Tournament"
+        description={`Are you sure you want to delete "${tournamentToDelete?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+      />
+      
+      {/* Batch Delete Confirmation */}
+      <AlertDialogConfirm
+        open={batchDeleteConfirmOpen}
+        onOpenChange={setBatchDeleteConfirmOpen}
+        title="Delete Multiple Tournaments"
+        description={`Are you sure you want to delete ${selectedTournaments.size} tournament(s)? This action cannot be undone.`}
+        confirmLabel="Delete All"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmBatchDelete}
+      />
+      
+      {/* Exit Confirmation */}
+      <AlertDialogConfirm
+        open={exitConfirmOpen}
+        onOpenChange={setExitConfirmOpen}
+        title="Exit Host Dashboard"
+        description="Are you sure you want to exit? This will clear your session and take you back to the host login page."
+        confirmLabel="Exit"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmExit}
+      />
     </div>
   )
 }
