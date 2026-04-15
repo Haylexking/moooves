@@ -42,6 +42,7 @@ export const API_CONFIG = {
       CREATE: "/tournaments", // POST /api/v1/tournaments
       JOIN: "/tournaments/join/:inviteCode", // POST /api/v1/tournaments/join/{inviteCode}
       USER_TOURNAMENTS: "/users/:id/tournaments", // GET /api/v1/users/:id/tournaments
+      DELETE: "/tournaments/:id", // DELETE /api/v1/tournaments/:id
     },
 
     // Games endpoints (from Swagger)

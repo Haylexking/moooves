@@ -25,8 +25,16 @@ import { GlobalSidebar } from "@/components/ui/global-sidebar"
 import { TopNavigation } from "@/components/ui/top-navigation"
 
 // Helper function to fetch actual username/fullname from backend
-const fetchUserDisplayName = async (userId: string): Promise<string> => {
+const fetchUserDisplayName = async (userObjOrId: any): Promise<string> => {
   try {
+    if (typeof userObjOrId === 'object' && userObjOrId !== null) {
+      if (userObjOrId.fullName || userObjOrId.username) {
+        return userObjOrId.fullName || userObjOrId.username || getUserDisplayName(userObjOrId);
+      }
+    }
+    const userId = typeof userObjOrId === 'string' ? userObjOrId : (userObjOrId?._id || userObjOrId?.id);
+    if (!userId) return "Unknown Player";
+    
     const userResponse = await apiClient.getUserById(userId)
     if (userResponse.success && userResponse.data) {
       const userData = userResponse.data
@@ -377,10 +385,13 @@ export function BattleGround({
       try {
         const data = JSON.parse(event.data)
         
-        if (data.type === 'MATCH_STATE') {
-          const gameStore = useGameStore.getState()
-          if (gameStore.applyServerMatchState) {
+        const gameStore = useGameStore.getState()
+        if (gameStore.applyServerMatchState) {
+          if (data.type === 'MATCH_STATE' && data.payload) {
             gameStore.applyServerMatchState(data.payload)
+          } else if (data.board || data.boardState || data.gameState || data.match || data.status) {
+            // Unwrapped match payload fallback
+            gameStore.applyServerMatchState(data)
           }
         }
       } catch (e) {
@@ -454,7 +465,7 @@ export function BattleGround({
       const serverMatch = matchRoom.matchState
 
       // Update local UI state based on server match state
-      if (serverMatch.status === 'completed') {
+      if (serverMatch.status === 'completed' || serverMatch.status === 'forfeited' || serverMatch.status === 'abandoned' || serverMatch.status === 'ended') {
         const winnerVal = serverMatch.winner
 
         // Robust draw check: Only if explicit "draw" is returned.
@@ -688,7 +699,12 @@ export function BattleGround({
     if (isOnlineMode && matchId && user?.id) {
       toast({ title: "Resigning...", description: "Submitting result." })
       // Try to find opponent ID to declare them winner
-      const opponentId = matchRoom.participants.find(p => p !== user.id)
+      const opponent = matchRoom.participants.find((p: any) => {
+        const id = typeof p === 'string' ? p : (p._id || p.id)
+        return id !== user.id
+      })
+      const opponentId = typeof opponent === 'string' ? opponent : ((opponent as any)?._id || (opponent as any)?.id)
+      
       if (opponentId) {
         await apiClient.submitMatchResult(matchId, opponentId)
       } else {
@@ -758,32 +774,25 @@ export function BattleGround({
       } else if (m.player2Heading) {
         p2Display = m.player2Heading
       } else if (m.player2 && typeof m.player2 === 'string') {
-        // If player2 is just an ID string, we need to fetch user data
         if (currentUser?.id === m.player2) {
           p2Display = currentUser?.fullName || (currentUser ? getUserDisplayName(currentUser) : "You") || "You"
         } else {
-          p2Display = "Player 2" // Will be updated when user data is fetched
+          p2Display = "Player 2"
         }
       }
 
       // 2. Fetch via IDs if names are still generic or IDs are present
-      if (matchRoom.participants && matchRoom.participants.length > 0) {
-        const p1Id = matchRoom.participants[0]
-        const p2Id = matchRoom.participants[1]
+      const p1Id = (matchRoom.participants && matchRoom.participants[0]) || (typeof m.player1 === 'string' ? m.player1 : m.player1?._id || m.player1?.id)
+      const p2Id = (matchRoom.participants && matchRoom.participants[1]) || (typeof m.player2 === 'string' ? m.player2 : m.player2?._id || m.player2?.id)
 
-        // Resolve P1 (Always X)
-        if (p1Display === "Player 1" && p1Id) {
-          p1Display = await fetchUserDisplayName(p1Id)
-        }
+      // Resolve P1
+      if (p1Display === "Player 1" && p1Id) {
+         p1Display = await fetchUserDisplayName(p1Id)
+      }
 
-        // Resolve P2 (Always O)
-        if (p2Id) {
-          if (currentUser && p2Id === currentUser.id) {
-            p2Display = currentUser?.fullName || getUserDisplayName(currentUser) || "You"
-          } else if (p2Display === "Player 2" && gameMode !== "ai") {
-            p2Display = await fetchUserDisplayName(p2Id)
-          }
-        }
+      // Resolve P2
+      if (p2Display === "Player 2" && p2Id && gameMode !== "ai") {
+         p2Display = await fetchUserDisplayName(p2Id)
       }
 
       setP1Name(p1Display)

@@ -149,44 +149,17 @@ export function calculateGameStateFromBoard(board: GameBoard): {
   const processSequence = (player: Player, sequence: Position[]) => {
     if (sequence.length < 5) return;
 
-    // Only take the first 5 for the scoring unit (as per checkWinConditions logic)
-    // In a full scan, we might find 6-long sequences. 
-    // The rule says "For sequences of 5 or more... Only check the first valid 5-in-a-row"
-    // Ideally we iterate through all 5-blocks in the sequence?
-    // The original logic only checked the sequence *containing the last move*.
-    // Here we scan the whole board. Let's simplify: 
-    // A 5-in-a-row is valid if none of its positions are used.
-
-    // We treat the sequence as a contiguous line. 
-    // If we have X X X X X X (6), is it 1 point or 2? 
-    // Usually in 5-in-row games, it's 1 point (or sometimes 0 for overline). 
-    // Assuming 5+ counts as 1 point per distinct non-overlapping set? 
-    // The current checkWinConditions logic:
-    // "Check if any position in this block is already used" -> "if (hasUsed) continue"
-    // It implies minimal overlap.
-
-    // Greedy approach: Take the first 5, mark used. 
-    // If length > 5, check next 5? 
-    // checkWinConditions implementation only checks `sequence.slice(0, 5)`. 
-    // So distinct 5-blocks.
-
-    // Iterate through all possible 5-sub-segments
-    for (let i = 0; i <= sequence.length - 5; i++) {
-      const block = sequence.slice(i, i + 5);
-      const blockKey = canonicalSeqKey(block);
-
-      // Check usage
-      const hasUsed = block.some(([r, c]) => usedPositions.has(`${r},${c}`));
-      if (!hasUsed && !awardedKeys.has(blockKey)) {
-        // Valid score
-        scores[player]++;
-        usedSequences.push(canonicalSeqFromKey(blockKey));
-        awardedKeys.add(blockKey);
-        block.forEach(([r, c]) => usedPositions.add(`${r},${c}`));
-
-        // Once a block consumes these positions, they can't be used again
-        // So we jump index? The loop continues but `hasUsed` will be true for overlapping.
-      }
+    // Simple 5-in-a-row = 1 point scoring
+    // Check if any position in this block is already used
+    const block = sequence.slice(0, 5);
+    const blockKey = canonicalSeqKey(block);
+    const hasUsed = block.some(([r, c]) => usedPositions.has(`${r},${c}`));
+    if (!hasUsed && !awardedKeys.has(blockKey)) {
+      // Valid score: 5-in-a-row = 1 point
+      scores[player]++;
+      usedSequences.push(canonicalSeqFromKey(blockKey));
+      awardedKeys.add(blockKey);
+      block.forEach(([r, c]) => usedPositions.add(`${r},${c}`));
     }
   };
 

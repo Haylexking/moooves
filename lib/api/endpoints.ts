@@ -41,6 +41,7 @@ export const tournamentEndpoints = {
   join: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.JOIN, { id }),
   userTournaments: (userId: string) =>
     buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.USER_TOURNAMENTS, { id: userId }),
+  delete: (id: string) => buildEndpoint(API_CONFIG.ENDPOINTS.TOURNAMENTS.DELETE, { id }),
 }
 
 // 🔹 Game endpoints

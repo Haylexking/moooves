@@ -84,6 +84,7 @@ Moooves is a comprehensive gaming platform that enables users to create, join, a
   - Tournament oversight
   - Payment distribution
   - Platform analytics
+  - **Google Sheets Integration**: Automatically exports activity logs, login events, and user onboarding data to Google Sheets via Google Apps Script for easy offline analysis.
 
 ### Technical Features
 

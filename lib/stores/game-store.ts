@@ -144,11 +144,14 @@ export const useGameStore = create<GameStore>()(
       },
 
       // Apply a server-provided match state to local store (used in serverAuthoritative mode)
-      applyServerMatchState: (match: any) => {
+      applyServerMatchState: (payload: any) => {
         try {
-          if (!match) return
+          if (!payload) return
 
-          console.log("[GameStore] Applying server match state:", match)
+          // Unwrap match if nested (e.g., from polling getMatch which might return { match: ... })
+          const match = payload.match || payload.data || payload
+
+          // console.log("[GameStore] Applying server match state:", match)
 
           // Store the match data for role assignment
           set({ lastServerMatchState: match })
@@ -166,14 +169,14 @@ export const useGameStore = create<GameStore>()(
           const currentMoves = get().moveHistory.length
           const serverMoves = data.moves?.length ?? data.movesMade ?? null
 
-          console.log("[GameStore] Syncing attempt - Local Moves:", currentMoves, "Server Moves:", serverMoves)
+          // console.log("[GameStore] Syncing attempt - Local Moves:", currentMoves, "Server Moves:", serverMoves)
 
           // Loosened sync guard: Only skip if the server explicitly says 0 moves AND the board is truly empty, 
           // while we have multiple moves locally. This prevents flickering but allows recovery.
           const boardHasMoves = board?.some((row: any[]) => row.some(c => c !== null && c !== ""));
           
           if (typeof serverMoves === 'number' && serverMoves === 0 && currentMoves > 0 && !boardHasMoves) {
-            console.log("[GameStore] Skipping sync: Server reports 0 moves and board is empty (initial state).")
+            // console.log("[GameStore] Skipping sync: Server reports 0 moves and board is empty (initial state).")
             return
           }
 
@@ -181,9 +184,9 @@ export const useGameStore = create<GameStore>()(
           // because the server's board state is authoritative.
 
           // Proceed to apply state...
-          console.log("[GameStore] Applying sync. Data contains board:", !!board)
-          console.log("[GameStore] Syncing State. Moves:", serverMoves)
-          console.log("[GameStore] Server Scores:", data.scores)
+          // console.log("[GameStore] Applying sync. Data contains board:", !!board)
+          // console.log("[GameStore] Syncing State. Moves:", serverMoves)
+          // console.log("[GameStore] Server Scores:", data.scores)
 
 
           // Board - handle both "board" (from move API) and "boardState" (from polling)
@@ -194,7 +197,7 @@ export const useGameStore = create<GameStore>()(
               if (c === 'X') xCount++
               if (c === 'O') oCount++
             }))
-            console.log(`[GameStore] Board Update Found: X=${xCount}, O=${oCount}`)
+            // console.log(`[GameStore] Board Update Found: X=${xCount}, O=${oCount}`)
 
             // Normalize board: ensure empty strings are null
             const normalizedBoard = board.map((row: any[]) =>
@@ -204,7 +207,7 @@ export const useGameStore = create<GameStore>()(
 
             // The server does not track scores! We must calculate them locally from the board.
             const calculated = calculateGameStateFromBoard(normalizedBoard)
-            console.log("[GameStore] Calculated State:", calculated)
+            // console.log("[GameStore] Calculated State:", calculated)
             set({
               scores: calculated.scores,
               usedSequences: calculated.usedSequences,
@@ -237,14 +240,14 @@ export const useGameStore = create<GameStore>()(
             
             if (isHostTurn) {
               set({ currentPlayer: "X" })
-              console.log("[GameStore] Turn assigned: X (host)")
+              // console.log("[GameStore] Turn assigned: X (host)")
             } else if (isJoineeTurn) {
               set({ currentPlayer: "O" })
-              console.log("[GameStore] Turn assigned: O (joinee)")
+              // console.log("[GameStore] Turn assigned: O (joinee)")
             } else if (turnId === "X" || turnId === "O") {
               // Fallback if API actually sends "X"/"O"
               set({ currentPlayer: turnId })
-              console.log("[GameStore] Turn assigned: fallback", { turnId })
+              // console.log("[GameStore] Turn assigned: fallback", { turnId })
             }
           } else if (data.currentPlayer) {
             // Fallback for older API format
@@ -272,6 +275,7 @@ export const useGameStore = create<GameStore>()(
           if (match.status) {
             let status = match.status
             if (status === 'ongoing' || status === 'in_progress') status = 'playing'
+            if (status === 'forfeited' || status === 'abandoned' || status === 'ended') status = 'completed'
             // Guard: don't mark as 'completed' if no moves have been made locally and server has no winner
             // (prevents stale match state from triggering premature draw on new games)
             const hasWinner = !winnerIsEmpty && match.winner && match.winner !== 'null' && match.winner !== 'undefined'

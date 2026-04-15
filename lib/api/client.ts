@@ -71,20 +71,7 @@ class ApiClient {
         // Log the exact request being made
         const requestUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}${url}`
         const actualUrl = url.startsWith('http') ? url : requestUrl
-        console.log("[ApiClient] HTTP Request:", {
-          attempt: attempt + 1,
-          originalUrl: url,
-          fullUrl: actualUrl,
-          baseUrl: API_CONFIG.BASE_URL,
-          version: API_CONFIG.VERSION,
-          method: options.method || 'GET',
-          headers: {
-            ...headers,
-            'Authorization': headers['Authorization'] ? '[REDACTED]' : 'None'
-          },
-          body: options.body || 'None',
-          contentType: headers['Content-Type']
-        })
+        // console.log("[ApiClient] HTTP Request:", ...)
         
         const response = await fetch(url, {
           ...options,
@@ -131,20 +118,11 @@ class ApiClient {
         }
 
         // Log the raw response details
-        console.log("[ApiClient] HTTP Response:", {
-          attempt: attempt + 1,
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          headers: {
-            contentType: contentType,
-            ...(response.headers as any)?.['content-length'] && { contentLength: (response.headers as any)['content-length'] }
-          }
-        })
+        // console.log("[ApiClient] HTTP Response:", ...)
 
         if (!response.ok) {
           const msg = parsed?.message || parsed?.error || parsed?.raw || `HTTP ${response.status}`
-          console.log("[ApiClient] HTTP Error Response:", {
+          console.error("[ApiClient] HTTP Error Response:", {
             status: response.status,
             message: msg,
             parsed: parsed
@@ -571,33 +549,14 @@ class ApiClient {
     const payload = { playerId, row, col, symbol }
     
     // Validate token before making request
-    console.log("[ApiClient] makeGameMove - Authentication check:", {
-      hasToken: !!this.token,
-      tokenLength: this.token?.length || 0,
-      tokenPrefix: this.token?.substring(0, 20) + '...' || 'None',
-      playerId,
-      matchId
-    })
-    
-    console.log("[ApiClient] makeGameMove - Full request details:", {
-      url: `/matches/${matchId}/move`,
-      method: "POST",
-      payload,
-      fullUrl: `${API_CONFIG.BASE_URL}${API_CONFIG.VERSION}/matches/${matchId}/move`
-    })
+    // Authentication check and request details logging removed for production
     
     const response = await this.request(`/matches/${matchId}/move`, {
       method: "POST",
       body: JSON.stringify(payload),
     })
     
-    console.log("[ApiClient] makeGameMove - Full response:", {
-      success: response.success,
-      status: response.status,
-      error: response.error,
-      data: response.data,
-      message: response.message
-    })
+    // Full response logging removed for production
     
     return response
   }
@@ -742,6 +701,8 @@ class ApiClient {
     return res
   }
 
+
+
   // Host-specific tournament access for pending tournaments
   async getHostTournament(id: string): Promise<ApiResponse<any>> {
     const res = await this.request(`/tournaments/${id}/host`)
@@ -865,14 +826,14 @@ class ApiClient {
   }
 
   async submitMatchResult(matchId: string, winnerId: string): Promise<ApiResponse<any>> {
-    return this.request(`/${matchId}/submit-result`, {
+    return this.request(`/matches/${matchId}/submit-result`, {
       method: "POST",
       body: JSON.stringify({ winnerId }),
     })
   }
 
   async submitOfflineMatchResult(matchId: string, winnerId: string, handshakeToken: string): Promise<ApiResponse<any>> {
-    return this.request(`/${matchId}/submit-resultoffline`, {
+    return this.request(`/matches/${matchId}/submit-resultoffline`, {
       method: "POST",
       body: JSON.stringify({ winnerId, handshakeToken }),
     })
