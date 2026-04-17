@@ -11,7 +11,7 @@ import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 import { getReturnPath, clearReturnPath } from "@/lib/utils/navigation"
 import { toast } from "sonner"
-import { logUserActivity } from "@/lib/utils/activity-logger"
+
 
 export default function PlayerOnboardingClient() {
   const [tab, setTab] = useState<"register" | "login">("register")
@@ -114,8 +114,9 @@ export default function PlayerOnboardingClient() {
     if (!validateForm()) return
     setLoading(true)
     try {
-      // Log the activity to your sheet
-      await logUserActivity(formData.email.trim(), "signup");
+      if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
+        (window as any).gtag('event', 'sign_up', { method: 'email' });
+      }
 
       await register(formData.username.trim(), formData.email.trim(), formData.password)
       const authAfter = getAuthSnapshot()
@@ -161,8 +162,9 @@ export default function PlayerOnboardingClient() {
     setLoginError("")
     setLoading(true)
     try {
-      // Log the activity to your sheet
-      await logUserActivity(loginData.email.trim(), "login");
+      if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
+        (window as any).gtag('event', 'login', { method: 'email' });
+      }
 
       await login(loginData.email.trim(), loginData.password)
       const authAfterLogin = getAuthSnapshot()
