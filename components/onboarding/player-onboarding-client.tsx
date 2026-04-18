@@ -11,6 +11,7 @@ import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 import { getReturnPath, clearReturnPath } from "@/lib/utils/navigation"
 import { toast } from "sonner"
+import { logUserActivity } from "@/lib/utils/activity-logger"
 
 
 export default function PlayerOnboardingClient() {
@@ -115,9 +116,9 @@ export default function PlayerOnboardingClient() {
     setLoading(true)
     try {
       if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
-        (window as any).gtag('event', 'sign_up', { method: 'email' });
+        (window as any).gtag('event', 'sign_up');
       }
-
+      logUserActivity(formData.email.trim(), 'signup');
       await register(formData.username.trim(), formData.email.trim(), formData.password)
       const authAfter = getAuthSnapshot()
       if (authAfter.user && authAfter.user.emailVerified === false) {
@@ -163,9 +164,9 @@ export default function PlayerOnboardingClient() {
     setLoading(true)
     try {
       if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
-        (window as any).gtag('event', 'login', { method: 'email' });
+        (window as any).gtag('event', 'login');
       }
-
+      logUserActivity(loginData.email.trim(), 'login');
       await login(loginData.email.trim(), loginData.password)
       const authAfterLogin = getAuthSnapshot()
       if (authAfterLogin.user && authAfterLogin.user.emailVerified === false) {

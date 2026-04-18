@@ -12,6 +12,7 @@ import { Alert } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api/client"
 import { getReturnPath, clearReturnPath } from "@/lib/utils/navigation"
+import { logUserActivity } from "@/lib/utils/activity-logger"
 
 
 export default function OnboardingClient({ mode = "player" }: { mode?: "player" | "host" }) {
@@ -162,8 +163,9 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     setLoading(true)
     try {
       if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
-        (window as any).gtag('event', 'sign_up', { method: 'email' });
+        (window as any).gtag('event', 'sign_up');
       }
+      logUserActivity(formData.email.trim(), 'signup');
       if (mode === "host") {
         await hostRegister(formData.username.trim(), formData.email.trim(), formData.password)
       } else {
@@ -214,8 +216,9 @@ export default function OnboardingClient({ mode = "player" }: { mode?: "player" 
     setLoading(true)
     try {
       if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
-        (window as any).gtag('event', 'login', { method: 'email' });
+        (window as any).gtag('event', 'login');
       }
+      logUserActivity(loginData.email.trim(), 'login');
       if (mode === "host") {
         await hostLogin(loginData.email.trim(), loginData.password)
       } else {
