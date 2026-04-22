@@ -210,9 +210,14 @@ export function HostDashboard() {
   }
 
   // Load tournaments on mount to ensure the list is up to date
+  // This also picks up status changes after returning from payment
   useEffect(() => {
     if (user?.id && typeof loadUserTournaments === 'function') {
       loadUserTournaments(user.id).catch(() => void 0)
+    }
+    // Also clean up any leftover host payment context
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pending_host_payment')
     }
   }, [user?.id, loadUserTournaments])
 
@@ -347,19 +352,25 @@ export function HostDashboard() {
                           <div className="flex-shrink-0 text-right flex flex-col items-end gap-2 w-full sm:w-auto">
                             <span
                               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium capitalize ${
-                                tournament.status === "active"
+                                tournament.status === "active" || tournament.status === "ongoing"
                                   ? "bg-green-200 text-green-900"
-                                  : tournament.status === "waiting"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : tournament.status === "pending"
-                                      ? "bg-orange-100 text-orange-800"
-                                      : "bg-gray-100 text-gray-800"
+                                  : tournament.status === "scheduled" || tournament.status === "created"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : tournament.status === "waiting"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : tournament.status === "pending"
+                                        ? "bg-orange-100 text-orange-800"
+                                        : "bg-gray-100 text-gray-800"
                               }`}
                             >
-                              {tournament.status === "pending" ? "Pending Payment" : tournament.status}
+                              {tournament.status === "pending" && !tournament.host_payment_status
+                                ? "Pending Payment"
+                                : tournament.status === "ongoing"
+                                  ? "Active"
+                                  : tournament.status}
                             </span>
                             
-                            {tournament.status === "pending" ? (
+                            {tournament.status === "pending" && !tournament.host_payment_status ? (
                               <div className="flex gap-2 w-full sm:w-auto">
                                 <GameButton 
                                   onClick={() => handleActivateTournament(tournament)}

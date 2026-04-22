@@ -138,9 +138,9 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
             const now = Date.now()
             const timeUntilStart = startTime - now
 
-            // Active or starting soon (< 10 mins) -> 10s
+            // Active/Ongoing or starting soon (< 10 mins) -> 10s
             // Also keep fast polling if it started recently
-            if (status === 'active' || (status === 'waiting' && timeUntilStart < 10 * 60 * 1000)) {
+            if (status === 'active' || status === 'ongoing' || (status === 'waiting' && timeUntilStart < 10 * 60 * 1000)) {
                 return 10000
             }
 
@@ -263,10 +263,10 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                 toast({ title: "Tournament Started!", description: "Good luck to all players." })
                 loadTournament(tournamentId)
             } else {
-                toast({ title: "Failed to start", description: res.error, variant: "destructive" })
+                toast({ title: "Failed to start", description: res.error || res.data?.message || "Unknown error", variant: "destructive" })
             }
-        } catch (err) {
-            toast({ title: "Error", description: "Something went wrong", variant: "destructive" })
+        } catch (err: any) {
+            toast({ title: "Error", description: err.message || "Something went wrong", variant: "destructive" })
         }
     }
 
@@ -326,14 +326,18 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
                             <div className="relative z-10 mt-14 sm:mt-10 max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-3 mb-4">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border flex items-center gap-2 ${currentTournament.status === 'active'
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border flex items-center gap-2 ${currentTournament.status === 'active' || currentTournament.status === 'ongoing'
                                         ? 'bg-green-500 text-black border-green-400 animate-pulse'
                                         : currentTournament.status === 'completed'
                                             ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
-                                            : 'bg-white/10 text-gray-300 border-white/20'
+                                            : currentTournament.status === 'scheduled'
+                                                ? 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+                                                : currentTournament.status === 'pending'
+                                                    ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+                                                    : 'bg-white/10 text-gray-300 border-white/20'
                                         }`}>
-                                        {currentTournament.status === 'active' && <span className="w-2 h-2 rounded-full bg-black animate-ping"></span>}
-                                        {currentTournament.status}
+                                        {(currentTournament.status === 'active' || currentTournament.status === 'ongoing') && <span className="w-2 h-2 rounded-full bg-black animate-ping"></span>}
+                                        {currentTournament.status === 'ongoing' ? 'active' : currentTournament.status}
                                     </span>
                                     <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
                                         {currentTournament.gameMode} Mode
@@ -494,7 +498,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                         {isHost && (
                             <div className="mb-6 p-1">
                                 <div className="flex gap-2 overflow-x-auto pb-2">
-                                    {(currentTournament.status !== "active" && currentTournament.status !== "completed" && currentTournament.status !== "cancelled") && (
+                                    {(currentTournament.status !== "active" && currentTournament.status !== "ongoing" && currentTournament.status !== "completed" && currentTournament.status !== "cancelled") && (
                                         <GameButton onClick={handleStartTournament} className="whitespace-nowrap px-4 py-2 text-sm shadow-lg shadow-green-900/20">
                                             <span className="flex items-center"><Play className="w-4 h-4 mr-2" /> Start Tournament</span>
                                         </GameButton>
@@ -555,7 +559,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                             {currentTournament.bracket?.rounds?.reduce((acc, r) => acc + r.matches.length, 0) || 0} Matches Total
                                         </span>
                                     </div>
-                                    {currentTournament.status === 'created' || currentTournament.status === 'waiting' ? (
+                                    {currentTournament.status === 'created' || currentTournament.status === 'waiting' || currentTournament.status === 'scheduled' || currentTournament.status === 'pending' ? (
                                         <TournamentWaitingRoom
                                             tournamentId={currentTournament.id}
                                             maxPlayers={currentTournament.maxPlayers || 16}

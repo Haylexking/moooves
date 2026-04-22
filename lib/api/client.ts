@@ -55,6 +55,13 @@ class ApiClient {
 
     if (this.token) {
       headers["Authorization"] = `Bearer ${this.token}`
+    } else if (typeof window !== "undefined") {
+      // Fallback: Check localStorage dynamically in case setToken wasn't called on this instance
+      const dynamicToken = localStorage.getItem("auth_token")
+      if (dynamicToken) {
+        this.token = dynamicToken
+        headers["Authorization"] = `Bearer ${dynamicToken}`
+      }
     }
 
     const attempts = API_CONFIG.RETRY.ATTEMPTS || 1
@@ -669,6 +676,8 @@ class ApiClient {
 
   private _normalizeTournament(t: any): any {
     if (!t) return t
+    // Map backend's tournamentType to frontend's type field
+    const type = t.type || (t.tournamentType === "free" ? "free" : t.tournamentType === "paid" ? "paid" : undefined)
     return {
       ...t,
       id: t.id || t._id,
@@ -676,6 +685,8 @@ class ApiClient {
       currentPlayers: t.currentPlayers || (t.participants ? t.participants.length : 0) || 0,
       participants: t.participants || [],
       inviteCode: t.inviteCode || t.invite_code,
+      type,
+      host_payment_status: t.host_payment_status ?? t.hostPaymentStatus,
     }
   }
 

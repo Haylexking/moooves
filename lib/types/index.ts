@@ -42,7 +42,7 @@ export interface LoginRequest {
 // ============================================================================
 // TOURNAMENT SYSTEM
 // ============================================================================
-export type TournamentStatus = "created" | "waiting" | "active" | "completed" | "cancelled" | "pending"
+export type TournamentStatus = "created" | "scheduled" | "waiting" | "active" | "ongoing" | "completed" | "cancelled" | "pending"
 export type MatchStatus = "waiting" | "active" | "completed" | "forfeited"
 export type GameMode = "timed" | "full-grid" | "p2p" | "ai"
 

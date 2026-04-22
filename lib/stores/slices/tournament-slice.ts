@@ -111,12 +111,7 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     try {
       const res = await apiClient.getAllTournaments()
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournaments')
-      const data = res.data || []
-      const d: any = data
-      const tournaments = (Array.isArray(d)
-        ? d
-        : (Array.isArray(d.data) ? d.data : d.tournaments || [])
-      ).map((t: any) => ({ ...t, id: t.id || t._id }))
+      const tournaments = Array.isArray(res.data) ? res.data : []
       set({ tournaments, isLoading: false })
     } catch (error) {
       set({ isLoading: false })
@@ -130,12 +125,8 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
     try {
       const res = await apiClient.getTournament(tournamentId)
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournament')
-      const data = res.data || {}
-      let td = data.tournament || data
-      if (td && td._id && !td.id) {
-        td.id = td._id
-      }
-      set({ currentTournament: td, isLoading: false })
+      const tournament = res.data || {}
+      set({ currentTournament: tournament, isLoading: false })
     } catch (error) {
       set({ isLoading: false })
       throw error
@@ -172,12 +163,7 @@ export const createTournamentSlice: StateCreator<TournamentSlice> = (set, get) =
       console.log("[loadUserTournaments] Raw Response:", res)
 
       if (!res.success) throw new Error(res.error || res.message || 'Failed to load tournaments')
-      const data = res.data || []
-      const d: any = data
-      const tournaments = (Array.isArray(d)
-        ? d
-        : (Array.isArray(d.data) ? d.data : d.tournaments || [])
-      ).map((t: any) => ({ ...t, id: t.id || t._id }))
+      const tournaments = Array.isArray(res.data) ? res.data : []
 
       // console.log("[loadUserTournaments] Extracted Tournaments (Count):", tournaments.length)
       // if (tournaments.length > 0) {

@@ -300,6 +300,29 @@ export default function PlayerOnboardingClient() {
             <GameButton data-testid="onboarding-login-submit" type="submit" className="mt-2" disabled={loading}>{loading ? "Logging in..." : "Login"}</GameButton>
           </form>
         )}
+
+        <div className="mt-6 flex flex-col items-center gap-1 text-[10px] text-[#002B03]/60 font-medium">
+          <p>By continuing, you agree to our</p>
+          <div className="flex gap-2">
+            <a 
+              href="https://docs.google.com/document/d/1aUDqvFlBiwtPLMP8XP2JPNEo1RTDaQLn5xiD-K2rw1A/edit?usp=drivesdk" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="underline hover:text-[#6AC56E] transition-colors"
+            >
+              Terms of Service
+            </a>
+            <span>&</span>
+            <a 
+              href="https://docs.google.com/document/d/1m1QImtcv6EEKx5kJjZxzD0jS0QNKZ7vDyMExFXka4-o/edit?usp=drivesdk" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="underline hover:text-[#6AC56E] transition-colors"
+            >
+              Privacy Policy
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   )
