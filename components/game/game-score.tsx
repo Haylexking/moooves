@@ -35,10 +35,10 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
       <div className="flex items-center justify-between gap-3 sm:gap-6">
         {/* Player 1 (X) Card */}
         <div className={cn(
-          "flex-1 relative flex items-center gap-3 p-3 sm:p-4 rounded-2xl border transition-all duration-300",
+          "flex-1 relative flex items-center gap-3 p-3 sm:p-4 rounded-2xl border transition-all duration-200",
           "bg-white/95 backdrop-blur-sm shadow-xl",
           currentPlayer === "X" && gameStatus === "playing"
-            ? "border-blue-500 ring-2 ring-blue-500/20 scale-[1.02]"
+            ? "border-blue-500 ring-2 ring-blue-500/20"
             : "border-white/20 opacity-90"
         )}>
           <div className="relative flex-none">
@@ -72,10 +72,10 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
 
         {/* Player 2 (O) Card */}
         <div className={cn(
-          "flex-1 relative flex items-center flex-row-reverse gap-3 p-3 sm:p-4 rounded-2xl border transition-all duration-300",
+          "flex-1 relative flex items-center flex-row-reverse gap-3 p-3 sm:p-4 rounded-2xl border transition-all duration-200",
           "bg-white/95 backdrop-blur-sm shadow-xl",
           currentPlayer === "O" && gameStatus === "playing"
-            ? "border-red-500 ring-2 ring-red-500/20 scale-[1.02]"
+            ? "border-red-500 ring-2 ring-red-500/20"
             : "border-white/20 opacity-90"
         )}>
           <div className="relative flex-none">

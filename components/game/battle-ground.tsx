@@ -1215,7 +1215,7 @@ export function BattleGround({
 
           {/* Debug / Fail-safe Force Start removed as per user request */}
 
-          <div className="relative bg-white rounded-xl shadow-2xl border-[1.5px] border-green-800 select-none w-full max-w-fit aspect-square">
+          <div className="relative bg-white rounded-xl shadow-2xl border-[1.5px] border-green-800 select-none w-full max-w-fit aspect-square overflow-hidden">
             <div
               className="grid gap-[1px] bg-gray-200"
               style={{
