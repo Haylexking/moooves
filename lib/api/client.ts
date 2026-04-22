@@ -902,9 +902,13 @@ class ApiClient {
     })
   }
 
-  async verifyWalletTransaction(payload: { transactionId: string }): Promise<ApiResponse<any>> {
+  async verifyWalletTransaction(payload: { transactionId: string; tournamentId?: string }): Promise<ApiResponse<any>> {
     // Swagger: GET /api/v1/verify?transaction_id=...
-    const qs = `?transaction_id=${encodeURIComponent(payload.transactionId)}`
+    // Also supports &tournament_id=... for activation linking
+    let qs = `?transaction_id=${encodeURIComponent(payload.transactionId)}`
+    if (payload.tournamentId) {
+      qs += `&tournament_id=${encodeURIComponent(payload.tournamentId)}`
+    }
     return this.request(`/verify${qs}`)
   }
 

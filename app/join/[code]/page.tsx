@@ -119,9 +119,16 @@ export default function JoinTournamentPage() {
       })
       router.push(`/tournaments/${tournament.id}`)
     } else {
+      let errorMsg = res.error || "Could not join tournament"
+      
+      // Handle the common backend crash message gracefully
+      if (errorMsg.includes("reading 'status'") || errorMsg.toLowerCase().includes("null")) {
+        errorMsg = "This tournament is not yet open for joining. Please wait for the host to activate it."
+      }
+
       toast({
         title: "Join Failed",
-        description: res.error || "Could not join tournament",
+        description: errorMsg,
         variant: "destructive"
       })
       setJoining(false)
@@ -210,13 +217,17 @@ export default function JoinTournamentPage() {
 
           <GameButton
             onClick={handleJoin}
-            disabled={joining}
+            disabled={joining || (tournament.status === "pending")}
             className="w-full py-4 text-lg h-auto whitespace-normal leading-tight min-h-[3.5rem]"
             variant="default"
           >
             {joining ? (
               <span className="flex items-center gap-2 justify-center">
                 <Loader2 className="w-5 h-5 animate-spin shrink-0" /> <span className="text-sm sm:text-lg">Processing...</span>
+              </span>
+            ) : tournament.status === "pending" ? (
+              <span className="text-sm sm:text-lg italic">
+                Awaiting Host Activation...
               </span>
             ) : (
               <span className="text-sm sm:text-lg">
@@ -225,6 +236,12 @@ export default function JoinTournamentPage() {
             )}
           </GameButton>
 
+          {tournament.status === "pending" && (
+            <p className="mt-3 text-[10px] text-center text-yellow-500/80 italic font-medium">
+              This tournament has been created but not yet sponsored/activated by the host. Please check back soon!
+            </p>
+          )}
+
           <button
             onClick={() => router.push('/dashboard')}
             className="w-full mt-4 text-gray-500 hover:text-gray-300 text-sm py-2 transition-colors"
@@ -232,13 +249,15 @@ export default function JoinTournamentPage() {
             Cancel
           </button>
 
-          <div className="pt-4 border-t border-gray-800 mt-4">
-            <p className="text-xs text-center text-gray-500">
-              Secure payment handling via Flutterwave.
-              <br />
-              You will be automatically registered after payment.
-            </p>
-          </div>
+          {tournament.entryFee > 0 && (
+            <div className="pt-4 border-t border-gray-800 mt-4">
+              <p className="text-xs text-center text-gray-500">
+                Secure payment handling via Flutterwave.
+                <br />
+                You will be automatically registered after payment.
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>

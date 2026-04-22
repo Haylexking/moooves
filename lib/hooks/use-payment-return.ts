@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useTournamentStore } from "@/lib/stores/tournament-store"
 import { apiClient } from "@/lib/api/client"
 
 export type PaymentStatus = "idle" | "verifying" | "joining" | "activating" | "success" | "error"
@@ -36,6 +37,7 @@ export function usePaymentReturn(): UsePaymentReturnResult {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { user, refreshUser, isLoading: isAuthLoading } = useAuthStore()
+    const { loadAllTournaments } = useTournamentStore()
 
     const [state, setState] = useState<PaymentReturnState>({
         status: "idle",
@@ -112,7 +114,11 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
         try {
             // ── 4. Verify payment with backend ───────────────────────
-            const verifyRes = await apiClient.verifyWalletTransaction({ transactionId: txId })
+            // Pass tournamentId to link host activation if applicable
+            const verifyRes = await apiClient.verifyWalletTransaction({ 
+                transactionId: txId, 
+                tournamentId: tournamentId || undefined 
+            })
             if (!verifyRes.success) {
                 throw new Error(verifyRes.error || "Payment verification failed.")
             }
@@ -149,7 +155,12 @@ export function usePaymentReturn(): UsePaymentReturnResult {
                 setState(prev => ({ ...prev, status: "activating" }))
 
                 localStorage.removeItem("pending_host_payment")
-                try { await refreshUser() } catch { }
+                try { 
+                    await refreshUser() 
+                    await loadAllTournaments()
+                } catch (e) {
+                    console.error("Post-verification refresh failed:", e)
+                }
 
                 setState({
                     status: "success",
