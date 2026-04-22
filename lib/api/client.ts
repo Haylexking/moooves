@@ -686,7 +686,7 @@ class ApiClient {
       participants: t.participants || [],
       inviteCode: t.inviteCode || t.invite_code,
       type,
-      host_payment_status: t.host_payment_status ?? t.hostPaymentStatus,
+      host_payment_status: t.host_payment_status === true || t.host_payment_status === "true" || t.hostPaymentStatus === true || t.hostPaymentStatus === "true",
     }
   }
 
@@ -714,13 +714,11 @@ class ApiClient {
 
 
 
-  // Host-specific tournament access for pending tournaments
+  // getHostTournament is deprecated as the /host endpoint does not exist.
+  // Standard getTournament should be used for all roles.
   async getHostTournament(id: string): Promise<ApiResponse<any>> {
-    const res = await this.request(`/tournaments/${id}/host`)
-    if (res.success) {
-      return { ...res, data: this._normalizeTournament(res.data) }
-    }
-    return res
+    console.warn("getHostTournament is deprecated. Using getTournament instead.")
+    return this.getTournament(id)
   }
 
   async findTournamentByInviteCode(inviteCode: string): Promise<ApiResponse<any>> {
@@ -787,6 +785,8 @@ class ApiClient {
   }
 
   async getTournamentWaitingRoom(tournamentId: string): Promise<ApiResponse<any>> {
+    // Backend versioning might be inconsistent for this endpoint.
+    // Standard version is /api/v1/tournaments/{id}/waiting-room
     return this.request(`/tournaments/${tournamentId}/waiting-room`)
   }
 

@@ -67,21 +67,8 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                     // Strategy 1: Try regular tournament access first
                     await loadTournament(tournamentId)
                 } catch (error: any) {
-                    // Strategy 2: Try host-specific endpoint for users who can host
-                    if ((error.message?.includes("Invalid role") || error.message?.includes("Access denied")) && user?.canHost) {
-                        try {
-                            const res = await apiClient.getHostTournament(tournamentId)
-                            if (res.success && res.data) {
-                                useTournamentStore.setState({ currentTournament: res.data, isLoading: false })
-                                setIsLoadingTournament(false)
-                                return
-                            }
-                        } catch (hostError) {
-                            // Continue to Strategy 3
-                        }
-                    }
-                    
-                    // Strategy 3: Try loading from user's tournament list
+                    // Strategy 2: Try fetching from user's tournament list if standard load fails
+                    // This is more reliable than non-existent endpoints for pending tournaments
                     if (user?.id && typeof loadUserTournaments === 'function') {
                         try {
                             await loadUserTournaments(user.id)
@@ -215,11 +202,18 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
     // Check if user is host or participant
     useEffect(() => {
         if (currentTournament && user) {
-            const hostId = extractId(currentTournament.hostId || (currentTournament as any).organizerId || (currentTournament as any).createdBy)
-            // Check if current user is the tournament host OR can host tournaments
+            const t = currentTournament as any
+            const hostId = extractId(
+                t.hostId || 
+                t.organizerId || 
+                t.createdBy || 
+                (t.organizer && extractId(t.organizer))
+            )
+            // Check if current user is the tournament host
             const userId = extractId(user)
             const isTournamentHost = Boolean(hostId && userId && hostId === userId)
-            setIsHost(isTournamentHost || (user?.canHost || false))
+            
+            setIsHost(isTournamentHost || user?.role === "host")
             setIsParticipant(currentTournament.participants?.some((p: any) => {
                 const participantId = extractId(p.userId || p)
                 return participantId === userId
