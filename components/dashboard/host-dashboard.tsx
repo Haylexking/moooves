@@ -91,6 +91,11 @@ export function HostDashboard() {
     try {
       toast({ title: "Initializing Payment", description: "Redirecting to payment gateway..." })
       
+      // Store host payment context so the unified payment-return page knows this is a host flow
+      localStorage.setItem("pending_host_payment", JSON.stringify({
+        tournamentId: tournament.id,
+      }))
+
       const paymentRes = await apiClient.initWalletTransaction({
         amount: 15000,
         method: "flutterwave",
@@ -98,15 +103,17 @@ export function HostDashboard() {
         name: user.fullName || "Moooves Host",
         userId: user.id,
         tournamentId: tournament.id,
-        redirectUrl: `${window.location.origin}/host-payment-return`,
+        redirectUrl: `${window.location.origin}/payment-return`,
       })
 
       if (paymentRes.success && paymentRes.data?.payment_link) {
         window.location.href = paymentRes.data.payment_link
       } else {
+        localStorage.removeItem("pending_host_payment")
         toast({ title: "Payment Failed", description: "Could not initialize payment. Please try again.", variant: "destructive" })
       }
     } catch (error: any) {
+      localStorage.removeItem("pending_host_payment")
       toast({ title: "Error", description: error.message || "Failed to initialize payment", variant: "destructive" })
     } finally {
       setLoadingTournamentId(null)

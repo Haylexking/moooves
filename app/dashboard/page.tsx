@@ -62,6 +62,16 @@ export default function DashboardPage() {
     return null
   }
 
+  // If the user is a host, show loading while we redirect to host-dashboard
+  // This prevents the player dashboard from flashing before the redirect fires
+  if (user?.role === "host") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-white">Redirecting to host dashboard...</div>
+      </div>
+    )
+  }
+
   const canCreateTournament = (userTournaments?.length || 0) >= 3
 
   const handleStartGame = () => {

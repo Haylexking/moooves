@@ -1,15 +1,36 @@
 "use client"
 
 import { usePaymentReturn } from "@/lib/hooks/use-payment-return"
+import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRouter } from "next/navigation"
 import { useState, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 
 function PaymentReturnContent() {
-  const { status, error, data, retry } = usePaymentReturn()
+  const { status, flow, error, data, retry } = usePaymentReturn()
+  const { user } = useAuthStore()
   const router = useRouter()
   const [manualId, setManualId] = useState("")
+
+  // Context-aware labels
+  const isHost = flow === "host"
+  const statusLabel =
+    status === "idle" ? "Initializing..." :
+    status === "verifying" ? "Verifying Payment..." :
+    status === "joining" ? "Joining Tournament..." :
+    status === "activating" ? "Activating Tournament..." :
+    ""
+
+  const successMessage = isHost
+    ? "Your tournament is now active! 🎉"
+    : "You're in 🎉"
+
+  const redirectLabel = isHost
+    ? "Redirecting to tournament..."
+    : "Redirecting to lobby..."
+
+  const dashboardPath = isHost ? "/host-dashboard" : "/dashboard"
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden font-sans text-white flex items-center justify-center p-4">
@@ -18,10 +39,8 @@ function PaymentReturnContent() {
 
       <div className="max-w-md w-full bg-gray-900/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-800 relative z-10 overflow-hidden">
 
-
-
-        {/* VERIFYING / JOINING / IDLE */}
-        {(status === "idle" || status === "verifying" || status === "joining") && (
+        {/* VERIFYING / JOINING / ACTIVATING / IDLE */}
+        {(status === "idle" || status === "verifying" || status === "joining" || status === "activating") && (
           <div className="p-12 text-center space-y-8">
             <div className="relative w-24 h-24 mx-auto">
               <div className="absolute inset-0 border-4 border-gray-800 rounded-full" />
@@ -29,12 +48,10 @@ function PaymentReturnContent() {
             </div>
             <div>
               <h2 className="text-2xl font-black uppercase">
-                {status === "idle" ? "Initializing..." :
-                  status === "verifying" ? "Verifying Payment..." :
-                    "Joining Tournament..."}
+                {statusLabel}
               </h2>
               <p className="text-gray-400 mt-2 text-sm">
-                Please don’t close this page.
+                Please don&apos;t close this page.
               </p>
             </div>
           </div>
@@ -51,9 +68,9 @@ function PaymentReturnContent() {
               <h2 className="text-3xl font-black uppercase italic">
                 Payment Successful
               </h2>
-              <p className="text-green-400 mt-2">You’re in 🎉</p>
+              <p className="text-green-400 mt-2">{successMessage}</p>
               <p className="text-gray-500 text-xs mt-1">
-                Redirecting to lobby...
+                {redirectLabel}
               </p>
             </div>
 
@@ -85,7 +102,7 @@ function PaymentReturnContent() {
 
               <Button
                 variant="ghost"
-                onClick={() => router.replace("/dashboard")}
+                onClick={() => router.replace(dashboardPath)}
                 className="w-full text-gray-400"
               >
                 Go to Dashboard

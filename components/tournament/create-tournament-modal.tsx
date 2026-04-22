@@ -78,6 +78,11 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
         if (response.data?.paymentRequired && response.data?.paymentType === "host") {
           toast({ title: "Payment Required", description: "Redirecting to payment for host fee..." })
 
+          // Store host payment context so the unified payment-return page knows this is a host flow
+          localStorage.setItem("pending_host_payment", JSON.stringify({
+            tournamentId: response.data.tournamentId,
+          }))
+
           const paymentRes = await apiClient.initWalletTransaction({
             amount: response.data.amount || 15000,
             method: "flutterwave",
@@ -85,13 +90,14 @@ export function CreateTournamentModal({ open, onClose }: CreateTournamentModalPr
             name: user.fullName || "Moooves Host",
             userId: user.id,
             tournamentId: response.data.tournamentId,
-            redirectUrl: `${window.location.origin}/host-payment-return`,
+            redirectUrl: `${window.location.origin}/payment-return`,
           })
 
           if (paymentRes.success && paymentRes.data?.payment_link) {
             window.location.href = paymentRes.data.payment_link
             return // Stop further execution, let redirect happen
           } else {
+            localStorage.removeItem("pending_host_payment")
             toast({ title: "Payment Failed", description: "Could not initialize payment. Please try again.", variant: "destructive" })
           }
         } else {

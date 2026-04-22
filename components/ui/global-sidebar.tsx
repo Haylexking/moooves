@@ -122,26 +122,26 @@ export function GlobalSidebar({ showTrigger = true }: GlobalSidebarProps) {
 
       {showExitModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative bg-green-100/95 border-4 border-green-600 rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl">
-            {/* Close button */}
+          <div className="relative bg-green-100/95 border-4 border-green-600 rounded-2xl p-6 sm:p-8 w-full max-w-sm shadow-2xl">
+            {/* Close button — positioned outside the content flow */}
             <button
               onClick={cancelExit}
-              className="absolute top-4 right-4 w-8 h-8 bg-green-800 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors"
+              className="absolute top-3 right-3 w-7 h-7 bg-green-800 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors z-10"
               aria-label="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            {/* Modal content */}
-            <div className="text-center space-y-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-green-900">Do you want to exit game?</h2>
+            {/* Modal content — top padding keeps heading clear of X button */}
+            <div className="text-center space-y-5 pt-4">
+              <h2 className="text-lg sm:text-xl font-bold text-green-900 px-4">Do you want to exit the game?</h2>
 
               {/* Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <GameButton onClick={confirmExit} className="flex-1">
-                  Yes, continue
+              <div className="flex flex-col gap-3">
+                <GameButton onClick={confirmExit} className="w-full">
+                  Yes, exit
                 </GameButton>
-                <GameButton onClick={cancelExit} variant="pressed" className="flex-1 bg-gray-500 hover:bg-gray-600">
+                <GameButton onClick={cancelExit} variant="pressed" className="w-full bg-gray-500 hover:bg-gray-600">
                   No, cancel
                 </GameButton>
               </div>

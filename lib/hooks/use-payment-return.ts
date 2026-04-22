@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiClient } from "@/lib/api/client"
-import type { Tournament } from "@/lib/types"
 
-export type PaymentStatus = "idle" | "verifying" | "joining" | "success" | "error"
+export type PaymentStatus = "idle" | "verifying" | "joining" | "activating" | "success" | "error"
+export type PaymentFlow = "player" | "host" | "unknown"
 
 interface PaymentReturnState {
     status: PaymentStatus
+    flow: PaymentFlow
     error: string | null
     data: {
         tournamentId: string
@@ -22,9 +23,14 @@ interface UsePaymentReturnResult extends PaymentReturnState {
 
 /**
  * usePaymentReturn Hook
- * 
- * Encapsulates the state machine for verify -> join -> redirect flow.
- * Decouples logic from UI to ensure robustness and testability.
+ *
+ * Unified payment verification for BOTH player entry-fee payments
+ * and host activation-fee payments.
+ *
+ * Flow detection:
+ *  - localStorage "pending_host_payment"   → Host flow  (verify → activate → redirect)
+ *  - localStorage "pending_tournament_join" → Player flow (verify → join → redirect)
+ *  - Neither present                       → Best-effort verify-only fallback
  */
 export function usePaymentReturn(): UsePaymentReturnResult {
     const router = useRouter()
@@ -33,113 +39,160 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
     const [state, setState] = useState<PaymentReturnState>({
         status: "idle",
+        flow: "unknown",
         error: null,
-        data: null
+        data: null,
     })
 
     const executeVerification = useCallback(async () => {
-        // 1. Validate Environment
-        // If we are here, we know auth is done loading.
-
-        // Case: Not Logged In
+        // ── 1. Auth gate ─────────────────────────────────────────────
         if (!user) {
             setState(prev => ({
                 ...prev,
                 status: "error",
-                error: "You must be logged in to complete verification. Please log in and try again."
+                error: "You must be logged in to complete verification. Please log in and try again.",
             }))
             return
         }
 
-        const pendingJoin = localStorage.getItem("pending_tournament_join")
-        // Retrieve txId from various potential query params
-        const txId = searchParams.get("transaction_id") ||
+        // ── 2. Transaction reference from URL ────────────────────────
+        const txId =
+            searchParams.get("transaction_id") ||
             searchParams.get("tx_ref") ||
             searchParams.get("reference")
 
-        // Case: Missing URL params (User navigated here manually without context)
         if (!txId) {
             setState(prev => ({
                 ...prev,
                 status: "error",
-                error: "No transaction reference found in URL."
+                error: "No transaction reference found in URL.",
             }))
             return
         }
 
-        // Case: Missing Local Storage Context
-        if (!pendingJoin) {
-            // Try to recover context if possible, or fail
-            setState(prev => ({
-                ...prev,
-                status: "error",
-                error: "Session expired. We lost track of which tournament you were joining."
-            }))
-            return
-        }
+        // ── 3. Detect flow from localStorage ─────────────────────────
+        const pendingHost = localStorage.getItem("pending_host_payment")
+        const pendingPlayer = localStorage.getItem("pending_tournament_join")
 
+        let flow: PaymentFlow = "unknown"
         let tournamentId = ""
         let inviteCode = ""
-        try {
-            const parsed = JSON.parse(pendingJoin)
-            tournamentId = parsed.tournamentId
-            inviteCode = parsed.inviteCode
-        } catch {
-            setState(prev => ({
-                ...prev,
-                status: "error",
-                error: "Invalid session data."
-            }))
-            return
+
+        if (pendingHost) {
+            flow = "host"
+            try {
+                const parsed = JSON.parse(pendingHost)
+                tournamentId = parsed.tournamentId || ""
+            } catch {
+                // Corrupted data — fall through to unknown flow
+                flow = "unknown"
+            }
+        } else if (pendingPlayer) {
+            flow = "player"
+            try {
+                const parsed = JSON.parse(pendingPlayer)
+                tournamentId = parsed.tournamentId || ""
+                inviteCode = parsed.inviteCode || ""
+            } catch {
+                setState(prev => ({
+                    ...prev,
+                    status: "error",
+                    error: "Invalid session data.",
+                }))
+                return
+            }
+        } else {
+            // No localStorage context — best-effort: check user role
+            flow = user?.role === "host" ? "host" : "unknown"
+            // Try to get tournamentId from URL
+            tournamentId = searchParams.get("tournamentId") || ""
         }
 
-        setState(prev => ({ ...prev, status: "verifying", error: null }))
+        setState(prev => ({ ...prev, flow, status: "verifying", error: null }))
 
         try {
-            // 2. Verify Payment
+            // ── 4. Verify payment with backend ───────────────────────
             const verifyRes = await apiClient.verifyWalletTransaction({ transactionId: txId })
-
             if (!verifyRes.success) {
-                throw new Error(verifyRes.error || "Payment verification failed with the provider.")
+                throw new Error(verifyRes.error || "Payment verification failed.")
             }
 
-            // 3. Join Tournament
-            setState(prev => ({ ...prev, status: "joining" }))
+            // ── 5. Flow-specific post-verification ───────────────────
+            if (flow === "player" && inviteCode) {
+                // Player flow: verify ✓ → join tournament → redirect to lobby
+                setState(prev => ({ ...prev, status: "joining" }))
 
-            const joinRes = await apiClient.joinTournamentWithCode(inviteCode, user.id)
-
-            if (!joinRes.success) {
-                // Special Case: Already joined?
-                if (joinRes.error?.toLowerCase().includes("already")) {
-                } else {
-                    throw new Error(joinRes.error || "Payment received, but failed to join tournament.")
+                const joinRes = await apiClient.joinTournamentWithCode(inviteCode, user.id)
+                if (!joinRes.success) {
+                    // Allow "already joined" as success
+                    if (!joinRes.error?.toLowerCase().includes("already")) {
+                        throw new Error(joinRes.error || "Payment received, but failed to join tournament.")
+                    }
                 }
+
+                localStorage.removeItem("pending_tournament_join")
+                try { await refreshUser() } catch { }
+
+                setState({
+                    status: "success",
+                    flow,
+                    error: null,
+                    data: { tournamentId, inviteCode, reference: txId },
+                })
+
+                setTimeout(() => {
+                    router.replace(`/tournaments/${tournamentId}?joined=true`)
+                }, 2000)
+
+            } else if (flow === "host") {
+                // Host flow: verify ✓ → tournament activated by backend → redirect
+                setState(prev => ({ ...prev, status: "activating" }))
+
+                localStorage.removeItem("pending_host_payment")
+                try { await refreshUser() } catch { }
+
+                setState({
+                    status: "success",
+                    flow,
+                    error: null,
+                    data: { tournamentId, inviteCode: "", reference: txId },
+                })
+
+                setTimeout(() => {
+                    if (tournamentId) {
+                        router.replace(`/tournaments/${tournamentId}`)
+                    } else {
+                        router.replace("/host-dashboard")
+                    }
+                }, 2000)
+
+            } else {
+                // Unknown flow — just show success and redirect to dashboard
+                setState({
+                    status: "success",
+                    flow,
+                    error: null,
+                    data: { tournamentId, inviteCode: "", reference: txId },
+                })
+
+                const urlTournamentId = searchParams.get("tournamentId")
+                const isHost = user?.role === "host"
+                setTimeout(() => {
+                    if (urlTournamentId) {
+                        router.replace(`/tournaments/${urlTournamentId}`)
+                    } else if (isHost) {
+                        router.replace("/host-dashboard")
+                    } else {
+                        router.replace("/dashboard")
+                    }
+                }, 2000)
             }
-
-            // 4. Cleanup & Success
-            localStorage.removeItem("pending_tournament_join")
-            try { await refreshUser() } catch { }
-
-            setState({
-                status: "success",
-                error: null,
-                data: {
-                    tournamentId,
-                    inviteCode,
-                    reference: txId
-                }
-            })
-
-            // 5. Automatic Redirect
-            setTimeout(() => {
-                router.replace(`/tournaments/${tournamentId}?joined=true`)
-            }, 2000)
 
         } catch (err: any) {
             setState(prev => ({
                 ...prev,
                 status: "error",
-                error: err.message || "An unexpected error occurred."
+                error: err.message || "An unexpected error occurred.",
             }))
         }
     }, [searchParams, user, refreshUser, router])
@@ -153,6 +206,6 @@ export function usePaymentReturn(): UsePaymentReturnResult {
 
     return {
         ...state,
-        retry: () => setState(prev => ({ ...prev, status: "idle", error: null }))
+        retry: () => setState({ status: "idle", flow: "unknown", error: null, data: null }),
     }
 }
