@@ -1050,13 +1050,13 @@ export function BattleGround({
   return (
     <div className="relative min-h-screen w-full pb-32">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      {/* <div className="absolute inset-0 z-0">
         <img
           src="/images/dashboard-background.png"
           alt="Background"
           className="w-full h-full object-cover object-center opacity-90"
         />
-      </div>
+      </div> */}
       <div className="relative z-10">
         <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
         {localMode && localMode !== 'ai' && (
@@ -1215,7 +1215,7 @@ export function BattleGround({
 
           {/* Debug / Fail-safe Force Start removed as per user request */}
 
-          <div className="relative bg-white rounded-xl shadow-2xl border-[1.5px] border-green-800 select-none w-full max-w-fit aspect-square overflow-hidden">
+          <div className="relative bg-white rounded-xl shadow-2xl border-[1.5px] border-green-800 select-none w-full max-w-fit aspect-square">
             <div
               className="grid gap-[1px] bg-gray-200"
               style={{

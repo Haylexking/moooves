@@ -20,7 +20,8 @@ export default function MatchGamePage() {
 
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-black">
+            {/* <div className="min-h-screen bg-black"> */}
+            <div className="min-h-screen bg-cover bg-center" style={{ backgroundImage: "url('/images/dashboard-background.png')" }}>
                 <GlobalSidebar showTrigger={false} />
                 <TopNavigation />
 
