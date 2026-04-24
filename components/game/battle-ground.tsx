@@ -1050,13 +1050,13 @@ export function BattleGround({
   return (
     <div className="relative min-h-screen w-full pb-32">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      {/* <div className="absolute inset-0 z-0">
         <img
           src="/images/dashboard-background.png"
           alt="Background"
           className="w-full h-full object-cover object-center opacity-90"
         />
-      </div>
+      </div> */}
       <div className="relative z-10">
         <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
         {localMode && localMode !== 'ai' && (
