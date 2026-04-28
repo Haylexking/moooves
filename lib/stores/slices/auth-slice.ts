@@ -23,6 +23,7 @@ export interface AuthSlice {
   setIsAuthenticated: (isAuthenticated: boolean) => void
   setRehydrated?: (v: boolean) => void
   refreshUser: () => Promise<void>
+  // resendOtp: (email: string) => Promise<void>
 }
 
 const parseApiError = (error: string): string => {
@@ -351,4 +352,19 @@ export const createAuthSlice: StateCreator<AuthSlice> = (set, get) => ({
       set({ isLoading: false })
     }
   },
+/*
+  resendOtp: async (email: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await apiClient.resendOtp(email)
+      if (response.success) {
+        set({ isLoading: false })
+      } else {
+        set({ error: response.error || response.message || 'Failed to resend OTP', isLoading: false })
+      }
+    } catch (error) {
+      set({ error: 'Network error occurred', isLoading: false })
+    }
+  },
+*/
 })

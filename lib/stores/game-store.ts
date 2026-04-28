@@ -165,9 +165,11 @@ export const useGameStore = create<GameStore>()(
           const board = data.board || data.boardState
           
           // Prevent overwriting local optimistic updates with stale server data
-          // Use moves array length as it's more reliable than movesMade (which server may return as 0)
+          // Use moves array length if possible, or movesMade, or the numeric moves field
           const currentMoves = get().moveHistory.length
-          const serverMoves = data.moves?.length ?? data.movesMade ?? null
+          const serverMoves = Array.isArray(data.moves) 
+            ? data.moves.length 
+            : (typeof data.moves === 'number' ? data.moves : (data.movesMade ?? null))
 
           // console.log("[GameStore] Syncing attempt - Local Moves:", currentMoves, "Server Moves:", serverMoves)
 

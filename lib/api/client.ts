@@ -468,15 +468,21 @@ class ApiClient {
       body: JSON.stringify({ roomId }),
     })
     
+    const responseData = response.data as any
+    const matchId = responseData?._id || responseData?.matchId || responseData?.id || responseData?.data?._id || responseData?.data?.matchId
+
     console.log("[ApiClient] create1v1Match - Response:", {
       success: response.success,
       status: response.status,
       error: response.error,
       data: response.data,
-      matchId: (response.data as any)?._id || (response.data as any)?.matchId || (response.data as any)?.id
+      matchId: matchId
     })
-    
-    return response
+
+    return {
+      ...response,
+      matchId: matchId
+    }
   }
 
   async submitMove(matchId: string, playerId: string, row: number, col: number, symbol: string): Promise<ApiResponse<any>> {
@@ -858,6 +864,16 @@ class ApiClient {
       body: JSON.stringify({ email, otp }),
     })
   }
+
+/*
+  async resendOtp(email: string): Promise<ApiResponse<any>> {
+    // Attempting to use a standard resend endpoint, or fallback to forgot if necessary
+    return this.request("/resend-otp", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+*/
 
   async getTournaments(): Promise<ApiResponse<any>> {
     return this.getAllTournaments()

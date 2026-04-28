@@ -20,7 +20,9 @@ import { HostAdminModal } from "@/components/tournament/host-admin-modal"
 import { TournamentWaitingRoom } from "@/components/tournament/tournament-waiting-room"
 import { toast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api/client"
+import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm"
 import Image from "next/image"
+import { Trash2, ShieldCheck } from "lucide-react"
 
 export default function TournamentPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -38,6 +40,9 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
 
     const [showRescheduleModal, setShowRescheduleModal] = useState(false)
     const [newStartTime, setNewStartTime] = useState<string>("")
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [isActivating, setIsActivating] = useState(false)
     const toLocalInputValue = (date: Date) => date.toISOString().slice(0, 16)
 
     const handleRescheduleSubmit = async (e: React.FormEvent) => {
@@ -261,6 +266,55 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
             }
         } catch (err: any) {
             toast({ title: "Error", description: err.message || "Something went wrong", variant: "destructive" })
+        }
+    }
+
+    const handleDeleteTournament = async () => {
+        if (!currentTournament) return
+        setIsDeleting(true)
+        try {
+            const res = await apiClient.deleteTournament(tournamentId)
+            if (res.success) {
+                toast({ title: "Deleted!", description: "Tournament has been removed." })
+                router.push(user?.role === 'host' ? '/host-dashboard' : '/dashboard')
+            } else {
+                toast({ title: "Error", description: res.error || "Failed to delete tournament", variant: "destructive" })
+            }
+        } catch (err: any) {
+            toast({ title: "Error", description: err.message || "Something went wrong", variant: "destructive" })
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleActivateTournament = async () => {
+        if (!currentTournament || !user) return
+        setIsActivating(true)
+        try {
+            const res = await apiClient.initWalletTransaction({
+                amount: 15000,
+                method: 'card',
+                email: user.email,
+                name: user.fullName || user.username,
+                userId: user.id,
+                tournamentId: tournamentId,
+                redirectUrl: `${window.location.origin}/payment-return`,
+                payment_options: "card,ussd,banktransfer"
+            })
+
+            if (res.success && res.data?.payment_link) {
+                localStorage.setItem("pending_host_payment", JSON.stringify({
+                    tournamentId: tournamentId
+                }))
+                toast({ title: "Redirecting...", description: "Taking you to Flutterwave for activation fee." })
+                window.location.href = res.data.payment_link
+            } else {
+                toast({ title: "Failed", description: res.error || "Could not initialize payment", variant: "destructive" })
+            }
+        } catch (err: any) {
+            toast({ title: "Error", description: err.message || "Activation failed", variant: "destructive" })
+        } finally {
+            setIsActivating(false)
         }
     }
 
@@ -506,6 +560,26 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                                     }} className="whitespace-nowrap px-4 py-2 text-sm bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700">
                                         <span className="flex items-center"><CalendarClock className="w-4 h-4 mr-2" /> Reschedule</span>
                                     </GameButton>
+                                    
+                                    {currentTournament.status === 'pending' && !(currentTournament as any).host_payment_status && (
+                                        <GameButton 
+                                            onClick={handleActivateTournament} 
+                                            disabled={isActivating}
+                                            className="whitespace-nowrap px-4 py-2 text-sm bg-green-600 text-white border-green-500 hover:bg-green-700 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+                                        >
+                                            <span className="flex items-center"><ShieldCheck className="w-4 h-4 mr-2" /> {isActivating ? 'Processing...' : 'Activate (₦15k)'}</span>
+                                        </GameButton>
+                                    )}
+
+                                    {currentTournament.currentPlayers === 0 && (
+                                        <GameButton 
+                                            onClick={() => setShowDeleteConfirm(true)} 
+                                            disabled={isDeleting}
+                                            className="whitespace-nowrap px-4 py-2 text-sm bg-red-600/20 text-red-400 border-red-500/30 hover:bg-red-600 hover:text-white"
+                                        >
+                                            <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {isDeleting ? 'Deleting...' : 'Delete'}</span>
+                                        </GameButton>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -731,6 +805,15 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                 </DialogContent>
             </Dialog>
 
+            <AlertDialogConfirm
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+                title="Delete Tournament"
+                description={`Are you sure you want to delete "${currentTournament.name}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                onConfirm={handleDeleteTournament}
+            />
         </ProtectedRoute>
     )
 }

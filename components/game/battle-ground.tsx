@@ -433,19 +433,55 @@ export function BattleGround({
       console.log("[BattleGround] Setting server authoritative, fetching match details")
       // Initial fetch - use getMatch for match details, not getRoomDetails
       const fetchMatchDetails = async () => {
+      if (isOnlineMode && matchId) {
         try {
-          const response = await apiClient.getMatch(matchId)
-          if (response.success && response.data) {
-            const gameStore = useGameStore.getState()
-            if (gameStore.applyServerMatchState) {
-              gameStore.applyServerMatchState(response.data)
+          // Try fetching both Room and Match details to ensure robust role detection
+          const [roomRes, matchRes] = await Promise.allSettled([
+            apiClient.getMatchRoom(matchId),
+            apiClient.getMatch(matchId)
+          ])
+
+          let participants: any[] = []
+          let serverMatchData: any = null
+
+          if (matchRes.status === 'fulfilled' && matchRes.value.success) {
+            serverMatchData = matchRes.value.data
+            // If match data exists, player1 and player2 are the source of truth for roles
+            if (serverMatchData?.player1 && serverMatchData?.player2) {
+              participants = [serverMatchData.player1, serverMatchData.player2]
             }
           }
-        } catch (err) {
-          console.error("[BattleGround] Failed to fetch match details:", err)
+
+          if (roomRes.status === 'fulfilled' && roomRes.value.success) {
+            const roomData = roomRes.value.data
+            if (!participants.length && roomData?.participants) {
+              participants = roomData.participants
+            }
+            setMatchRoom({
+              id: roomData?._id || matchId,
+              participants: participants,
+              status: roomData?.status || 'ongoing',
+              matchId: matchId
+            })
+          } else if (serverMatchData) {
+            // Fallback to match data if room call fails
+            setMatchRoom({
+              id: matchId,
+              participants: participants,
+              status: serverMatchData.status || 'ongoing',
+              matchId: matchId
+            })
+          }
+
+          if (serverMatchData) {
+            useGameStore.getState().applyServerMatchState(serverMatchData)
+          }
+        } catch (error) {
+          console.error("[BattleGround] Error loading initial match data:", error)
         }
       }
-      fetchMatchDetails()
+    }
+    fetchMatchDetails()
     } else {
       setServerAuthoritative(false)
       console.log("[BattleGround] Setting local mode, initializing game")
@@ -576,18 +612,35 @@ export function BattleGround({
             // Use getMatch for match details, not getRoomDetails
             const response = await apiClient.getMatch(matchId!)
             const serverMatch = response.data
+            
+            if (serverMatch) {
+              console.log("[BattleGround] Polled server state:", serverMatch)
+            }
 
             if (response.success && serverMatch) {
-              console.log("[BattleGround] Polling received server state:", { 
-                matchId, 
-                moves: serverMatch.moves?.length || 0, 
+              const serverState = {
+                moves: Array.isArray(serverMatch.moves) 
+                  ? serverMatch.moves.length 
+                  : (typeof serverMatch.moves === 'number' ? serverMatch.moves : 0),
                 board: serverMatch.board || serverMatch.boardState,
-                currentPlayer: serverMatch.currentPlayer,
+                currentPlayer: serverMatch.currentTurn || serverMatch.currentPlayer,
                 status: serverMatch.status 
-              })
+              }
+              console.log("[BattleGround] Polling received server state:", serverState)
+
               const store = useGameStore.getState()
               if (store.applyServerMatchState) {
                 store.applyServerMatchState(serverMatch)
+              }
+
+              // Check if game ended on server
+              if (serverState.status === 'completed' || serverState.status === 'finished') {
+                const winnerId = serverMatch.winner
+                if (winnerId) {
+                  const result = winnerId === user?.id ? 'win' : 'lose'
+                  setGameResult(result)
+                  setShowResultModal(true)
+                }
               }
             }
           } catch (e) {
@@ -951,12 +1004,27 @@ export function BattleGround({
         // Updated to match backend spec: pass symbol as 5th argument
         
         const res = await apiClient.makeGameMove(user?.id || "", row, col, matchId, currentPlayer)
-        clearTimeout(safetyTimeout)
-        
-        // Move submission response
+      
         if (!res.success) {
-          console.error("[BattleGround] Move submission failed:", res.error || "Unknown error")
+          setPendingMove(false)
+          
+          // CRITICAL: Explicit Rollback
+          // Re-apply the last known good server state to remove the optimistic move
+          const store = useGameStore.getState()
+          if (store.lastServerMatchState) {
+            console.log("[BattleGround] Rolling back move due to server rejection")
+            store.applyServerMatchState(store.lastServerMatchState)
+          }
+
+          toast({
+            title: "Move Rejected",
+            description: res.message || "The server rejected your move.",
+            variant: "destructive",
+          })
+          return
         }
+
+        clearTimeout(safetyTimeout)
         
         // Instant UI Feedback: Clear pending move on success to unlock board
         if (res.success) {

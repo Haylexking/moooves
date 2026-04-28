@@ -1,15 +1,45 @@
 "use client"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { GameButton } from "@/components/ui/game-button"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
+import { toast } from "@/hooks/use-toast"
 
 export default function VerifyEmailPage() {
   const { verifyAccountOtp, error, clearError, isLoading, user } = useAuthStore()
+  // const { resendOtp } = useAuthStore()
   const [email, setEmail] = useState<string>(user?.email || "")
   const [otp, setOtp] = useState<string>("")
   const [localError, setLocalError] = useState<string | null>(null)
+  const [timer, setTimer] = useState(0)
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [timer])
+
+/*
+  const handleResend = async () => {
+    if (timer > 0 || !email) return
+    setLocalError(null)
+    try {
+      await resendOtp(email.trim())
+      setTimer(60)
+      toast({
+        title: "Code sent!",
+        description: "A new verification code has been sent to your email.",
+      })
+    } catch (err: any) {
+      setLocalError(err?.message || "Failed to resend code")
+    }
+  }
+*/
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,6 +105,9 @@ export default function VerifyEmailPage() {
               </InputOTPGroup>
             </InputOTP>
           </div>
+          <p className="text-[#002B03]/70 text-[11px] text-center italic px-4 leading-relaxed">
+            Don&apos;t see the code? Check your <strong>spam folder</strong> and mark it as <strong>not spam</strong> to ensure future codes arrive in your inbox.
+          </p>
 
           {(localError || error) && (
             <div role="alert" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
@@ -88,6 +121,26 @@ export default function VerifyEmailPage() {
           <GameButton type="submit" className="mt-2" disabled={isLoading}>
             {isLoading ? "Verifying..." : "Verify Email"}
           </GameButton>
+
+{/* 
+          <div className="mt-4 text-center">
+            <p className="text-[#002B03] text-sm">
+              Didn&apos;t receive a code?{" "}
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={timer > 0 || isLoading}
+                className={`font-bold underline transition-colors ${
+                  timer > 0 || isLoading
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-[#002B03] hover:text-[#6AC56E]"
+                }`}
+              >
+                {timer > 0 ? `Resend in ${timer}s` : "Resend Code"}
+              </button>
+            </p>
+          </div>
+*/}
         </form>
       </div>
     </div>
