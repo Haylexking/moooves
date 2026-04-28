@@ -105,6 +105,8 @@ export function BattleGround({
   const [gameStarted, setGameStarted] = useState(false)
   const [fallbackPolling, setFallbackPolling] = useState(false)
   const [fallbackInterval, setFallbackInterval] = useState<NodeJS.Timeout | null>(null)
+  const [isWsConnected, setIsWsConnected] = useState(false)
+  const isPollingRef = useRef(false)
   
   // Only show the Start modal if we don't have a specific backend match ID
   // "tictactoe" is just a generic namespace, not a real match ID
@@ -120,16 +122,17 @@ export function BattleGround({
 
   // Fallback polling for when WebSocket fails
   const startFallbackPolling = useCallback(() => {
-    if (!matchId || fallbackPolling) return
-    
-        setFallbackPolling(true)
-    
+    if (!matchId || isPollingRef.current) return
+
+    isPollingRef.current = true
+    setFallbackPolling(true)
+
     // Clear any existing interval
     if (fallbackInterval) {
       clearInterval(fallbackInterval)
       setFallbackInterval(null)
     }
-    
+
     // Start polling every 2 seconds
     const interval = setInterval(async () => {
       try {
@@ -145,14 +148,15 @@ export function BattleGround({
         console.error("[BattleGround] Fallback polling error:", err)
       }
     }, 2000)
-    
+
     setFallbackInterval(interval)
-  }, [matchId, fallbackPolling, apiClient])
+  }, [matchId, fallbackInterval])
 
   // Stop fallback polling
   const stopFallbackPolling = useCallback(() => {
+    isPollingRef.current = false
     setFallbackPolling(false)
-    
+
     if (fallbackInterval) {
       clearInterval(fallbackInterval)
       setFallbackInterval(null)
@@ -376,7 +380,7 @@ export function BattleGround({
     socketRef.current = socket
 
     socket.onopen = () => {
-// ...
+      setIsWsConnected(true)
       // Stop fallback polling when WebSocket connects
       stopFallbackPolling()
     }
@@ -384,7 +388,7 @@ export function BattleGround({
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        
+
         const gameStore = useGameStore.getState()
         if (gameStore.applyServerMatchState) {
           if (data.type === 'MATCH_STATE' && data.payload) {
@@ -399,12 +403,14 @@ export function BattleGround({
     }
 
     socket.onerror = (error) => {
+      setIsWsConnected(false)
       // Start fallback polling if WebSocket fails
       startFallbackPolling()
     }
 
     socket.onclose = (event) => {
       socketRef.current = null
+      setIsWsConnected(false)
       // Start fallback polling if WebSocket closes
       startFallbackPolling()
     }
@@ -602,7 +608,7 @@ export function BattleGround({
 
   // Poll for match state updates
   useEffect(() => {
-    const shouldPoll = isOnlineMode && !!matchId && !socketRef.current
+    const shouldPoll = isOnlineMode && !!matchId && !isWsConnected
 
     if (shouldPoll) {
       const interval = setInterval(async () => {
@@ -658,7 +664,7 @@ export function BattleGround({
         clearInterval(interval)
       }
     }
-  }, [localMode, matchId, isOnlineMode, pendingMove])
+  }, [localMode, matchId, isOnlineMode, pendingMove, isWsConnected])
 
   useEffect(() => {
     if (gameStatus === "playing") {
@@ -1118,13 +1124,13 @@ export function BattleGround({
   return (
     <div className="relative min-h-screen w-full pb-32">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      {/* <div className="absolute inset-0 z-0">
         <img
           src="/images/dashboard-background.png"
           alt="Background"
           className="w-full h-full object-cover object-center opacity-90"
         />
-      </div>
+      </div> */}
       <div className="relative z-10">
         <GameStartAlert open={showGameStartAlert} onContinue={() => setShowGameStartAlert(false)} />
         {localMode && localMode !== 'ai' && (

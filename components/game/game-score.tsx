@@ -32,17 +32,99 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
 
   return (
     <div className="w-full max-w-3xl mx-auto px-2 sm:px-0">
-      <div className="flex items-center justify-between gap-3 sm:gap-6">
+
+      {/* ── MOBILE: single unified card ── */}
+      <div className={cn(
+        "block sm:hidden relative flex items-center rounded-2xl border-2 transition-all duration-200 overflow-hidden",
+        "bg-white/95 backdrop-blur-sm shadow-xl",
+        currentPlayer === "X" && gameStatus === "playing"
+          ? "border-blue-500 ring-2 ring-blue-500/30 shadow-blue-500/10"
+          : currentPlayer === "O" && gameStatus === "playing"
+          ? "border-red-500 ring-2 ring-red-500/30 shadow-red-500/10"
+          : "border-white/20"
+      )}>
+        {/* P1 left */}
+        <div className={cn(
+          "flex-1 flex items-center gap-2 p-3 transition-opacity duration-200",
+          currentPlayer !== "X" && gameStatus === "playing" ? "opacity-50" : "opacity-100"
+        )}>
+          <div className="relative flex-none">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-base shadow-lg ring-2 ring-white/50">
+              {getInitials(player1)}
+            </div>
+            <div className="absolute -bottom-1 -right-1 min-w-[1.1rem] h-4 bg-blue-100 rounded-full flex items-center justify-center border border-white px-0.5">
+              <span className="text-[9px] font-black text-blue-600">P1</span>
+            </div>
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-bold text-gray-500 tracking-wider truncate max-w-[72px]">
+              {player1}
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black text-blue-600 leading-none">{scoreX}</span>
+              {currentPlayer === "X" && gameStatus === "playing" && (
+                <span className="text-[9px] font-bold text-blue-500 animate-pulse">{getTurnText("X")}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* VS divider */}
+        <div className="flex-none flex flex-col items-center gap-0.5 px-1.5">
+          <div className="w-px h-7 bg-gray-200" />
+          <span className="text-[9px] font-black text-gray-300 tracking-widest">VS</span>
+          <div className="w-px h-7 bg-gray-200" />
+        </div>
+
+        {/* P2 right (mirrored) */}
+        <div className={cn(
+          "flex-1 flex items-center flex-row-reverse gap-2 p-3 transition-opacity duration-200",
+          currentPlayer !== "O" && gameStatus === "playing" ? "opacity-50" : "opacity-100"
+        )}>
+          <div className="relative flex-none">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-base shadow-lg ring-2 ring-white/50">
+              {gameMode === "player-vs-computer" ? "AI" : getInitials(player2)}
+            </div>
+            <div className="absolute -bottom-1 -left-1 min-w-[1.1rem] h-4 bg-red-100 rounded-full flex items-center justify-center border border-white px-0.5">
+              <span className="text-[9px] font-black text-red-600">P2</span>
+            </div>
+          </div>
+          <div className="flex flex-col items-end min-w-0">
+            <span className="text-[10px] font-bold text-gray-500 tracking-wider truncate max-w-[72px]">
+              {player2}
+            </span>
+            <div className="flex items-baseline gap-1 flex-row-reverse">
+              <span className="text-xl font-black text-red-600 leading-none">{scoreO}</span>
+              {currentPlayer === "O" && gameStatus === "playing" && (
+                <span className="text-[9px] font-bold text-red-500 animate-pulse">{getTurnText("O")}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Timer bars */}
+        {currentPlayer === "X" && gameStatus === "playing" && (
+          <div className="absolute bottom-0 left-0 h-1 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+            style={{ width: `${(turnTimeLeft / 8) * 50}%`, transition: 'width 1000ms linear' }} />
+        )}
+        {currentPlayer === "O" && gameStatus === "playing" && (
+          <div className="absolute bottom-0 right-0 h-1 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+            style={{ width: `${(turnTimeLeft / 8) * 50}%`, transition: 'width 1000ms linear' }} />
+        )}
+      </div>
+
+      {/* ── DESKTOP: original two-card layout (unchanged) ── */}
+      <div className="hidden sm:flex items-center justify-between gap-6">
         {/* Player 1 (X) Card */}
         <div className={cn(
-          "flex-1 relative flex items-center gap-3 p-3 sm:p-4 rounded-2xl border transition-all duration-300",
+          "flex-1 relative flex items-center gap-3 p-4 rounded-2xl border transition-all duration-200",
           "bg-white/95 backdrop-blur-sm shadow-xl",
           currentPlayer === "X" && gameStatus === "playing"
-            ? "border-blue-500 ring-2 ring-blue-500/20 scale-[1.02]"
+            ? "border-blue-500 ring-2 ring-blue-500/20"
             : "border-white/20 opacity-90"
         )}>
           <div className="relative flex-none">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg ring-2 ring-white/50">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-white/50">
               {getInitials(player1)}
             </div>
             <div className="absolute -bottom-1 -right-1 min-w-[1.25rem] h-5 bg-blue-100 rounded-full flex items-center justify-center border-2 border-white px-1">
@@ -50,36 +132,30 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
             </div>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-gray-500 tracking-wider truncate">
-              {player1}
-            </span>
+            <span className="text-sm font-bold text-gray-500 tracking-wider truncate">{player1}</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-blue-600 leading-none">
-                {scoreX}
-              </span>
+              <span className="text-3xl font-black text-blue-600 leading-none">{scoreX}</span>
               {currentPlayer === "X" && gameStatus === "playing" && (
-                <span className="text-[10px] sm:text-xs font-bold text-blue-500 animate-pulse">
-                  {getTurnText("X")}
-                </span>
+                <span className="text-xs font-bold text-blue-500 animate-pulse">{getTurnText("X")}</span>
               )}
             </div>
           </div>
-          {/* Turn Timer Progress Bar */}
           {currentPlayer === "X" && gameStatus === "playing" && (
-            <div className="absolute bottom-0 left-0 h-1 bg-blue-500 rounded-b-2xl overflow-hidden shadow-[0_0_8px_rgba(59,130,246,0.6)]" style={{ width: `\${(turnTimeLeft / 8) * 100}%`, transition: 'width 1000ms linear' }} />
+            <div className="absolute bottom-0 left-0 h-1 bg-blue-500 rounded-b-2xl overflow-hidden shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+              style={{ width: `${(turnTimeLeft / 8) * 100}%`, transition: 'width 1000ms linear' }} />
           )}
         </div>
 
         {/* Player 2 (O) Card */}
         <div className={cn(
-          "flex-1 relative flex items-center flex-row-reverse gap-3 p-3 sm:p-4 rounded-2xl border transition-all duration-300",
+          "flex-1 relative flex items-center flex-row-reverse gap-3 p-4 rounded-2xl border transition-all duration-200",
           "bg-white/95 backdrop-blur-sm shadow-xl",
           currentPlayer === "O" && gameStatus === "playing"
-            ? "border-red-500 ring-2 ring-red-500/20 scale-[1.02]"
+            ? "border-red-500 ring-2 ring-red-500/20"
             : "border-white/20 opacity-90"
         )}>
           <div className="relative flex-none">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg ring-2 ring-white/50">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-white/50">
               {gameMode === "player-vs-computer" ? "AI" : getInitials(player2)}
             </div>
             <div className="absolute -bottom-1 -left-1 min-w-[1.25rem] h-5 bg-red-100 rounded-full flex items-center justify-center border-2 border-white px-1">
@@ -87,26 +163,21 @@ export function GameScore({ player1, player2, scoreX, scoreO, currentPlayer, gam
             </div>
           </div>
           <div className="flex flex-col items-end min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-gray-500 tracking-wider truncate">
-              {player2}
-            </span>
+            <span className="text-sm font-bold text-gray-500 tracking-wider truncate">{player2}</span>
             <div className="flex items-baseline gap-2 flex-row-reverse">
-              <span className="text-2xl sm:text-3xl font-black text-red-600 leading-none">
-                {scoreO}
-              </span>
+              <span className="text-3xl font-black text-red-600 leading-none">{scoreO}</span>
               {currentPlayer === "O" && gameStatus === "playing" && (
-                <span className="text-[10px] sm:text-xs font-bold text-red-500 animate-pulse">
-                  {getTurnText("O")}
-                </span>
+                <span className="text-xs font-bold text-red-500 animate-pulse">{getTurnText("O")}</span>
               )}
             </div>
           </div>
-          {/* Turn Timer Progress Bar */}
           {currentPlayer === "O" && gameStatus === "playing" && (
-            <div className="absolute bottom-0 right-0 h-1 bg-red-500 rounded-b-2xl overflow-hidden shadow-[0_0_8px_rgba(239,68,68,0.6)]" style={{ width: `\${(turnTimeLeft / 8) * 100}%`, transition: 'width 1000ms linear' }} />
+            <div className="absolute bottom-0 right-0 h-1 bg-red-500 rounded-b-2xl overflow-hidden shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+              style={{ width: `${(turnTimeLeft / 8) * 100}%`, transition: 'width 1000ms linear' }} />
           )}
         </div>
       </div>
+
     </div>
   )
 }
