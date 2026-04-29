@@ -294,5 +294,6 @@ export function useMatchRoom(initialMatchId?: string, initialRoomCode?: string) 
     makeMove,
     leaveRoom,
     matchState: state.matchState,
+    setMatchRoom: setState,
   }
 }

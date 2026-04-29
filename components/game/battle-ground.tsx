@@ -119,6 +119,15 @@ export function BattleGround({
 
   // Match Room Hook (for tournament/online play) - MOVED UP to fix dependency issues
   const matchRoom = useMatchRoom(matchId, initialRoomCode)
+  const { setMatchRoom: setMatchRoomState } = matchRoom as any
+  const setMatchRoom = useCallback((data: any) => {
+    setMatchRoomState((prev: any) => ({
+      ...prev,
+      roomId: data.id || data.roomId || prev.roomId,
+      participants: data.participants || prev.participants,
+      matchState: { ...prev.matchState, ...data }
+    }))
+  }, [setMatchRoomState])
 
   // Fallback polling for when WebSocket fails
   const startFallbackPolling = useCallback(() => {
@@ -480,7 +489,7 @@ export function BattleGround({
           }
 
           if (serverMatchData) {
-            useGameStore.getState().applyServerMatchState(serverMatchData)
+            useGameStore.getState().applyServerMatchState?.(serverMatchData)
           }
         } catch (error) {
           console.error("[BattleGround] Error loading initial match data:", error)
@@ -644,8 +653,8 @@ export function BattleGround({
                 const winnerId = serverMatch.winner
                 if (winnerId) {
                   const result = winnerId === user?.id ? 'win' : 'lose'
-                  setGameResult(result)
-                  setShowResultModal(true)
+                  setResultType(result)
+                  setResultModalOpen(true)
                 }
               }
             }
@@ -1019,7 +1028,7 @@ export function BattleGround({
           const store = useGameStore.getState()
           if (store.lastServerMatchState) {
             console.log("[BattleGround] Rolling back move due to server rejection")
-            store.applyServerMatchState(store.lastServerMatchState)
+            store.applyServerMatchState?.(store.lastServerMatchState)
           }
 
           toast({

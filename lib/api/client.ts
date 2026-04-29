@@ -6,6 +6,7 @@ interface ApiResponse<T = any> {
   error?: string
   message?: string
   status?: number
+  matchId?: string
 }
 
 interface LoginResponse {

@@ -20,7 +20,7 @@ import { HostAdminModal } from "@/components/tournament/host-admin-modal"
 import { TournamentWaitingRoom } from "@/components/tournament/tournament-waiting-room"
 import { toast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api/client"
-import { AlertDialogConfirm } from "@/components/ui/alert-dialog-confirm"
+import AlertDialogConfirm from "@/components/ui/alert-dialog-confirm"
 import Image from "next/image"
 import { Trash2, ShieldCheck } from "lucide-react"
 
@@ -295,7 +295,7 @@ export default function TournamentPage({ params }: { params: { id: string } }) {
                 amount: 15000,
                 method: 'card',
                 email: user.email,
-                name: user.fullName || user.username,
+                name: user.fullName || user.email,
                 userId: user.id,
                 tournamentId: tournamentId,
                 redirectUrl: `${window.location.origin}/payment-return`,

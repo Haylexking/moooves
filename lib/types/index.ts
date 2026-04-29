@@ -18,6 +18,7 @@ export interface User {
   password?: string
   repeatPassword?: string // Backend expects repeatPassword
   fullName: string
+  username?: string
   emailVerified?: boolean
   role?: UserRole
   status?: "active" | "inactive" | "banned"
