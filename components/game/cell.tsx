@@ -26,7 +26,7 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
         justifyContent: "center",
         background: "white",
         border: "1px solid rgba(0,0,0,0.06)",
-        color: value === "X" ? "#1e40af" : value === "O" ? "#dc2626" : "transparent",
+        color: isUsed ? "#9ca3af" : value === "X" ? "#1e40af" : value === "O" ? "#dc2626" : "transparent",
         fontWeight: 700,
         fontSize: isMobile ? '0.5rem' : '0.9rem',
         touchAction: 'manipulation',
@@ -35,11 +35,25 @@ function CellInner({ value, onClick, disabled, isHighlighted = false, isUsed, is
     >
       <span
         className={cn(
-          isUsed && "line-through decoration-2",
-          "select-none pointer-events-none" // Prevent text selection and touch events
+          "select-none pointer-events-none",
+          isUsed && "relative inline-block"
         )}
       >
         {value}
+        {isUsed && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "50%",
+              height: "2px",
+              backgroundColor: "#9ca3af",
+              transform: "translateY(-50%)",
+            }}
+          />
+        )}
       </span>
     </button>
   )
