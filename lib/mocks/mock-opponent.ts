@@ -1,18 +1,65 @@
 import type { GameBoard, Position, Player, Sequence } from "@/lib/types"
 import { checkWinConditions } from "@/lib/utils/game-logic"
 
+// ============================================================================
+// DIFFICULTY SYSTEM
+// ============================================================================
+
+export interface DifficultyConfig {
+  /** Radius around existing pieces used to generate candidate moves */
+  candidateRadius: number
+  /** Magnitude of random noise added to strategic scores (0 = deterministic) */
+  randomNoise: number
+  /** Exponent applied to AI's own sequence length in strategic scoring */
+  offensiveExponent: number
+  /** Exponent applied to opponent's sequence length in strategic scoring */
+  defensiveExponent: number
+  /** Whether to run the opponent-fork-blocking step before the AI's own fork step */
+  blockOpponentForks: boolean
+  /** Minimum combined arm length on a single axis for the opponent fork to be considered dangerous */
+  opponentForkMinArmLength: number
+}
+
+const NORMAL_CONFIG: DifficultyConfig = {
+  candidateRadius: 2,
+  randomNoise: 2,
+  offensiveExponent: 2,
+  defensiveExponent: 3,
+  blockOpponentForks: false,
+  opponentForkMinArmLength: 3,
+}
+
+const HARD_CONFIG: DifficultyConfig = {
+  candidateRadius: 3,
+  randomNoise: 0,
+  offensiveExponent: 2.5,
+  defensiveExponent: 3.5,
+  blockOpponentForks: true,
+  opponentForkMinArmLength: 2,
+}
+
+const AVAILABLE_DIFFICULTIES = {
+  NORMAL: NORMAL_CONFIG,
+  HARD: HARD_CONFIG,
+}
+
+// ── Toggle difficulty here ────────────────────────────────────────────────────
+export const DIFFICULTY: DifficultyConfig = AVAILABLE_DIFFICULTIES.HARD;
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function mockOpponentMove(
   board: GameBoard,
   currentPlayer: Player = "O",
   usedSequences: Sequence[] = [],
   currentScores: Record<Player, number> = { X: 0, O: 0 },
 ): Position | null {
+  const config = DIFFICULTY
   const availableMoves = getAvailableMoves(board)
   // Build a global forbidden set so AI avoids extending any already-scored sequences
   const forbidden = buildForbiddenExtensions(board, usedSequences)
 
   // Candidate pruning for efficiency: for strategic steps, consider only moves near activity
-  const nearbyCandidates = getNearbyCandidates(board, 2)
+  const nearbyCandidates = getNearbyCandidates(board, config.candidateRadius)
   const strategicCandidatesRaw = nearbyCandidates.length > 0 ? nearbyCandidates : availableMoves
   const strategicCandidates = strategicCandidatesRaw.filter(([r, c]) => !forbidden.has(`${r},${c}`))
 
@@ -40,7 +87,18 @@ export function mockOpponentMove(
   const emerging = findEmergingThreatMove(board, opponentPlayer, availableMoves, currentPlayer)
   if (emerging) return emerging
 
-  // 3.5. If no threats to block, try to create a fork (two simultaneous strong threats)
+  // 3.5a. [HARD ONLY] Block opponent fork setups before they mature
+  if (config.blockOpponentForks) {
+    const opponentForkBlock = findOpponentForkBlockMove(
+      board,
+      opponentPlayer,
+      strategicCandidates,
+      config.opponentForkMinArmLength,
+    )
+    if (opponentForkBlock) return opponentForkBlock
+  }
+
+  // 3.5b. If no threats to block, try to create a fork (two simultaneous strong threats)
   const forkMove = findForkWinningSetupMove(board, currentPlayer, strategicCandidates)
   if (forkMove) return forkMove
 
@@ -165,6 +223,48 @@ function evaluateSelfStrategic(board: GameBoard, player: Player, row: number, co
   }
   if (forkDirs >= 2) score += forkDirs * forkDirs * 10
   return score
+}
+
+/**
+ * [HARD MODE] Detect squares where the opponent could create a fork on their next
+ * move and pre-emptively occupy the most dangerous one.
+ *
+ * A "fork square" for the opponent is an empty cell where, if the opponent were to
+ * play there, at least two principal axes would each yield a combined run of length
+ * >= minArmLength with at least one open end. We block the worst such square.
+ */
+function findOpponentForkBlockMove(
+  board: GameBoard,
+  opponent: Player,
+  candidateMoves: Position[],
+  minArmLength: number,
+): Position | null {
+  const axes: Position[] = [[0, 1], [1, 0], [1, 1], [1, -1]]
+  let best: { pos: Position; forkCount: number; sumLen: number } | null = null
+
+  for (const [row, col] of candidateMoves) {
+    if (board[row][col] !== null) continue
+    let forkCount = 0
+    let sumLen = 0
+
+    for (const [dr, dc] of axes) {
+      const { length, openEnds } = measureLine(board, opponent, row, col, dr, dc)
+      // If opponent plays here, the combined run becomes length + 1.
+      // Require at least one open end on the far side.
+      if (openEnds >= 1 && length + 1 >= minArmLength) {
+        forkCount++
+        sumLen += length
+      }
+    }
+
+    if (forkCount >= 2) {
+      if (!best || forkCount > best.forkCount || (forkCount === best.forkCount && sumLen > best.sumLen)) {
+        best = { pos: [row, col], forkCount, sumLen }
+      }
+    }
+  }
+
+  return best ? best.pos : null
 }
 
 // Try to create a fork: placing a stone that forms two separate strong threats.
@@ -377,7 +477,7 @@ export function findStrategicMove(
       if (ourSequence.length >= 2) {
         // Prefer longer sequences with open ends
         const { openEnds } = measureLine(board, player, row, col, dr, dc)
-        score += Math.pow(ourSequence.length, 2) * (1 + openEnds * 0.5)
+        score += Math.pow(ourSequence.length, DIFFICULTY.offensiveExponent) * (1 + openEnds * 0.5)
       }
 
       // Evaluate defensive potential (opponent's sequences)
@@ -385,7 +485,7 @@ export function findStrategicMove(
       if (theirSequence.length >= 2) {
         // More urgent to block longer opponent sequences
         const { openEnds } = measureLine(board, opponent, row, col, dr, dc)
-        score += Math.pow(theirSequence.length, 3) * (1 + openEnds * 0.5)
+        score += Math.pow(theirSequence.length, DIFFICULTY.defensiveExponent) * (1 + openEnds * 0.5)
       }
     }
 
@@ -394,8 +494,10 @@ export function findStrategicMove(
     const centerBonus = 15 - centerDist * 0.5
     score += centerBonus
 
-    // Slight random factor to avoid predictable moves
-    score += Math.random() * 2 - 1
+    // Slight random factor to avoid predictable moves (0 in HARD mode = fully deterministic)
+    score += DIFFICULTY.randomNoise > 0
+      ? Math.random() * DIFFICULTY.randomNoise - DIFFICULTY.randomNoise / 2
+      : 0
 
     strategicMoves.push({ position: [row, col], score })
   }
