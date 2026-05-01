@@ -22,8 +22,6 @@ export function checkWinConditions(
   const newUsedPositions: Position[] = []
   let scoreIncrease = 0
   const awardedKeys = new Set<string>()
-  // Track positions that are already used from previous turns to avoid re-scoring them.
-  const previouslyUsed = new Set<string>(usedPositions)
 
   // Build a quick lookup of already-used sequences using a canonical string key
   const usedSequenceKeys = new Set<string>(usedSequences.map((s) => canonicalSeqKey(s)))
@@ -32,27 +30,38 @@ export function checkWinConditions(
   for (const [dr, dc] of DIRECTIONS) {
     const sequence = findSequenceInDirection(board, player, row, col, dr, dc)
 
-    // For sequences of 5 or more, check for valid 5-in-a-row
-    if (sequence.length >= 5) {
-      // Only check the first valid 5-in-a-row in this direction
-      // to avoid multiple points for overlapping sequences
-      const block = sequence.slice(0, 5)
+    if (sequence.length < 5) continue
 
-      // Check if any position in this block is already used
-      const hasUsed = block.some(([r, c]) => previouslyUsed.has(`${r},${c}`))
-      if (hasUsed) continue
+    // Build used-position set for THIS direction only, derived from previously scored
+    // sequences in the same direction. This allows cross-direction sequences (e.g. a
+    // diagonal crossing a scored horizontal line) to score independently.
+    // Use the same canonical key scheme as getSeqDirectionKey so lookups match.
+    const dirKey = dr === 0 ? "0,1" : dc === 0 ? "1,0" : dr * dc > 0 ? "1,1" : "1,-1"
+    const dirUsedPositions = new Set<string>()
+    for (const seq of usedSequences) {
+      if (getSeqDirectionKey(seq) === dirKey) {
+        seq.forEach(([r, c]) => dirUsedPositions.add(`${r},${c}`))
+      }
+    }
 
-      // Any 5-in-a-row sequence is valid, regardless of being boxed in by opponent
-      // We only need to check if the sequence is already used
+    // Slide through windows of 5, skipping positions already locked in this direction.
+    // This also handles runs of 10+ where the first 5 are locked but [5-9] should score.
+    let scored = false
+    for (let i = 0; i <= sequence.length - 5 && !scored; i++) {
+      const block = sequence.slice(i, i + 5)
+
+      // Skip if any position in this block was already scored in the same direction
+      if (block.some(([r, c]) => dirUsedPositions.has(`${r},${c}`))) continue
 
       const blockKey = canonicalSeqKey(block)
-      if (!usedSequenceKeys.has(blockKey) && !awardedKeys.has(blockKey)) {
-        const canonicalSeq = canonicalSeqFromKey(blockKey)
-        newSequences.push(canonicalSeq)
-        newUsedPositions.push(...canonicalSeq)
-        awardedKeys.add(blockKey)
-        scoreIncrease++
-      }
+      if (usedSequenceKeys.has(blockKey) || awardedKeys.has(blockKey)) continue
+
+      const canonicalSeq = canonicalSeqFromKey(blockKey)
+      newSequences.push(canonicalSeq)
+      newUsedPositions.push(...canonicalSeq)
+      awardedKeys.add(blockKey)
+      scoreIncrease++
+      scored = true
     }
   }
 
@@ -68,6 +77,19 @@ export function checkWinConditions(
 // Utility function to check if a position is valid
 export function isValidPosition(row: number, col: number): boolean {
   return row >= 0 && row < 30 && col >= 0 && col < 30
+}
+
+// Returns a normalised direction key for a sequence that matches the canonical DIRECTIONS
+// values: "0,1" (horizontal), "1,0" (vertical), "1,1" (diagonal DR), "1,-1" (diagonal DL).
+// Because canonicalSeqKey may store a sequence in either order, we normalise the delta so
+// that dr is always non-negative (and dc positive when dr is 0).
+function getSeqDirectionKey(seq: Sequence): string {
+  if (seq.length < 2) return ""
+  const dr = seq[1][0] - seq[0][0]
+  const dc = seq[1][1] - seq[0][1]
+  if (dr === 0) return "0,1"             // horizontal
+  if (dc === 0) return "1,0"             // vertical
+  return dr * dc > 0 ? "1,1" : "1,-1"   // diagonal-right vs diagonal-left
 }
 
 // Revised function to find the full sequence in a given direction (and its opposite)
@@ -142,24 +164,36 @@ export function calculateGameStateFromBoard(board: GameBoard): {
 } {
   const scores: Record<Player, number> = { X: 0, O: 0 };
   const usedSequences: Sequence[] = [];
-  const usedPositions = new Set<string>();
+  const usedPositions = new Set<string>(); // global — for return value / display
   const awardedKeys = new Set<string>();
 
-  // Helper to process a potential sequence
-  const processSequence = (player: Player, sequence: Position[]) => {
+  // Per-direction used-position sets so cross-direction sequences are never blocked
+  // by cells already scored in a different direction.
+  const hUsedPos  = new Set<string>() // horizontal
+  const vUsedPos  = new Set<string>() // vertical
+  const drUsedPos = new Set<string>() // diagonal down-right
+  const dlUsedPos = new Set<string>() // diagonal down-left
+
+  // Helper to process a potential sequence.
+  // dirUsedPositions is direction-specific so only same-direction overlaps block re-scoring.
+  const processSequence = (player: Player, sequence: Position[], dirUsedPositions: Set<string>) => {
     if (sequence.length < 5) return;
 
-    // Simple 5-in-a-row = 1 point scoring
-    // Check if any position in this block is already used
-    const block = sequence.slice(0, 5);
-    const blockKey = canonicalSeqKey(block);
-    const hasUsed = block.some(([r, c]) => usedPositions.has(`${r},${c}`));
-    if (!hasUsed && !awardedKeys.has(blockKey)) {
+    // Slide through windows of 5, skipping any that are already locked in this direction.
+    for (let i = 0; i <= sequence.length - 5; i++) {
+      const block = sequence.slice(i, i + 5);
+      if (block.some(([r, c]) => dirUsedPositions.has(`${r},${c}`))) continue;
+      const blockKey = canonicalSeqKey(block);
+      if (awardedKeys.has(blockKey)) continue;
       // Valid score: 5-in-a-row = 1 point
       scores[player]++;
       usedSequences.push(canonicalSeqFromKey(blockKey));
       awardedKeys.add(blockKey);
-      block.forEach(([r, c]) => usedPositions.add(`${r},${c}`));
+      block.forEach(([r, c]) => {
+        dirUsedPositions.add(`${r},${c}`); // direction-local lock
+        usedPositions.add(`${r},${c}`);    // global (display / return)
+      });
+      break; // one score per run per call
     }
   };
 
@@ -178,7 +212,7 @@ export function calculateGameStateFromBoard(board: GameBoard): {
           // Found a sequence ending at c-1
           const seq: Position[] = [];
           for (let k = 0; k < currentLen; k++) seq.push([r, startC + k]);
-          processSequence(currentPlayer, seq);
+          processSequence(currentPlayer, seq, hUsedPos);
         }
         currentLen = cell ? 1 : 0;
         currentPlayer = cell;
@@ -189,7 +223,7 @@ export function calculateGameStateFromBoard(board: GameBoard): {
     if (currentLen >= 5 && currentPlayer) {
       const seq: Position[] = [];
       for (let k = 0; k < currentLen; k++) seq.push([r, startC + k]);
-      processSequence(currentPlayer, seq);
+      processSequence(currentPlayer, seq, hUsedPos);
     }
   }
 
@@ -206,7 +240,7 @@ export function calculateGameStateFromBoard(board: GameBoard): {
         if (currentLen >= 5 && currentPlayer) {
           const seq: Position[] = [];
           for (let k = 0; k < currentLen; k++) seq.push([startR + k, c]);
-          processSequence(currentPlayer, seq);
+          processSequence(currentPlayer, seq, vUsedPos);
         }
         currentLen = cell ? 1 : 0;
         currentPlayer = cell;
@@ -216,13 +250,12 @@ export function calculateGameStateFromBoard(board: GameBoard): {
     if (currentLen >= 5 && currentPlayer) {
       const seq: Position[] = [];
       for (let k = 0; k < currentLen; k++) seq.push([startR + k, c]);
-      processSequence(currentPlayer, seq);
+      processSequence(currentPlayer, seq, vUsedPos);
     }
   }
 
-  // 3. Diagonals (Down-Right)
-  // Starts from first column (rows 0-29) and first row (cols 1-29)
-  const checkDiag = (startR: number, startC: number, dr: number, dc: number) => {
+  // 3. Diagonals — each direction gets its own used-position set
+  const checkDiag = (startR: number, startC: number, dr: number, dc: number, dirUsedPos: Set<string>) => {
     let r = startR;
     let c = startC;
     let currentLen = 0;
@@ -238,15 +271,11 @@ export function calculateGameStateFromBoard(board: GameBoard): {
         if (currentLen >= 5 && currentPlayer) {
           const seq: Position[] = [];
           for (let k = 0; k < currentLen; k++) seq.push([seqStartR + k * dr, seqStartC + k * dc]);
-          processSequence(currentPlayer, seq);
+          processSequence(currentPlayer, seq, dirUsedPos);
         }
         currentLen = cell ? 1 : 0;
         currentPlayer = cell;
-        seqStartR = r; // reset start of next potential sequence
-        seqStartC = c; // Note: this logic needs care. `r` is current. 
-        // Simplification: just collect the whole diagonal line segments?
-        // Re-implement: Just push position to buffer if match.
-        if (cell) { // started new
+        if (cell) {
           seqStartR = r;
           seqStartC = c;
         }
@@ -257,19 +286,17 @@ export function calculateGameStateFromBoard(board: GameBoard): {
     if (currentLen >= 5 && currentPlayer) {
       const seq: Position[] = [];
       for (let k = 0; k < currentLen; k++) seq.push([seqStartR + k * dr, seqStartC + k * dc]);
-      processSequence(currentPlayer, seq);
+      processSequence(currentPlayer, seq, dirUsedPos);
     }
   };
 
   // TL to BR diagonals
-  for (let r = 0; r < 30; r++) checkDiag(r, 0, 1, 1);
-  for (let c = 1; c < 30; c++) checkDiag(0, c, 1, 1);
+  for (let r = 0; r < 30; r++) checkDiag(r, 0, 1, 1, drUsedPos);
+  for (let c = 1; c < 30; c++) checkDiag(0, c, 1, 1, drUsedPos);
 
   // TR to BL diagonals
-  // Starts from last column (rows 0-29) and first row (cols 0-28)
-  // dr = 1, dc = -1
-  for (let r = 0; r < 30; r++) checkDiag(r, 29, 1, -1);
-  for (let c = 0; c < 29; c++) checkDiag(0, c, 1, -1);
+  for (let r = 0; r < 30; r++) checkDiag(r, 29, 1, -1, dlUsedPos);
+  for (let c = 0; c < 29; c++) checkDiag(0, c, 1, -1, dlUsedPos);
 
   return { scores, usedSequences, usedPositions };
 }

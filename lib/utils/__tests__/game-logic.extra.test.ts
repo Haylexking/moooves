@@ -1,5 +1,5 @@
 import { checkWinConditions } from "../game-logic"
-import type { GameBoard } from "@/lib/types"
+import type { GameBoard, Position } from "@/lib/types"
 
 function createTestBoard(): GameBoard {
   return Array(30)
@@ -15,13 +15,14 @@ describe("checkWinConditions extra cases", () => {
     expect(result.newSequences.length).toBe(0)
   })
 
-  it("doesn't count sequences if positions are already used via usedPositions set", () => {
+  it("doesn't re-score an exact sequence already recorded in usedSequences", () => {
     const board = createTestBoard()
     for (let i = 0; i < 5; i++) {
       board[2][2 + i] = "O"
     }
-    const usedPositions = new Set<string>(["2,2","2,3","2,4","2,5","2,6"])
-    const result = checkWinConditions(board, "O", 2, 6, [], { X: 0, O: 0 }, usedPositions)
+    // The exact same 5-in-a-row is already in usedSequences
+    const usedSeqs: Position[][] = [[[2,2],[2,3],[2,4],[2,5],[2,6]]]
+    const result = checkWinConditions(board, "O", 2, 6, usedSeqs, { X: 0, O: 0 })
     expect(result.newSequences.length).toBe(0)
   })
 })
